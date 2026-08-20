@@ -2,6 +2,46 @@
 
 Abhi sirf frontend deploy karna hai. Backend, PostgreSQL, `DATABASE_URL`, cPanel Node.js App, aur migrations ki zaroorat nahi.
 
+## Important: 502 Bad Gateway fix
+
+`502 Bad Gateway` ka matlab hai ke aapka domain nginx se cPanel Node.js application ko proxy kar raha hai, lekin upstream application run nahi ho rahi. Is project mein frontend ko cPanel Node.js App ke through serve karne ke liye `server.cjs` already included hai.
+
+502 fix karne ke liye cPanel mein yeh values use karein:
+
+| cPanel field             | Value                                 |
+| ------------------------ | ------------------------------------- |
+| Node.js version          | 20 or newer                           |
+| Application mode         | Production                            |
+| Application root         | `scorelo-frontend`                    |
+| Application URL          | `https://scorelo-staging.tlxapps.com` |
+| Application startup file | `server.cjs`                          |
+
+Application root ke andar yeh files/folders honi chahiye:
+
+```text
+scorelo-frontend/
+  server.cjs
+  package.json
+  package-lock.json
+  dist/
+    index.html
+    assets/
+    fonts/
+```
+
+Node.js App create karne ke baad cPanel Terminal mein run karein:
+
+```bash
+cd ~/scorelo-frontend
+npm ci --omit=dev
+```
+
+`dist` folder local machine par `npm run build` se pehle hi generate karein aur cPanel application root mein upload karein. Server par `npm run build` na chalayein jab `--omit=dev` use kiya ho.
+
+Phir cPanel **Setup Node.js App** mein **Restart** press karein. `PORT` manually set na karein; cPanel khud `PORT` provide karta hai.
+
+Agar purani broken Node.js application isi domain par lagi hui hai, us application ko delete/recreate karein ya uska startup file `server.cjs` karein. Ek hi domain ko simultaneously static `public_html` aur Node.js proxy dono par configure na karein.
+
 ## 1. Local build
 
 Project root mein terminal open karein:
@@ -19,6 +59,8 @@ Node.js 20 ya newer recommended hai. Build ke baad ready files yahan hongi:
 ```text
 M:\projects\scorelo2\frontend\dist
 ```
+
+Node.js App deployment ke liye `frontend` folder ki `server.cjs`, `package.json`, `package-lock.json`, aur `dist` upload karein. Static deployment ke liye sirf `dist` ki contents upload karna kaafi hai.
 
 Optional local preview:
 

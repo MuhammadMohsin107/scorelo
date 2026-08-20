@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Scorelo">
+  <rect width="64" height="64" rx="12" fill="#111827"/>
+  <path d="M17 44V20h15c8 0 13 4 13 10s-5 10-13 10h-7v4h-8Zm8-11h7c3.2 0 5-1 5-3s-1.8-3-5-3h-7v6Z" fill="#ffffff"/>
+  <path d="M39 44h-8l-7-9h8l7 9Z" fill="#22c55e"/>
+</svg>
