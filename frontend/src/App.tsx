@@ -17,6 +17,7 @@ import FixCenter from './pages/FixCenter';
 import Integrations from './pages/Integrations';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/settings/:section" element={<Settings />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/seo" element={<SeoDashboard />} />
           <Route path="/seo/:subPillar" element={<SeoSubPillarRoute />} />
 

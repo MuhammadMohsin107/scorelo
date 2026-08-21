@@ -124,6 +124,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Auto-expand SEO if we're on an SEO route
   const isSeoExpanded = expandedPillars['seo'] ?? isSeoSection;
 
+  const togglePillar = (pillarKey: string, route: string, isExpanded: boolean) => {
+    navigate(route);
+    setExpandedPillars(isExpanded ? {} : { [pillarKey]: true });
+    onClose();
+  };
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -149,17 +155,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Logo Area */}
         <div className="flex items-center justify-between h-16 px-5 flex-shrink-0 border-b border-surface-200">
-          <NavLink to="/" className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-indigo-600 rounded flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xs tracking-tight">S</span>
+          <NavLink to="/" onClick={onClose} className="flex items-center gap-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded bg-brand-600 text-white shadow-sm">
+              <BarChart3 size={15} strokeWidth={2.5} aria-hidden="true" />
             </div>
-            <span className="text-surface-900 font-extrabold tracking-tight text-lg">
-              Scorelo
+            <span className="text-[14px] font-bold tracking-widest text-surface-900">
+              SCORELO
             </span>
           </NavLink>
           <button
             onClick={onClose}
-            className="lg:hidden text-surface-500 hover:text-surface-900 p-1 rounded-md hover:bg-surface-200 transition-colors"
+            className="lg:hidden rounded-md p-1 text-surface-400 transition-colors hover:bg-surface-200 hover:text-surface-900"
             aria-label="Close sidebar"
           >
             <X size={18} />
@@ -173,12 +179,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <NavLink
               to="/"
               end
+              onClick={onClose}
               className={({ isActive }) => `
-                flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-semibold
-                transition-colors duration-150
+                relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium
+                transition-all duration-200
                 ${isActive
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-surface-600 hover:text-surface-900 hover:bg-surface-200/50'
+                  ? 'text-surface-900 font-semibold bg-surface-200/50 before:absolute before:left-0 before:h-5 before:w-[3px] before:rounded-r-full before:bg-brand-600'
+                  : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'
                 }
               `}
             >
@@ -202,21 +209,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <div key={pillar.key}>
                     {/* SEO Pillar Row */}
                     <button
-                      onClick={() => {
-                        navigate('/seo');
-                        setExpandedPillars((prev) => ({ ...prev, seo: true }));
-                      }}
+                      onClick={() => togglePillar('seo', '/seo', isSeoExpanded)}
                       className={`
-                        flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-semibold
-                        transition-colors duration-150 group
+                        relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium
+                        transition-all duration-200 group
                         focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-300
                         ${isSeoSection
-                          ? 'bg-surface-100 text-surface-800'
-                          : 'text-surface-600 hover:text-surface-900 hover:bg-surface-200/50'
+                          ? 'text-surface-900 font-semibold'
+                          : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'
                         }
                       `}
                     >
-                      <span className={`flex-shrink-0 ${isSeoSection ? 'text-surface-700' : 'text-surface-500 group-hover:text-surface-700'}`}>
+                      <span className={`flex-shrink-0 ${isSeoSection ? 'text-surface-900' : 'text-surface-400 group-hover:text-surface-900'}`}>
                         {icon}
                       </span>
                       <span className="flex-1 text-left">{pillar.label}</span>
@@ -227,19 +231,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                     {/* SEO Sub-Pillar Routes */}
                     {isSeoExpanded && (
-                      <ul className="mt-1 mb-2 ml-4 pl-4 border-l-2 border-surface-200 space-y-0.5">
+                      <ul className="mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4">
                         {seoSubRoutes.map((sub) => (
-                          <li key={sub.id}>
+                          <li key={sub.id} className="relative">
                             <NavLink
                               to={sub.path}
+                              onClick={onClose}
                               end={sub.path === '/seo'}
                               className={({ isActive }) => `
-                                block w-full text-left px-3 py-1.5 rounded-md text-[12px] font-medium
-                                transition-colors duration-150
+                                block w-full text-left px-3 py-1.5 rounded-md text-[13px] font-medium
+                                transition-all duration-200
                                 focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-300
                                 ${isActive
-                                  ? 'text-surface-800 bg-surface-100/60 font-semibold'
-                                  : 'text-surface-500 hover:text-surface-800 hover:bg-surface-200/40'
+                                  ? 'text-surface-900 font-semibold before:absolute before:-left-[18px] before:top-0 before:bottom-0 before:w-[2px] before:bg-brand-600'
+                                  : 'text-surface-500 hover:text-surface-900'
                                 }
                               `}
                             >
@@ -258,20 +263,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               return (
                 <div key={pillar.key}>
                   <button
-                    onClick={() => {
-                      navigate(route);
-                      setExpandedPillars((prev) => ({ ...prev, [pillar.key]: true }));
-                    }}
+                    onClick={() => togglePillar(pillar.key, route, Boolean(expandedPillars[pillar.key]))}
                     className={`
-                      flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-semibold
-                      transition-colors duration-150 group
+                      relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium
+                      transition-all duration-200 group
                       ${isPillarActive
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-surface-600 hover:text-surface-900 hover:bg-surface-200/50'
+                        ? 'text-surface-900 font-semibold'
+                        : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'
                       }
                     `}
                   >
-                    <span className={`flex-shrink-0 ${isPillarActive ? 'text-indigo-600' : 'text-surface-500 group-hover:text-surface-700'}`}>
+                    <span className={`flex-shrink-0 ${isPillarActive ? 'text-surface-900' : 'text-surface-400 group-hover:text-surface-900'}`}>
                       {icon}
                     </span>
                     <span className="flex-1 text-left">{pillar.label}</span>
@@ -282,17 +284,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                   {/* Sub-Pillar Routes */}
                   {expandedPillars[pillar.key] && subRoutes && subRoutes.length > 0 && (
-                    <ul className="mt-1 mb-2 ml-4 pl-4 border-l-2 border-surface-200 space-y-0.5">
+                    <ul className="mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4">
                       {subRoutes.map((sub) => (
-                        <li key={sub.id}>
+                        <li key={sub.id} className="relative">
                           <NavLink
                             to={sub.path}
+                            onClick={onClose}
                             className={({ isActive }) => `
-                              block w-full text-left px-3 py-1.5 rounded-md text-[12px] font-medium
-                              transition-colors duration-150
+                              block w-full text-left px-3 py-1.5 rounded-md text-[13px] font-medium
+                              transition-all duration-200
                               ${isActive
-                                ? 'text-indigo-700 bg-indigo-50/60 font-semibold'
-                                : 'text-surface-500 hover:text-surface-800 hover:bg-surface-200/40'
+                                ? 'text-surface-900 font-semibold before:absolute before:-left-[18px] before:top-0 before:bottom-0 before:w-[2px] before:bg-brand-600'
+                                : 'text-surface-500 hover:text-surface-900'
                               }
                             `}
                           >
@@ -307,7 +310,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             })}
           </div>
 
-          {/* Separator */}
           <div className="my-4 border-t border-surface-200" />
 
           {/* Utility Links */}
@@ -316,9 +318,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <NavLink
                 key={link.id}
                 to={`/${link.id}`}
-                className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150 group ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-surface-500 hover:text-surface-900 hover:bg-surface-200/50'}`}
+                onClick={onClose}
+                className={({ isActive }) => `relative flex items-center gap-3 w-full px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 group ${isActive ? 'text-surface-900 font-semibold bg-surface-200/50 before:absolute before:left-0 before:h-5 before:w-[3px] before:rounded-r-full before:bg-brand-600' : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'}`}
               >
-                <span className="text-surface-400 group-hover:text-surface-600 flex-shrink-0">
+                <span className="flex-shrink-0 text-surface-400 group-hover:text-surface-900">
                   {link.icon}
                 </span>
                 {link.label}
@@ -329,15 +332,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* User Profile Bottom Area */}
         <div className="flex-shrink-0 border-t border-surface-200 p-3">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-surface-200/50 transition-colors cursor-pointer group">
-            <div className="w-8 h-8 rounded bg-surface-200 flex items-center justify-center flex-shrink-0 border border-surface-300 text-surface-700">
+          <div className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 transition-all duration-200 group hover:bg-surface-200/50">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-surface-300 bg-surface-100 text-surface-900">
               <span className="text-[11px] font-bold">JD</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold text-surface-900 truncate">
+              <p className="truncate text-[13px] font-bold text-surface-900">
                 John Doe
               </p>
-              <p className="text-[11px] font-medium text-surface-500 truncate">
+              <p className="truncate text-[11px] font-medium text-surface-500">
                 Free Plan
               </p>
             </div>

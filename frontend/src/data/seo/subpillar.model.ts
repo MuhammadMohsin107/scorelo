@@ -128,6 +128,10 @@ export interface SubPillarAnalysis {
   slug: string;
   title: string;
   description: string;
+  /** Enables the reusable test-safe bulk-fix workflow on supported sub-pillars only. */
+  supportsBulkFix?: boolean;
+  /** Selects the validation adapter used by the shared workflow. */
+  bulkFixMode?: 'title-tags' | 'generic';
   /** Sentence under the status, written per sub-pillar. */
   summary: string;
   /** Chip beside the status, e.g. "94.5% healthy". */

@@ -113,6 +113,8 @@ export const titleTagsAnalysis: SubPillarAnalysis = {
   slug: 'title-tags',
   title: 'Title Tags',
   description: 'Evaluate how effectively your store uses unique, descriptive and search-friendly page titles.',
+  supportsBulkFix: true,
+  bulkFixMode: 'title-tags',
   summary: `${optimized.toLocaleString()} of ${pagesAnalyzed.toLocaleString()} crawled pages have a unique, well-sized title. ${issues} need attention — ${missing} of them urgently.`,
   healthChip: `${((optimized / pagesAnalyzed) * 100).toFixed(1)}% healthy`,
   totals: {

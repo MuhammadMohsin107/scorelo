@@ -1,6 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@theme {
+  --color-critical-50: #fef2f2;
+  --color-critical-100: #fee2e2;
+  --color-critical-200: #fecaca;
+  --color-critical-300: #fca5a5;
+  --color-critical-400: #f87171;
+  --color-critical-500: #ef4444;
+  --color-critical-600: #dc2626;
+  --color-critical-700: #b91c1c;
+}
 
 @font-face {
   font-family: 'Geist Sans';
@@ -123,22 +133,34 @@
 
   /* Professional buttons */
   .btn-primary {
-      @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-semibold leading-5 text-white shadow-sm
-        transition-all duration-200 hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
-        active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.2)] border border-brand-700
+      transition-all duration-200 hover:bg-brand-500 hover:shadow-[0_2px_4px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
   }
 
   .btn-secondary {
-      @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-surface-200 bg-white px-3.5 py-2 text-sm font-semibold leading-5 text-surface-700 shadow-sm
-        transition-all duration-200 hover:border-surface-300 hover:bg-surface-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
-        active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md border border-surface-200 bg-white px-4 py-2 text-[13px] font-medium text-surface-700 shadow-sm
+      transition-all duration-200 hover:border-surface-300 hover:bg-surface-50 hover:text-surface-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+  }
+
+  .btn-outline {
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md border border-surface-200 bg-transparent px-4 py-2 text-[13px] font-medium text-surface-700
+      transition-all duration-200 hover:border-surface-300 hover:bg-surface-50 hover:text-surface-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-transparent;
   }
 
   .btn-ghost {
-      @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold leading-5 text-surface-600
-        transition-all duration-200 hover:bg-surface-100 hover:text-surface-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
-        active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
-    }
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md px-3 py-2 text-[13px] font-medium text-surface-600
+      transition-all duration-200 hover:bg-surface-100 hover:text-surface-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-transparent;
+  }
+
+  .btn-destructive {
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md border border-critical-200 bg-critical-50 px-4 py-2 text-[13px] font-medium text-critical-700 shadow-sm
+      transition-all duration-200 hover:border-critical-300 hover:bg-critical-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-critical-500 focus-visible:ring-offset-2
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+  }
 
     button {
       font-family: inherit;

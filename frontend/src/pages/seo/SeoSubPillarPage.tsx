@@ -164,6 +164,8 @@ export default function SeoSubPillarPage({ analysis }: Props) {
             <EvidenceTable
               evidence={data.evidence}
               totalIssues={data.totals.issues}
+                supportsBulkFix={data.supportsBulkFix !== false}
+                bulkFixMode={data.bulkFixMode}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
               findings={data.findings}

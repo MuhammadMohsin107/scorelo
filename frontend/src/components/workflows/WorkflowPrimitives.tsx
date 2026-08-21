@@ -76,10 +76,10 @@ export function Drawer({ open, title, eyebrow, onClose, children }: { open: bool
 
 export function Button({ children, variant = 'primary', onClick, disabled = false, type = 'button' }: { children: ReactNode; variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; onClick?: () => void; disabled?: boolean; type?: 'button' | 'submit' }) {
   const classes = {
-    primary: 'bg-brand-600 text-white hover:bg-brand-700',
-    secondary: 'border border-surface-200 bg-white text-surface-700 hover:border-surface-300 hover:bg-surface-50',
-    ghost: 'text-surface-600 hover:bg-surface-100 hover:text-surface-950',
-    danger: 'border border-critical-100 bg-critical-50 text-critical-700 hover:bg-critical-100',
+    primary: 'btn-primary',
+    secondary: 'btn-secondary',
+    ghost: 'btn-ghost',
+    danger: 'btn-destructive',
   }[variant];
-  return <button type={type} onClick={onClick} disabled={disabled} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold leading-5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${classes}`}>{children}</button>;
+  return <button type={type} onClick={onClick} disabled={disabled} className={classes}>{children}</button>;
 }
