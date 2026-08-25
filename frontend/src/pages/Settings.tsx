@@ -15,8 +15,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import {
-  fetchSettings,
-  persistSettings,
   platformOptions,
   industryOptions,
   countryOptions,
@@ -25,10 +23,11 @@ import {
   frequencyOptions,
   crawlScopeOptions,
   notificationCopy,
-  integrationSummary,
   planInfo,
   type SettingsState,
 } from '../data/settings.mock';
+import { fetchSettings, persistSettings } from '../data/settings.repository';
+import { fetchIntegrations, type IntegrationRecord } from '../data/integrations.repository';
 import { Button, ModuleHeader, StatusBadge } from '../components/workflows/WorkflowPrimitives';
 import {
   ConfirmDialog,
@@ -667,7 +666,20 @@ export default function Settings() {
 
 // ─── Integrations (reads the real records; does not duplicate the module) ──
 function IntegrationsSection() {
-  const { records, connected, attention, total } = integrationSummary();
+  const [records, setRecords] = useState<IntegrationRecord[]>([]);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
+
+  useEffect(() => {
+    fetchIntegrations()
+      .then((data) => { setRecords(data); setLoadState('success'); })
+      .catch((error) => { console.error('Failed to load integrations', error); setLoadState('error'); });
+  }, []);
+
+  const connected = records.filter((record) => record.status === 'Connected').length;
+  const attention = records.filter((record) => record.status === 'Needs Attention').length;
+
+  if (loadState === 'loading') return <SettingsCard title="Connected data sources" description="Loading…"><div className="h-24" /></SettingsCard>;
+  if (loadState === 'error') return <SettingsCard title="Connected data sources" description="Failed to load integrations."><div /></SettingsCard>;
 
   return (
     <>
@@ -688,7 +700,7 @@ function IntegrationsSection() {
           {[
             { label: 'Connected', value: connected },
             { label: 'Need attention', value: attention },
-            { label: 'Available', value: total },
+            { label: 'Available', value: records.length },
           ].map((tile) => (
             <div key={tile.label} className="rounded-lg border border-surface-200 px-3 py-2.5">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{tile.label}</p>

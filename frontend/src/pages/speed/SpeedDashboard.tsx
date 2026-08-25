@@ -40,7 +40,7 @@ const areaRoute: Record<SpeedSubPillarKey, string> = {
 
 const areaTitleRoute: Record<string, string> = {
   'Core Web Vitals': '/speed/cwv',
-  'Image Weight & Format': '/speed/image-weight',
+  'Image Optimization': '/speed/image-weight',
   'App & Script Bloat': '/speed/app-bloat',
   'Theme Weight / Fonts / Lazy-load': '/speed/theme-weight',
 };
@@ -99,7 +99,7 @@ const areaCards: AreaCard[] = [
   },
   {
     key: 'image-weight',
-    title: 'Image Weight & Format',
+    title: 'Image Optimization',
     score: imageWeightFormatData.score,
     statusLabel: statusLabelForScore(imageWeightFormatData.score),
     description: 'Find oversized, unoptimized, and legacy-format images slowing your storefront.',

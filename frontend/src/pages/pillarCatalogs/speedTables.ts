@@ -1,4 +1,4 @@
-import type { GenericSubPillarDetails } from '../PillarSubPillarPage';
+import type { GenericSubPillarDetails } from './genericTypes';
 import {
   coreWebVitalsData,
   imageWeightFormatData,
@@ -49,7 +49,7 @@ export const speedTables: Record<string, GenericSubPillarDetails> = {
 
   'speed/image-weight': {
     table: {
-      title: 'Image Weight & Format Analysis',
+      title: 'Image Optimization Analysis',
       subtitle: `Images over ${imageWeightFormatData.oversizedThresholdKb}KB or served in legacy formats`,
       searchPlaceholder: 'Search by file or page…',
       filters: ['All', 'Oversized', 'Legacy Format', 'Optimized'],

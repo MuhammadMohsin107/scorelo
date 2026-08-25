@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "jobs_store_active_unique_idx" ON "jobs" USING btree ("store_id") WHERE "jobs"."status" IN ('queued', 'running');

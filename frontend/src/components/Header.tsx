@@ -1,23 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Bell, CheckCircle2, ChevronDown, FileText, Menu, Store, TrendingUp } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface NotificationItem {
-  id: number;
-  title: string;
-  description: string;
-  time: string;
-  read: boolean;
-  icon: typeof CheckCircle2;
-}
-
-const initialNotifications: NotificationItem[] = [
-  { id: 1, title: 'SEO analysis completed', description: 'Your latest SEO analysis has finished successfully.', time: '10 min ago', read: false, icon: CheckCircle2 },
-  { id: 2, title: 'Critical SEO issue detected', description: '8 canonical issues require attention.', time: '1 hour ago', read: false, icon: AlertCircle },
-  { id: 3, title: 'Score improved', description: 'Your overall Scorelo score increased by 3 points.', time: 'Yesterday', read: true, icon: TrendingUp },
-  { id: 4, title: 'Integration needs attention', description: 'Google Search Console requires reconnection.', time: 'Yesterday', read: false, icon: AlertCircle },
-  { id: 5, title: 'Weekly report generated', description: 'Your weekly Store Performance report is ready.', time: '2 days ago', read: true, icon: FileText },
-];
+import Breadcrumbs from './Breadcrumbs';
+import {
+  fetchNotifications,
+  formatNotificationTime,
+  iconForNotification,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  type NotificationRecord,
+} from '../data/notifications';
+import { fetchCurrentUser, initialsFor, subscribeCurrentUser } from '../data/user.repository';
+import { useAuth } from '../context/AuthContext';
+import type { UserRow } from '../data/api.types';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -25,10 +20,27 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const headerRef = useRef<HTMLElement>(null);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
+  const [user, setUser] = useState<UserRow | null>(null);
   const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(null);
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+
+  useEffect(() => {
+    fetchNotifications()
+      .then(setNotifications)
+      .catch((error) => console.error('Failed to load notifications', error));
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchCurrentUser()
+      .then((current) => { if (mounted) setUser(current); })
+      .catch((error) => console.error('Failed to load current user', error));
+    const unsubscribe = subscribeCurrentUser((current) => { if (mounted) setUser(current); });
+    return () => { mounted = false; unsubscribe(); };
+  }, []);
 
   useEffect(() => {
     const handleDocumentClick = (event: MouseEvent) => {
@@ -50,15 +62,21 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   const markNotificationRead = (id: number) => {
-    setNotifications((current) => current.map((notification) => notification.id === id ? { ...notification, read: true } : notification));
+    setNotifications((current) => current.map((notification) => notification.id === id ? { ...notification, isRead: true } : notification));
     setOpenMenu(null);
+    markNotificationAsRead(id).catch((error) => console.error('Failed to mark notification read', error));
+  };
+
+  const markAllRead = () => {
+    setNotifications((current) => current.map((notification) => ({ ...notification, isRead: true })));
+    markAllNotificationsAsRead().catch((error) => console.error('Failed to mark all notifications read', error));
   };
 
   return (
-    <header ref={headerRef} className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-surface-200/50">
-      <div className="flex items-center justify-between h-16 px-6 lg:px-8">
+    <header ref={headerRef} className="sticky top-0 z-30 border-b border-[#e8e5df] bg-[#f8f8f7]">
+      <div className="flex h-16 items-center justify-between gap-4 px-5 lg:px-8">
         {/* Left: Mobile Menu + Page Context */}
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={onMenuClick}
             className="lg:hidden p-2 -ml-2 text-surface-500 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors active:scale-[0.98]"
@@ -67,14 +85,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu size={20} />
           </button>
 
-          {/* Store Selector - Clean, minimal button */}
-          <button className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 text-sm font-semibold text-surface-800 bg-transparent hover:bg-surface-100 rounded-lg transition-colors group">
-            <div className="w-6 h-6 rounded bg-surface-100 border border-surface-200 flex items-center justify-center text-surface-500 group-hover:bg-white group-hover:border-surface-300 transition-colors">
-              <Store size={14} />
-            </div>
-            <span className="max-w-[160px] truncate">My Shopify Store</span>
-            <ChevronDown size={14} className="text-surface-400" />
-          </button>
+          <div className="min-w-0">
+            <Breadcrumbs compact />
+          </div>
+
         </div>
 
         {/* Right: Actions */}
@@ -94,19 +108,19 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <div className="absolute right-0 top-12 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-xl" role="dialog" aria-label="Notifications">
               <div className="flex items-center justify-between border-b border-surface-200 px-4 py-3">
                 <div><h2 className="text-sm font-bold text-surface-900">Notifications</h2><p className="mt-0.5 text-xs text-surface-500">{unreadCount} unread</p></div>
-                <button type="button" onClick={() => setNotifications((current) => current.map((notification) => ({ ...notification, read: true })))} className="text-xs font-semibold text-brand-600 hover:text-brand-700">Mark all as read</button>
+                <button type="button" onClick={markAllRead} className="text-xs font-semibold text-brand-600 hover:text-brand-700">Mark all as read</button>
               </div>
               <div className="max-h-[min(420px,calc(100vh-9rem))] overflow-y-auto">
                 {notifications.map((notification) => {
-                  const Icon = notification.icon;
-                  return <button type="button" key={notification.id} onClick={() => markNotificationRead(notification.id)} className={`flex w-full gap-3 border-b border-surface-100 px-4 py-3 text-left transition-colors hover:bg-surface-50 ${notification.read ? 'bg-white' : 'bg-brand-50/40'}`}>
-                    <Icon size={17} className={`mt-0.5 flex-shrink-0 ${notification.read ? 'text-surface-400' : 'text-brand-600'}`} />
-                    <span className="min-w-0 flex-1"><span className={`block text-xs ${notification.read ? 'font-medium text-surface-700' : 'font-bold text-surface-900'}`}>{notification.title}</span><span className="mt-1 block text-[11px] leading-4 text-surface-500">{notification.description}</span><span className="mt-1.5 block text-[10px] text-surface-400">{notification.time}</span></span>
-                    {!notification.read && <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
+                  const Icon = iconForNotification(notification.type);
+                  return <button type="button" key={notification.id} onClick={() => markNotificationRead(notification.id)} className={`flex w-full gap-3 border-b border-surface-100 px-4 py-3 text-left transition-colors hover:bg-surface-50 ${notification.isRead ? 'bg-white' : 'bg-brand-50/40'}`}>
+                    <Icon size={17} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
+                    <span className="min-w-0 flex-1"><span className={`block text-xs ${notification.isRead ? 'font-medium text-surface-700' : 'font-bold text-surface-900'}`}>{notification.title}</span><span className="mt-1 block text-[11px] leading-4 text-surface-500">{notification.message}</span><span className="mt-1.5 block text-[10px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>
+                    {!notification.isRead && <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
                   </button>;
                 })}
               </div>
-              <div className="px-4 py-3 text-center"><button type="button" onClick={() => { navigate('/notifications'); setOpenMenu(null); }} className="text-xs font-semibold text-brand-600 hover:text-brand-700">View all notifications</button></div>
+              <div className="px-4 py-3 text-center"><button type="button" onClick={() => setOpenMenu(null)} className="text-xs font-semibold text-brand-600 hover:text-brand-700">View all notifications</button></div>
             </div>
           )}
 
@@ -121,17 +135,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
             aria-label="Account menu"
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-100 to-brand-50 border border-brand-200 flex items-center justify-center shadow-sm">
-              <span className="text-brand-700 text-xs font-bold tracking-wide">JD</span>
+              <span className="text-brand-700 text-xs font-bold tracking-wide">{user ? initialsFor(user.fullName) : '··'}</span>
             </div>
             <ChevronDown size={14} className="text-surface-400 hidden sm:block" />
           </button>
 
           {openMenu === 'profile' && (
             <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-xl" role="menu" aria-label="Account menu">
-              <div className="border-b border-surface-200 px-4 py-4"><p className="text-sm font-bold text-surface-900">John Doe</p><p className="mt-1 truncate text-xs text-surface-500">john.doe@myshopifystore.com</p><p className="mt-2 text-[11px] font-semibold text-surface-400">Administrator</p></div>
+              <div className="border-b border-surface-200 px-4 py-4"><p className="text-sm font-bold text-surface-900">{user?.fullName ?? 'Loading…'}</p><p className="mt-1 truncate text-xs text-surface-500">{user?.email ?? ''}</p><p className="mt-2 text-[11px] font-semibold text-surface-400">{user?.role ?? ''}</p></div>
               <div className="p-1.5">
                 <button type="button" onClick={() => { navigate('/settings/profile'); setOpenMenu(null); }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-surface-700 hover:bg-surface-100" role="menuitem">Profile</button>
                 <button type="button" onClick={() => { navigate('/settings/workspace'); setOpenMenu(null); }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-surface-700 hover:bg-surface-100" role="menuitem">Workspace</button>
+              </div>
+              <div className="border-t border-surface-200 p-1.5">
+                <button
+                  type="button"
+                  onClick={async () => { setOpenMenu(null); await logout(); navigate('/login', { replace: true }); }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-critical-600 hover:bg-critical-50"
+                  role="menuitem"
+                >
+                  <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+                  Sign out
+                </button>
               </div>
             </div>
           )}

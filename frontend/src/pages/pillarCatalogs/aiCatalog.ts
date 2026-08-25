@@ -1,4 +1,4 @@
-import type { GenericSubPillarConfig } from '../PillarSubPillarPage';
+import type { GenericSubPillarConfig } from './genericTypes';
 import { agentsMdLlmsTxtData, agenticCommerceAttributesData, answerableQaFaqData, catalogFeedReadinessData, priorityIssues } from '../../data/ai-discovery/ai-discovery.mock';
 
 const status = (score: number) => score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Needs Work' : 'Critical';

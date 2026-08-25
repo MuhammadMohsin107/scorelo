@@ -1,274 +1,357 @@
-import { useMemo, useState } from 'react';
-import { schemaJsonLdData, priorityIssues } from '../../data/seo/seo-8pillars.mock';
-import SeoSubPillarHeader from '../../components/seo/SeoSubPillarHeader';
-import SeoMetricCard from '../../components/seo/SeoMetricCard';
-import SeoHealthBreakdown from '../../components/seo/SeoHealthBreakdown';
-import SeoTableCard from '../../components/seo/SeoTableCard';
-import SeoOpportunityList, { type Opportunity } from '../../components/seo/SeoOpportunityList';
+﻿import { useEffect, useRef, useState, type ComponentType } from 'react';
+import {
+  BookOpen, Building2, CheckCircle2, FileJson, Globe2, HelpCircle,
+  Info, Layers3, Link2, List, Package, PlayCircle, RefreshCw, Search,
+  Settings2, ShieldCheck, Star, ToggleLeft, Video, Copy, Check,
+} from 'lucide-react';
+import { schemaAnalysis } from '../../data/seo/analyses/schema';
+import type { SubPillarFinding } from '../../data/seo/subpillar.model';
+import ScoreCard from '../../components/seo/subpillar/ScoreCard';
+import HealthCard from '../../components/seo/subpillar/HealthCard';
+import PageSettingsPanel from '../../components/settings/PageSettingsPanel';
+import {
+  defaultSchemaPageSettings,
+  schemaPageSettingsDefinition,
+  type PageSettingValue,
+} from '../../data/pageSettings.registry';
+import { fetchSubPillarSettings, saveSubPillarSettings } from '../../data/pageSettings.repository';
 
-interface SchemaRow {
-  url: string;
-  types: string[];
-  errors: number;
-  warnings: number;
+type SchemaId = 'product' | 'productGroup' | 'offer' | 'aggregateRating' | 'article' | 'page' | 'collectionPage' | 'itemList' | 'website' | 'breadcrumb' | 'faq' | 'video' | 'localBusiness' | 'organization' | 'review';
+type Icon = ComponentType<{ size?: number; className?: string; 'aria-hidden'?: boolean }>;
+
+interface SchemaDefinition {
+  id: SchemaId;
+  name: string;
+  description: string;
+  icon: Icon;
+  auto: boolean;
 }
 
-const rows: SchemaRow[] = [
-  { url: '/wireless-earbuds-pro', types: ['Product', 'BreadcrumbList', 'Review'], errors: 0, warnings: 0 },
-  { url: '/noise-cancelling-headphones', types: ['Product', 'BreadcrumbList'], errors: 1, warnings: 0 },
-  { url: '/best-bluetooth-speakers', types: ['Product', 'BreadcrumbList', 'FAQPage'], errors: 0, warnings: 1 },
-  { url: '/gaming-headset-guide', types: [], errors: 0, warnings: 0 },
-  { url: '/home-audio-setup', types: ['BreadcrumbList'], errors: 0, warnings: 0 },
-  { url: '/wireless-earbuds-black', types: [], errors: 0, warnings: 0 },
-  { url: '/portable-speaker-mini', types: ['Product', 'BreadcrumbList', 'Review'], errors: 0, warnings: 1 },
-  { url: '/over-ear-headphones-2024', types: ['Product', 'BreadcrumbList'], errors: 2, warnings: 0 },
+const definitions: SchemaDefinition[] = [
+  { id: 'product', name: 'Product', description: 'Product, offer, and availability details for eligible pages.', icon: Package, auto: false },
+  { id: 'productGroup', name: 'ProductGroup', description: 'Variant relationships for products with sizes, colours, or other options.', icon: Layers3, auto: false },
+  { id: 'offer', name: 'Offer', description: 'Nested Product pricing, currency, availability, and shipping information.', icon: Package, auto: false },
+  { id: 'aggregateRating', name: 'AggregateRating', description: 'Nested Product review summary from a genuine, visible review source.', icon: Star, auto: false },
+  { id: 'organization', name: 'Organization', description: 'Brand identity, website, and support details for business schema.', icon: Building2, auto: true },
+  { id: 'website', name: 'WebSite', description: 'Store-level identity and search-action information for the website.', icon: Globe2, auto: true },
+  { id: 'article', name: 'Article / Blog Post', description: 'Editorial markup for article pages and blog content.', icon: BookOpen, auto: true },
+  { id: 'page', name: 'Page', description: 'WebPage markup for important landing pages and merchant pages.', icon: Globe2, auto: true },
+  { id: 'collectionPage', name: 'CollectionPage', description: 'Category and collection context for Shopify collection templates.', icon: List, auto: true },
+  { id: 'itemList', name: 'ItemList', description: 'Ordered product listings inside collection and search result pages.', icon: List, auto: true },
+  { id: 'breadcrumb', name: 'Breadcrumb', description: 'Navigation hierarchy and internal structure for supported pages.', icon: Link2, auto: true },
+  { id: 'faq', name: 'FAQ', description: 'Question and answer blocks that are visible to shoppers.', icon: HelpCircle, auto: false },
+  { id: 'video', name: 'Video', description: 'Video metadata with thumbnails, dates, and playback details.', icon: Video, auto: false },
+  { id: 'localBusiness', name: 'Local Business', description: 'Store address, service information, and local business details.', icon: Building2, auto: false },
+  { id: 'review', name: 'Product Reviews', description: 'Review schema when a verified review source is actually present.', icon: ShieldCheck, auto: false },
 ];
 
-function classify(row: SchemaRow): 'Missing' | 'Error' | 'Warning' | 'Valid' {
-  if (row.types.length === 0) return 'Missing';
-  if (row.errors > 0) return 'Error';
-  if (row.warnings > 0) return 'Warning';
-  return 'Valid';
-}
-
-const statusBadgeClass: Record<string, string> = {
-  Missing: 'bg-critical-100 text-critical-700',
-  Error: 'bg-critical-100 text-critical-700',
-  Warning: 'bg-warning-100 text-warning-700',
-  Valid: 'bg-success-100 text-success-700',
-};
-
-const filters = ['All', 'Missing', 'Error', 'Warning', 'Valid'];
-
-export default function SchemaJsonLdPage() {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('All');
-
-  const schemaIssues = priorityIssues.filter((i) => i.areaKey === 'schema');
-
-  const pagesWithoutSchema = schemaJsonLdData.pagesAnalyzed - schemaJsonLdData.pagesWithSchema;
-  const validSchema = schemaJsonLdData.pagesWithSchema - schemaJsonLdData.validationIssues;
-  const totalIssues = schemaJsonLdData.warningCount + schemaJsonLdData.errorCount + pagesWithoutSchema;
-  const schemaTypeEntries = Object.entries(schemaJsonLdData.schemaTypes);
-  const schemaTypeCount = schemaTypeEntries.length;
-
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      const status = classify(row);
-      if (filter !== 'All' && status !== filter) return false;
-      const haystack = `${row.url} ${row.types.join(' ')}`.toLowerCase();
-      if (search && !haystack.includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [search, filter]);
-
-  const opportunityFilterTarget: Record<string, string> = {
-    'schema-opp-1': 'Missing',
-    'schema-opp-2': 'Error',
-    'schema-opp-3': 'Warning',
+function buildJsonPreview(type: SchemaId) {
+  const schemaType = type === 'productGroup' ? 'ProductGroup' : type === 'aggregateRating' ? 'AggregateRating' : type === 'collectionPage' ? 'CollectionPage' : type === 'itemList' ? 'ItemList' : type === 'website' ? 'WebSite' : type === 'offer' ? 'Offer' : type === 'article' ? 'Article' : type === 'faq' ? 'FAQPage' : type === 'breadcrumb' ? 'BreadcrumbList' : type === 'organization' ? 'Organization' : type === 'localBusiness' ? 'LocalBusiness' : type === 'video' ? 'VideoObject' : type === 'review' ? 'Review' : type === 'page' ? 'WebPage' : 'Product';
+  const sample = {
+    '@context': 'https://schema.org',
+    '@type': schemaType,
+    name: 'Sample store object',
+    url: 'https://www.example.com',
   };
 
-  const opportunities: Opportunity[] = [
-    {
-      id: 'schema-opp-1',
-      title: `Add structured data to ${pagesWithoutSchema} pages with no schema`,
-      description: 'Pages without schema.org markup miss out on rich results and enhanced search listings.',
-      impact: 'High',
-      effort: 'Medium',
-      ctaLabel: 'Review Pages',
-    },
-    {
-      id: 'schema-opp-2',
-      title: `Fix ${schemaJsonLdData.errorCount} pages with schema validation errors`,
-      description: 'Invalid structured data can be ignored by search engines, forfeiting rich result eligibility.',
-      impact: 'High',
-      effort: 'Low',
-      ctaLabel: 'Review Errors',
-    },
-    {
-      id: 'schema-opp-3',
-      title: `Resolve ${schemaJsonLdData.warningCount} schema warnings`,
-      description: 'Warnings flag optional fields that strengthen eligibility for enhanced rich results.',
-      impact: 'Medium',
-      effort: 'Low',
-      ctaLabel: 'Review Warnings',
-    },
-  ];
+  return JSON.stringify(sample, null, 2);
+}
+
+const previewRequirements: Record<SchemaId, string[]> = {
+  product: ['name', 'url', 'offers'],
+  productGroup: ['name', 'variesBy', 'hasVariant'],
+  offer: ['price', 'priceCurrency', 'availability'],
+  aggregateRating: ['ratingValue', 'reviewCount', 'itemReviewed'],
+  article: ['headline', 'author', 'datePublished'],
+  page: ['name', 'url', 'isPartOf'],
+  collectionPage: ['name', 'url', 'mainEntity'],
+  itemList: ['itemListElement', 'numberOfItems', 'url'],
+  website: ['name', 'url', 'publisher'],
+  breadcrumb: ['itemListElement', 'position', 'item'],
+  faq: ['mainEntity', 'Question', 'acceptedAnswer'],
+  video: ['name', 'thumbnailUrl', 'uploadDate'],
+  localBusiness: ['name', 'address', 'openingHours'],
+  organization: ['name', 'url', 'logo'],
+  review: ['reviewRating', 'author', 'itemReviewed'],
+};
+
+export default function SchemaJsonLdPage() {
+  const [pageSettings, setPageSettings] = useState<Record<string, PageSettingValue>>({ ...defaultSchemaPageSettings });
+  // Last values loaded from / saved to the API — what "close without saving" reverts to.
+  const savedSettingsRef = useRef<Record<string, PageSettingValue>>({ ...defaultSchemaPageSettings });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedType, setSelectedType] = useState<SchemaId | null>(null);
+  const [search, setSearch] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState('');
+  const [copiedPreview, setCopiedPreview] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchSubPillarSettings('schema')
+      .then((values) => { if (active) { savedSettingsRef.current = values; setPageSettings(values); } })
+      .catch((error) => console.error('Failed to load page settings', error));
+    return () => { active = false; };
+  }, []);
+
+  const updatePageSetting = (key: string, value: PageSettingValue) => {
+    setPageSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const resetPageSettings = () => setPageSettings({ ...defaultSchemaPageSettings });
+
+  const savePageSettings = () => {
+    savedSettingsRef.current = pageSettings;
+    saveSubPillarSettings('schema', pageSettings)
+      .catch((error) => console.error('Failed to save page settings', error));
+    setSettingsOpen(false);
+  };
+
+  const handleScan = () => {
+    setIsScanning(true);
+    setScanNotice('');
+    window.setTimeout(() => {
+      setIsScanning(false);
+      setScanNotice('Schema re-scan preview complete. Connect a crawler to persist new findings.');
+    }, 900);
+  };
+
+  const copyPreview = async () => {
+    if (!selectedType || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(buildJsonPreview(selectedType));
+    setCopiedPreview(true);
+    window.setTimeout(() => setCopiedPreview(false), 1600);
+  };
+
+  const filteredFindings = schemaAnalysis.findings.filter((finding: SubPillarFinding) => {
+    const haystack = `${finding.title} ${finding.whatIsWrong} ${finding.recommendation}`.toLowerCase();
+    return haystack.includes(search.trim().toLowerCase());
+  });
+
+  const selectedDefinition = selectedType
+    ? definitions.find((definition) => definition.id === selectedType)
+    : undefined;
 
   return (
-    <div className="min-h-screen bg-surface-50">
-      <SeoSubPillarHeader
-        title="Schema / JSON-LD"
-        description="Implement and validate structured data for rich snippets and enhanced search indexing."
-        score={schemaJsonLdData.score}
-        statusLabel="Excellent"
-        stats={[
-          { label: 'Analyzed', value: schemaJsonLdData.pagesAnalyzed },
-          { label: 'Healthy', value: validSchema },
-          { label: 'Issues', value: totalIssues },
-        ]}
-        lastAnalyzed="Today, 10:42 AM"
-      />
-
-      <div className="px-8 pb-8 max-w-7xl mx-auto">
-        {/* Two Column */}
-        <div className="grid items-start lg:grid-cols-[0.8fr_1.2fr] gap-6 mb-8">
-          {/* Left Column - Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SeoMetricCard
-              label="Missing Schema"
-              value={pagesWithoutSchema}
-              description="pages have no structured data implemented"
-              footnote={`${((pagesWithoutSchema / schemaJsonLdData.pagesAnalyzed) * 100).toFixed(1)}% of analyzed pages`}
-              ctaLabel="Review Pages"
-              onCta={() => setFilter('Missing')}
-            />
-            <SeoMetricCard
-              label="Validation Errors"
-              value={schemaJsonLdData.errorCount}
-              description="schema blocks contain critical errors that block rich results"
-              ctaLabel="Review Errors"
-              onCta={() => setFilter('Error')}
-            />
-            <SeoMetricCard
-              label="Warnings"
-              value={schemaJsonLdData.warningCount}
-              description="schema is present but has minor validation warnings"
-              ctaLabel="Review Warnings"
-              onCta={() => setFilter('Warning')}
-            />
-            <SeoMetricCard
-              label="Valid Schema"
-              value={validSchema}
-              description="pages have error-free structured data"
-              footnote={`${((validSchema / schemaJsonLdData.pagesAnalyzed) * 100).toFixed(1)}% of analyzed pages`}
-              ctaLabel="View Valid"
-              onCta={() => setFilter('Valid')}
-            />
-            <SeoMetricCard
-              label="Schema Types Tracked"
-              value={schemaTypeCount}
-              description="distinct schema.org types implemented across your store"
-            />
+    <div className="min-h-full bg-surface-50">
+      <div className="mx-auto max-w-7xl px-5 pb-14 pt-6 md:px-8">
+        <header className="mt-5 flex flex-col gap-5 border-b border-surface-200 pb-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-surface-500">SEO</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-surface-950">Schema / JSON-LD</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-surface-600">
+              Manage structured data for the store, preview generated markup, and keep the client settings scoped to this page only.
+            </p>
           </div>
 
-          {/* Right Column - Reusable Schema Health Breakdown */}
-          <SeoHealthBreakdown
-            title="Schema Health Breakdown"
-            total={schemaJsonLdData.pagesAnalyzed}
-            summary={[
-              { label: 'Valid', value: validSchema, tone: 'valid' },
-              { label: 'Warning', value: schemaJsonLdData.warningCount, tone: 'warning' },
-              { label: 'Error', value: schemaJsonLdData.errorCount, tone: 'error' },
-              { label: 'Missing', value: pagesWithoutSchema, tone: 'missing' },
-            ]}
-            rows={schemaTypeEntries.map(([type, data]) => ({
-              label: type,
-              count: data.count,
-              valid: data.valid,
-              errors: data.errors,
-              tone: data.errors > 0 ? 'warning' : 'valid',
-            }))}
-            footerNote={`${schemaTypeCount} schema types tracked across ${schemaJsonLdData.pagesAnalyzed.toLocaleString()} pages.`}
-          />
-        </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setSettingsOpen(true)} className="btn-secondary">
+              <Settings2 size={14} />
+              Client settings
+            </button>
+            <button type="button" onClick={handleScan} disabled={isScanning} className="btn-primary">
+              <RefreshCw size={14} className={isScanning ? 'animate-spin' : ''} />
+              {isScanning ? 'Scanning...' : 'Re-analyze'}
+            </button>
+          </div>
+        </header>
 
-        {/* Detected Issues */}
-        {schemaIssues.length > 0 && (
-          <div className="bg-white border border-surface-200 rounded-lg shadow-sm overflow-hidden mb-8">
-            <div className="px-6 py-5 border-b border-surface-200">
-              <h2 className="text-lg font-bold text-surface-900">Detected Issues</h2>
-              <p className="text-xs text-surface-500 mt-1">{schemaIssues.length} issue types found</p>
-            </div>
-            <div className="divide-y divide-surface-100">
-              {schemaIssues.map((issue) => (
-                <div key={issue.id} className="px-6 py-4 hover:bg-surface-50 transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className={`px-2 py-1 rounded text-xs font-bold flex-shrink-0 ${
-                      issue.severity === 'critical' ? 'bg-critical-100 text-critical-700' :
-                      issue.severity === 'high' ? 'bg-warning-100 text-warning-700' :
-                      'bg-surface-100 text-surface-700'
-                    }`}>
-                      {issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-surface-900">{issue.title}</h3>
-                      <p className="text-sm text-surface-600 mt-1">{issue.affectedPages} pages affected</p>
-                      <p className="text-xs text-info-600 font-medium mt-2">→ {issue.recommendation}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {scanNotice && (
+          <div className="mt-4 rounded-lg border border-success-100 bg-success-50 px-3 py-2 text-xs text-success-700">
+            <CheckCircle2 size={14} className="mr-2 inline" />
+            {scanNotice}
           </div>
         )}
 
-        {/* Detailed Analysis */}
-        <div className="mb-8">
-          <SeoTableCard
-            title="Page Schema Status"
-            subtitle="Search and filter pages by schema implementation status"
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search by URL or schema type…"
-            filters={filters}
-            activeFilter={filter}
-            onFilterChange={setFilter}
-          >
-            {filteredRows.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-surface-500">
-                No pages match this filter.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-surface-50 border-b border-surface-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left font-semibold text-surface-700">Page URL</th>
-                      <th className="px-6 py-3 text-left font-semibold text-surface-700">Schema Types</th>
-                      <th className="px-6 py-3 text-center font-semibold text-surface-700">Errors</th>
-                      <th className="px-6 py-3 text-center font-semibold text-surface-700">Warnings</th>
-                      <th className="px-6 py-3 text-right font-semibold text-surface-700">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-100">
-                    {filteredRows.map((row) => {
-                      const status = classify(row);
-                      return (
-                        <tr key={row.url} className="hover:bg-surface-50 transition-colors">
-                          <td className="px-6 py-3">
-                            <p className="text-xs text-surface-500 font-mono">{row.url}</p>
-                          </td>
-                          <td className="px-6 py-3">
-                            <p className={`text-xs ${row.types.length ? 'text-surface-900' : 'text-surface-400 italic'}`}>
-                              {row.types.length ? row.types.join(', ') : '—'}
-                            </p>
-                          </td>
-                          <td className="px-6 py-3 text-center">
-                            <span className="text-xs font-medium text-surface-700">{row.errors}</span>
-                          </td>
-                          <td className="px-6 py-3 text-center">
-                            <span className="text-xs font-medium text-surface-700">{row.warnings}</span>
-                          </td>
-                          <td className="px-6 py-3 text-right">
-                            <span className={`text-xs px-2 py-1 rounded font-medium ${statusBadgeClass[status]}`}>
-                              {status}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </SeoTableCard>
-        </div>
+        <section className="mt-6" aria-labelledby="crawl-health-title">
+          <div className="mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Latest crawl evidence</p>
+            <h2 id="crawl-health-title" className="mt-1 text-xl font-semibold text-surface-950">Structured data health</h2>
+          </div>
+          <div className="grid grid-cols-12 gap-5">
+            <div className="col-span-12 xl:col-span-7">
+              <ScoreCard totals={schemaAnalysis.totals} summary={schemaAnalysis.summary} healthChip={schemaAnalysis.healthChip} />
+            </div>
+            <div className="col-span-12 xl:col-span-5">
+              <HealthCard totals={schemaAnalysis.totals} findings={schemaAnalysis.findings} onSelectIssue={() => undefined} />
+            </div>
+          </div>
+        </section>
 
-        {/* Optimization Opportunities */}
-        <SeoOpportunityList
-          opportunities={opportunities}
-          onSelect={(opp) => setFilter(opportunityFilterTarget[opp.id] ?? 'All')}
+        <section className="mt-8" aria-labelledby="schema-types-title">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Management</p>
+              <h2 id="schema-types-title" className="mt-1 text-xl font-semibold text-surface-950">Schema types</h2>
+            </div>
+            <span className="inline-flex items-center gap-2 text-xs text-surface-500">
+              <ToggleLeft size={15} className="text-brand-600" />
+              Saved in this browser
+            </span>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {definitions.map((definition) => {
+              const Icon = definition.icon;
+              const active = selectedType === definition.id;
+
+              return (
+                <article key={definition.id} className={`flex min-h-[210px] flex-col rounded-xl border p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:border-surface-300 hover:bg-surface-50 hover:shadow-[0_14px_30px_-20px_rgba(15,23,42,0.55)] ${active ? 'border-brand-200 bg-brand-50/40' : 'border-surface-200 bg-white'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                        <Icon size={17} />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-surface-900">{definition.name}</h3>
+                        <p className="mt-0.5 text-[11px] text-surface-400">
+                          {definition.auto ? 'Uses available store data' : 'Guided configuration'}
+                        </p>
+                      </div>
+                    </div>
+                    <button type="button" className="rounded p-1 text-surface-400 hover:bg-surface-100 hover:text-surface-700" aria-label={`About ${definition.name}`} title={definition.description}>
+                      <Info size={15} />
+                    </button>
+                  </div>
+
+                  <p className="mt-4 min-h-10 text-xs leading-5 text-surface-600">{definition.description}</p>
+
+                  <div className="mt-auto flex items-center justify-between gap-3 pt-5">
+                    <button type="button" onClick={() => { setSelectedType(null); setSettingsOpen(true); }} className="btn-secondary h-9 px-3 text-xs">
+                      Set up
+                    </button>
+                    <button type="button" onClick={() => setSelectedType(definition.id)} className="btn-ghost h-9 px-2 text-xs">
+                      <PlayCircle size={14} />
+                      Preview
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-xl border border-surface-200 bg-white shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-surface-200 px-5 py-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Inspection</p>
+              <h2 className="mt-1 text-lg font-semibold text-surface-950">Issue review</h2>
+            </div>
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="w-[220px] rounded-lg border border-surface-200 bg-surface-50 py-2 pl-9 pr-3 text-xs text-surface-800 placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                placeholder="Search issue details"
+                aria-label="Search issue details"
+              />
+            </div>
+          </div>
+
+          <div className="divide-y divide-surface-100">
+            {filteredFindings.length > 0 ? (
+              filteredFindings.map((finding) => (
+                <div key={finding.id} className="flex items-start gap-3 px-5 py-4">
+                  <span className={`mt-1.5 h-2.5 w-2.5 rounded-full ${finding.severity === 'critical' ? 'bg-critical-500' : finding.severity === 'high' ? 'bg-warning-500' : 'bg-surface-400'}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold text-surface-900">{finding.title}</h3>
+                      <span className="rounded-full border border-surface-200 bg-surface-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-surface-500">
+                        {finding.severity}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-surface-600">{finding.whatIsWrong}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="px-5 py-10 text-center text-sm text-surface-500">No issues match the current search.</div>
+            )}
+          </div>
+        </section>
+
+        {selectedDefinition && selectedType && (
+          <div className="fixed inset-0 z-50 flex justify-end" role="presentation">
+            <button type="button" className="absolute inset-0 bg-surface-950/25" onClick={() => setSelectedType(null)} aria-label="Close schema preview" />
+            <aside role="dialog" aria-modal="true" aria-labelledby="schema-preview-title" className="relative flex h-full w-full max-w-2xl flex-col border-l border-surface-200 bg-white shadow-2xl">
+              <header className="flex items-start justify-between gap-4 border-b border-surface-200 px-5 py-5 sm:px-6">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Schema preview</p>
+                  <h2 id="schema-preview-title" className="mt-1 text-xl font-semibold text-surface-950">{selectedDefinition.name}</h2>
+                </div>
+                <button type="button" onClick={() => setSelectedType(null)} className="btn-ghost h-9 w-9 p-0" aria-label="Close schema preview">
+                  ×
+                </button>
+              </header>
+
+              <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+                <div className="rounded-xl border border-surface-200 bg-surface-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-surface-700">
+                      <FileJson size={14} className="text-brand-600" />
+                      Generated JSON-LD
+                    </span>
+                    <button type="button" onClick={copyPreview} className="btn-ghost h-8 px-2 text-xs" title="Copy JSON-LD">
+                      {copiedPreview ? <Check size={13} /> : <Copy size={13} />}
+                      {copiedPreview ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  <pre className="mt-4 overflow-auto rounded-lg bg-surface-950 p-4 font-mono text-xs leading-6 text-surface-100">
+                    <code>{buildJsonPreview(selectedDefinition.id)}</code>
+                  </pre>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-surface-200 bg-white p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-surface-500">Preview status</p>
+                    <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-success-700">
+                      <CheckCircle2 size={15} />
+                      Structure looks valid
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-surface-500">Preview only. Nothing is published to the storefront.</p>
+                  </div>
+                  <div className="rounded-xl border border-surface-200 bg-white p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-surface-500">Data mode</p>
+                    <p className="mt-2 text-sm font-semibold text-surface-900">{selectedDefinition.auto ? 'Store data detected' : 'Guided configuration'}</p>
+                    <p className="mt-1 text-xs leading-5 text-surface-500">Values shown are based on the current preview model.</p>
+                  </div>
+                </div>
+
+                <section className="mt-4 rounded-xl border border-surface-200 bg-white p-4" aria-labelledby="preview-properties-title">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 id="preview-properties-title" className="text-sm font-semibold text-surface-900">Recommended properties</h3>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-surface-400">{previewRequirements[selectedType].length} checks</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {previewRequirements[selectedType].map((property) => (
+                      <span key={property} className="inline-flex items-center gap-1.5 rounded-full border border-success-100 bg-success-50 px-2.5 py-1 text-[11px] font-medium text-success-700">
+                        <CheckCircle2 size={12} />
+                        {property}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              <footer className="flex items-center justify-between gap-3 border-t border-surface-200 bg-surface-50 px-5 py-4 sm:px-6">
+                <button type="button" onClick={() => setSelectedType(null)} className="btn-secondary text-xs">Close</button>
+                <button type="button" onClick={() => { setSelectedType(null); setSettingsOpen(true); }} className="btn-primary text-xs">
+                  Open client settings
+                </button>
+              </footer>
+            </aside>
+          </div>
+        )}
+
+        <PageSettingsPanel
+          open={settingsOpen}
+          definition={schemaPageSettingsDefinition}
+          values={pageSettings}
+          onClose={() => { setSettingsOpen(false); setPageSettings(savedSettingsRef.current); }}
+          onChange={updatePageSetting}
+          onReset={resetPageSettings}
+          onSave={savePageSettings}
         />
       </div>
     </div>

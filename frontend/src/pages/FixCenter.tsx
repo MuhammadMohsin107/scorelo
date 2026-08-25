@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronRight, Filter, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
-import { fixFindings, type FixFinding, type WorkflowSeverity, type WorkflowStatus } from '../data/workflows.mock';
+import type { FixFinding, WorkflowSeverity, WorkflowStatus } from '../data/workflows.mock';
+import { bulkUpdateFindingStatus, fetchFindings, updateFindingStatus } from '../data/findings.repository';
 import { Button, Drawer, MetricTile, ModuleHeader, SectionHeading, StatusBadge } from '../components/workflows/WorkflowPrimitives';
 
 const severityTone: Record<WorkflowSeverity, 'critical' | 'warning' | 'info' | 'neutral'> = { critical: 'critical', high: 'warning', medium: 'info', low: 'neutral' };
@@ -8,7 +9,8 @@ const statusTone: Record<WorkflowStatus, 'critical' | 'warning' | 'success' | 'n
 const statusLabel: Record<WorkflowStatus, string> = { open: 'Open', reviewed: 'Reviewed', resolved: 'Resolved', ignored: 'Ignored' };
 
 export default function FixCenter() {
-  const [findings, setFindings] = useState(fixFindings);
+  const [findings, setFindings] = useState<FixFinding[]>([]);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
   const [query, setQuery] = useState('');
   const [pillar, setPillar] = useState('All pillars');
   const [severity, setSeverity] = useState('All severity');
@@ -16,6 +18,14 @@ export default function FixCenter() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<FixFinding | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadFindings = () => fetchFindings()
+    .then((data) => { setFindings(data); setLoadState('success'); })
+    .catch((error) => { console.error('Failed to load findings', error); setLoadState('error'); });
+
+  useEffect(() => {
+    loadFindings();
+  }, []);
 
   const filteredFindings = useMemo(() => findings.filter((finding) => {
     const haystack = `${finding.title} ${finding.pillarLabel} ${finding.subPillar}`.toLowerCase();
@@ -28,21 +38,32 @@ export default function FixCenter() {
   const updateFinding = (id: string, nextStatus: WorkflowStatus) => {
     setFindings((current) => current.map((finding) => finding.id === id ? { ...finding, status: nextStatus } : finding));
     setSelectedFinding((current) => current?.id === id ? { ...current, status: nextStatus } : current);
+    updateFindingStatus(id, nextStatus).catch((error) => console.error('Failed to update finding status', error));
   };
 
   const markSelectedReviewed = () => {
-    setFindings((current) => current.map((finding) => selectedIds.includes(finding.id) ? { ...finding, status: 'reviewed' } : finding));
+    const ids = selectedIds;
+    setFindings((current) => current.map((finding) => ids.includes(finding.id) ? { ...finding, status: 'reviewed' } : finding));
     setSelectedIds([]);
+    bulkUpdateFindingStatus(ids, 'reviewed').catch((error) => console.error('Failed to bulk-update findings', error));
   };
 
   const refresh = () => {
     setIsRefreshing(true);
-    window.setTimeout(() => setIsRefreshing(false), 700);
+    loadFindings().finally(() => setIsRefreshing(false));
   };
 
   const allSelected = filteredFindings.length > 0 && filteredFindings.every((finding) => selectedIds.includes(finding.id));
   const openCount = findings.filter((finding) => finding.status === 'open').length;
   const resolvedCount = findings.filter((finding) => finding.status === 'resolved').length;
+
+  if (loadState === 'loading') {
+    return <div className="mx-auto max-w-[1440px] p-8 text-sm text-surface-500">Loading findings…</div>;
+  }
+
+  if (loadState === 'error') {
+    return <div className="mx-auto max-w-[1440px] p-8 text-sm text-critical-600">Failed to load findings. Please try again.</div>;
+  }
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-8 p-5 pb-16 md:p-8">
@@ -83,7 +104,7 @@ export default function FixCenter() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-surface-200 bg-white p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-6"><SectionHeading eyebrow="History" title="Applied fixes" description="A lightweight record of actions taken in this audit workspace." /><div className="mt-5 divide-y divide-surface-100">{findings.filter((finding) => finding.status !== 'open').map((finding) => <div key={finding.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="text-sm font-bold text-surface-900">{finding.title}</p><p className="mt-1 text-xs text-surface-500">{statusLabel[finding.status]} <span className="mx-1 text-surface-300">|</span> Aug 19, 2026</p></div><span className="text-sm font-bold text-success-700">Potential +{finding.scoreLift} pts</span></div>)}</div></section>
+      <section className="rounded-xl border border-surface-200 bg-white p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-6"><SectionHeading eyebrow="History" title="Applied fixes" description="A lightweight record of actions taken in this audit workspace." /><div className="mt-5 divide-y divide-surface-100">{findings.filter((finding) => finding.status !== 'open').map((finding) => <div key={finding.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="text-sm font-bold text-surface-900">{finding.title}</p><p className="mt-1 text-xs text-surface-500">{statusLabel[finding.status]}{finding.statusChangedAt && <><span className="mx-1 text-surface-300">|</span> {new Date(finding.statusChangedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>}</p></div><span className="text-sm font-bold text-success-700">Potential +{finding.scoreLift} pts</span></div>)}</div></section>
 
       <Drawer open={Boolean(selectedFinding)} title={selectedFinding?.title ?? ''} eyebrow="Finding detail" onClose={() => setSelectedFinding(null)}>
         {selectedFinding && <div className="space-y-6"><div className="flex flex-wrap gap-2"><StatusBadge label={selectedFinding.severity} tone={severityTone[selectedFinding.severity]} /><StatusBadge label={selectedFinding.pillarLabel} tone="neutral" /><StatusBadge label={statusLabel[selectedFinding.status]} tone={statusTone[selectedFinding.status]} /></div><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Why this matters</p><p className="mt-2 text-sm leading-6 text-surface-700">{selectedFinding.why}</p></div><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Detected evidence</p><ul className="mt-2 space-y-2">{selectedFinding.evidence.map((item) => <li key={item} className="flex gap-2 text-sm text-surface-700"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />{item}</li>)}</ul></div><div className="rounded-xl border border-brand-100 bg-brand-50 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-700">Recommended action</p><p className="mt-2 text-sm leading-6 text-brand-950">{selectedFinding.recommendation}</p></div><div className="grid grid-cols-2 gap-3"><MetricTile label="Affected" value={selectedFinding.affected.toLocaleString()} detail={selectedFinding.affectedLabel} tone="critical" /><MetricTile label="Potential lift" value={`+${selectedFinding.scoreLift}`} detail="Score points" tone="success" /></div><div className="flex flex-wrap gap-2"><Button onClick={() => updateFinding(selectedFinding.id, 'reviewed')}><Check size={15} />Mark reviewed</Button><Button variant="secondary" onClick={() => updateFinding(selectedFinding.id, 'ignored')}><X size={15} />Ignore</Button><Button variant="ghost" onClick={() => setSelectedFinding(null)}>Close</Button></div></div>}

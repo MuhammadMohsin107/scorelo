@@ -3,6 +3,8 @@
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
+
+  
   "tables": {
     "public.audit_scores": {
       "name": "audit_scores",

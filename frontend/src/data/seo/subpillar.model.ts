@@ -181,9 +181,3 @@ export const sortByCell = (key: string, label: string, direction: 'asc' | 'desc'
     return direction === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
   },
 });
-
-/** Simulated fetch, mirroring dashboard.repository.ts. */
-export async function fetchAnalysis(analysis: SubPillarAnalysis): Promise<SubPillarAnalysis> {
-  await new Promise((resolve) => setTimeout(resolve, 450));
-  return analysis;
-}

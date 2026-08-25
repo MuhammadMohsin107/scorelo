@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -12,15 +12,20 @@ import {
   BarChart3,
   Settings,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   X,
 } from 'lucide-react';
-import { dashboardMockData } from '../data/dashboard/dashboard.mock';
-import type { PillarScore } from '../data/dashboard/dashboard.mock';
+import { pillarList, type PillarMeta } from '../data/pillarMeta';
+import { fetchCurrentUser, initialsFor, subscribeCurrentUser } from '../data/user.repository';
+import { planInfo } from '../data/settings.mock';
+import type { UserRow } from '../data/api.types';
 
 interface SidebarProps {
   isOpen: boolean;
+  isCollapsed: boolean;
   onClose: () => void;
+  onToggleCollapse: () => void;
 }
 
 // Map pillar keys to icons
@@ -57,10 +62,10 @@ const seoSubRoutes: { id: string; label: string; path: string }[] = [
 // Only routes that have a page registered in App.tsx are listed here,
 // so the sidebar never links to an empty route. Add entries as pages land.
 const contentSubRoutes: { id: string; label: string; path: string }[] = [
+  { id: 'dup-templated', label: 'Duplicate / Templated Copy', path: '/content/dup-templated' },
   { id: 'product-descriptions', label: 'Product descriptions', path: '/content/product-descriptions' },
   { id: 'collection-descriptions', label: 'Collection descriptions', path: '/content/collection-descriptions' },
   { id: 'metafields', label: 'Metafield completeness', path: '/content/metafields' },
-  { id: 'dup-templated', label: 'Duplicate/templated copy', path: '/content/dup-templated' },
   { id: 'blog-freshness', label: 'Blog freshness', path: '/content/blog-freshness' },
   { id: 'media-richness', label: 'Media richness', path: '/content/media-richness' },
 ];
@@ -68,7 +73,7 @@ const contentSubRoutes: { id: string; label: string; path: string }[] = [
 // Speed sub-pillar routes
 const speedSubRoutes: { id: string; label: string; path: string }[] = [
   { id: 'cwv', label: 'Core Web Vitals', path: '/speed/cwv' },
-  { id: 'image-weight', label: 'Image weight & format', path: '/speed/image-weight' },
+  { id: 'image-weight', label: 'Image Optimization', path: '/speed/image-weight' },
   { id: 'app-bloat', label: 'App & script bloat', path: '/speed/app-bloat' },
   { id: 'theme-weight', label: 'Theme weight / fonts / lazy-load', path: '/speed/theme-weight' },
 ];
@@ -104,11 +109,21 @@ const utilityLinks = [
   { id: 'settings', label: 'Settings', icon: <Settings size={16} strokeWidth={2} /> },
 ];
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const pillars = dashboardMockData.pillars;
+  const pillars = pillarList;
+  const [user, setUser] = useState<UserRow | null>(null);
   const [expandedPillars, setExpandedPillars] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    fetchCurrentUser()
+      .then((current) => { if (mounted) setUser(current); })
+      .catch((error) => console.error('Failed to load current user', error));
+    const unsubscribe = subscribeCurrentUser((current) => { if (mounted) setUser(current); });
+    return () => { mounted = false; unsubscribe(); };
+  }, []);
 
   const isSeoSection = location.pathname.startsWith('/seo');
 
@@ -144,25 +159,47 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full w-[260px] bg-surface-100 flex flex-col
-          border-r border-surface-200
-          transition-transform duration-300 ease-in-out
+          fixed top-0 left-0 z-50 h-full flex-shrink-0 bg-[#f7f6f4] flex flex-col
+          border-r border-[#e6e2dc] relative overflow-hidden
+          transition-[width,transform] duration-300 ease-in-out
           lg:translate-x-0 lg:static lg:z-auto
+          ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-[250px]'}
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         role="navigation"
         aria-label="Main navigation"
       >
-        {/* Logo Area */}
-        <div className="flex items-center justify-between h-16 px-5 flex-shrink-0 border-b border-surface-200">
-          <NavLink to="/" onClick={onClose} className="flex items-center gap-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-brand-600 text-white shadow-sm">
+        {/* Logo Area — wordmark + tagline lockup */}
+        <div className={`flex h-[72px] flex-shrink-0 items-center justify-between border-b border-[#e6e2dc] bg-[#f7f6f4] px-4 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
+          <NavLink to="/" onClick={onClose} aria-label="Scorelo home" className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
+            {/* Logo mark — also what the collapsed rail shows */}
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px] bg-[#5b4ee4] text-white shadow-sm">
               <BarChart3 size={15} strokeWidth={2.5} aria-hidden="true" />
             </div>
-            <span className="text-[14px] font-bold tracking-widest text-surface-900">
-              SCORELO
+            {/* Wordmark with letter-spaced tagline */}
+            <span className={`flex flex-col justify-center ${isCollapsed ? 'lg:hidden' : ''}`}>
+              <span className="text-[20px] font-extrabold leading-[1] tracking-tight text-[#101828]">
+                scor<span className="text-[#5b4ee4]">e</span>lo
+              </span>
+              <span className="mt-0 text-[7px] font-semibold uppercase tracking-[0.3em] text-surface-400 leading-[1.2]">
+                Store performance
+              </span>
             </span>
           </NavLink>
+
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className={`
+              hidden items-center justify-center text-[#64748b] transition-colors duration-150 ease-in-out
+              hover:text-surface-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
+              lg:flex
+            `}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronLeft size={16} aria-hidden="true" />}
+          </button>
           <button
             onClick={onClose}
             className="lg:hidden rounded-md p-1 text-surface-400 transition-colors hover:bg-surface-200 hover:text-surface-900"
@@ -173,32 +210,34 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto sidebar-scroll py-4 px-3">
+        <nav className={`flex-1 overflow-y-auto sidebar-scroll py-4 ${isCollapsed ? 'px-3 lg:px-2' : 'px-3'}`}>
           {/* Dashboard Link */}
-          <div className="mb-4">
+          <div className="mb-3">
             <NavLink
               to="/"
               end
               onClick={onClose}
+              title="Dashboard"
               className={({ isActive }) => `
-                relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium
-                transition-all duration-200
+                relative flex items-center gap-3 w-full rounded-lg text-[14px] font-medium
+                transition-all duration-200 border border-transparent
+                ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
                 ${isActive
-                  ? 'text-surface-900 font-semibold bg-surface-200/50 before:absolute before:left-0 before:h-5 before:w-[3px] before:rounded-r-full before:bg-brand-600'
-                  : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'
+                  ? 'text-surface-900 bg-[#e9e7e4] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)]'
+                  : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'
                 }
               `}
             >
-              <span className="flex-shrink-0">
-                <LayoutDashboard size={16} strokeWidth={2} />
+              <span className="flex-shrink-0 text-surface-500">
+                <LayoutDashboard size={18} strokeWidth={2} />
               </span>
-              Dashboard
+              <span className={isCollapsed ? 'lg:sr-only' : ''}>Dashboard</span>
             </NavLink>
           </div>
 
           {/* Pillar Navigation */}
           <div className="space-y-0.5">
-            {pillars.map((pillar: PillarScore) => {
+            {pillars.map((pillar: PillarMeta) => {
               const icon = pillarIcons[pillar.key];
               const route = pillarRoutes[pillar.key];
               const isPillarActive = location.pathname.startsWith(route);
@@ -209,29 +248,32 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <div key={pillar.key}>
                     {/* SEO Pillar Row */}
                     <button
+                      type="button"
                       onClick={() => togglePillar('seo', '/seo', isSeoExpanded)}
+                      title={pillar.label}
                       className={`
-                        relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium
+                        relative flex items-center gap-3 w-full rounded-lg text-[14px] font-medium
                         transition-all duration-200 group
+                        ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
                         focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-300
                         ${isSeoSection
-                          ? 'text-surface-900 font-semibold'
-                          : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'
+                          ? 'text-surface-900 bg-[#efefee]'
+                          : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'
                         }
                       `}
                     >
-                      <span className={`flex-shrink-0 ${isSeoSection ? 'text-surface-900' : 'text-surface-400 group-hover:text-surface-900'}`}>
+                      <span className={`flex-shrink-0 ${isSeoSection ? 'text-surface-900' : 'text-surface-500 group-hover:text-surface-900'}`}>
                         {icon}
                       </span>
-                      <span className="flex-1 text-left">{pillar.label}</span>
-                      <span className="text-surface-400 flex-shrink-0">
+                      <span className={`flex-1 text-left ${isCollapsed ? 'lg:sr-only' : ''}`}>{pillar.label}</span>
+                      <span className={`text-surface-400 flex-shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
                         {isSeoExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </span>
                     </button>
 
                     {/* SEO Sub-Pillar Routes */}
                     {isSeoExpanded && (
-                      <ul className="mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4">
+                      <ul className={`mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4 ${isCollapsed ? 'lg:hidden' : ''}`}>
                         {seoSubRoutes.map((sub) => (
                           <li key={sub.id} className="relative">
                             <NavLink
@@ -263,28 +305,31 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               return (
                 <div key={pillar.key}>
                   <button
+                    type="button"
                     onClick={() => togglePillar(pillar.key, route, Boolean(expandedPillars[pillar.key]))}
+                    title={pillar.label}
                     className={`
-                      relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium
+                      relative flex items-center gap-3 w-full rounded-lg text-[14px] font-medium
                       transition-all duration-200 group
+                      ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
                       ${isPillarActive
-                        ? 'text-surface-900 font-semibold'
-                        : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'
+                        ? 'text-surface-900 bg-[#efefee]'
+                        : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'
                       }
                     `}
                   >
-                    <span className={`flex-shrink-0 ${isPillarActive ? 'text-surface-900' : 'text-surface-400 group-hover:text-surface-900'}`}>
+                    <span className={`flex-shrink-0 ${isPillarActive ? 'text-surface-900' : 'text-surface-500 group-hover:text-surface-900'}`}>
                       {icon}
                     </span>
-                    <span className="flex-1 text-left">{pillar.label}</span>
-                    <span className="text-surface-400 flex-shrink-0">
+                    <span className={`flex-1 text-left ${isCollapsed ? 'lg:sr-only' : ''}`}>{pillar.label}</span>
+                    <span className={`text-surface-400 flex-shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
                       {expandedPillars[pillar.key] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </span>
                   </button>
 
                   {/* Sub-Pillar Routes */}
                   {expandedPillars[pillar.key] && subRoutes && subRoutes.length > 0 && (
-                    <ul className="mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4">
+                    <ul className={`mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4 ${isCollapsed ? 'lg:hidden' : ''}`}>
                       {subRoutes.map((sub) => (
                         <li key={sub.id} className="relative">
                           <NavLink
@@ -310,7 +355,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             })}
           </div>
 
-          <div className="my-4 border-t border-surface-200" />
+          <div className="my-4 border-t border-[#e6e2dc]" />
 
           {/* Utility Links */}
           <div className="space-y-0.5">
@@ -319,29 +364,30 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 key={link.id}
                 to={`/${link.id}`}
                 onClick={onClose}
-                className={({ isActive }) => `relative flex items-center gap-3 w-full px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 group ${isActive ? 'text-surface-900 font-semibold bg-surface-200/50 before:absolute before:left-0 before:h-5 before:w-[3px] before:rounded-r-full before:bg-brand-600' : 'text-surface-500 hover:bg-surface-200/50 hover:text-surface-900'}`}
+                title={link.label}
+                className={({ isActive }) => `relative flex items-center gap-3 w-full rounded-lg text-[13px] font-medium transition-all duration-200 group ${isCollapsed ? 'justify-center px-2 py-2 lg:px-2' : 'px-3 py-2'} ${isActive ? 'text-surface-900 bg-[#efefee]' : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'}`}
               >
-                <span className="flex-shrink-0 text-surface-400 group-hover:text-surface-900">
+                <span className="flex-shrink-0 text-surface-500 group-hover:text-surface-900">
                   {link.icon}
                 </span>
-                {link.label}
+                <span className={isCollapsed ? 'lg:sr-only' : ''}>{link.label}</span>
               </NavLink>
             ))}
           </div>
         </nav>
 
         {/* User Profile Bottom Area */}
-        <div className="flex-shrink-0 border-t border-surface-200 p-3">
-          <div className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 transition-all duration-200 group hover:bg-surface-200/50">
+        <div className={`flex-shrink-0 border-t border-surface-200 ${isCollapsed ? 'p-3 lg:p-2' : 'p-3'}`}>
+          <div className={`flex cursor-pointer items-center gap-3 rounded-md py-2.5 transition-all duration-200 group hover:bg-surface-200/50 ${isCollapsed ? 'justify-center px-3 lg:px-2' : 'px-3'}`}>
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-surface-300 bg-surface-100 text-surface-900">
-              <span className="text-[11px] font-bold">JD</span>
+              <span className="text-[11px] font-bold">{user ? initialsFor(user.fullName) : '··'}</span>
             </div>
-            <div className="flex-1 min-w-0">
+            <div className={`flex-1 min-w-0 ${isCollapsed ? 'lg:sr-only' : ''}`}>
               <p className="truncate text-[13px] font-bold text-surface-900">
-                John Doe
+                {user?.fullName ?? 'Loading…'}
               </p>
               <p className="truncate text-[11px] font-medium text-surface-500">
-                Free Plan
+                {planInfo.name} Plan
               </p>
             </div>
           </div>

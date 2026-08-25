@@ -1,4 +1,4 @@
-import type { GenericSubPillarDetails } from '../PillarSubPillarPage';
+import type { GenericSubPillarDetails } from './genericTypes';
 
 const good = 'bg-success-100 text-success-700';
 const warn = 'bg-warning-100 text-warning-700';

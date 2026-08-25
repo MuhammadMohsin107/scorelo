@@ -1,4 +1,4 @@
-import type { GenericSubPillarConfig } from '../PillarSubPillarPage';
+import type { GenericSubPillarConfig } from './genericTypes';
 import { coreWebVitalsData, imageWeightFormatData, appScriptBloatData, themeWeightFontsData, priorityIssues } from '../../data/speed/speed.mock';
 
 const status = (score: number) => score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Needs Work' : 'Critical';
@@ -15,7 +15,7 @@ export const speedPillarCatalog: Record<string, GenericSubPillarConfig> = {
     { label: 'Needs improvement', value: coreWebVitalsData.needsImprovementUrls, color: 'bg-warning-500' },
     { label: 'Poor', value: coreWebVitalsData.poorUrls, color: 'bg-critical-500' },
   ]),
-  'speed/image-weight': base('image-weight', 'Image Weight & Format', 'Reduce payload weight with correctly sized, compressed, modern image formats.', imageWeightFormatData.score, 'Images', imageWeightFormatData.imagesAnalyzed, imageWeightFormatData.optimized, [
+  'speed/image-weight': base('image-weight', 'Image Optimization', 'Reduce payload weight with correctly sized, compressed, modern image formats.', imageWeightFormatData.score, 'Images', imageWeightFormatData.imagesAnalyzed, imageWeightFormatData.optimized, [
     { label: 'Oversized images', value: imageWeightFormatData.oversized, description: 'images exceed the recommended payload' },
     { label: 'Legacy formats', value: imageWeightFormatData.legacyFormat, description: 'images can move to WebP or AVIF' },
     { label: 'Optimized images', value: imageWeightFormatData.optimized, description: 'images meet the optimization standard' },

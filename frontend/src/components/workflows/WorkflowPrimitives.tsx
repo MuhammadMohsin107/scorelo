@@ -17,10 +17,10 @@ export function SectionHeading({ eyebrow, title, description, action }: { eyebro
 export function MetricTile({ label, value, detail, tone = 'neutral' }: { label: string; value: string | number; detail?: string; tone?: 'neutral' | 'success' | 'warning' | 'critical' | 'info' }) {
   const toneClass = {
     neutral: 'border-surface-200',
-    success: 'border-success-200',
-    warning: 'border-warning-200',
-    critical: 'border-critical-200',
-    info: 'border-info-200',
+    success: 'border-surface-200',
+    warning: 'border-surface-200',
+    critical: 'border-surface-200',
+    info: 'border-surface-200',
   }[tone];
   return (
     <div className={`rounded-xl border bg-white p-4 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] ${toneClass}`}>

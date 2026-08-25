@@ -183,7 +183,7 @@ export const dashboardMockData: DashboardData = {
       checksPassed: 15,
       subPillars: [
         { id: 'cwv', label: 'Core Web Vitals' },
-        { id: 'image-weight', label: 'Image weight & format' },
+        { id: 'image-weight', label: 'Image Optimization' },
         { id: 'app-bloat', label: 'App & script bloat' },
         { id: 'theme-weight', label: 'Theme weight / fonts / lazy-load' },
       ],

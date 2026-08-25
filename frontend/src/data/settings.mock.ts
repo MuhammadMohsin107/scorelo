@@ -1,10 +1,7 @@
 // ─── Settings · data model ───────────────────────────────────────────
-// Defaults are seeded from the data Scorelo already holds
-// (dashboard.mock storeName/storeUrl, the integration records) so the
-// Settings module never becomes a second source of truth.
-
-import { dashboardMockData } from './dashboard/dashboard.mock';
-import { integrationRecords } from './workflows.mock';
+// Types and static option lists / copy only. The actual settings values
+// (profile/workspace/analysis/notifications/appearance) are fetched
+// from the real API — see data/settings.repository.ts.
 
 /**
  * Whether a settings group is backed by real behaviour in this build.
@@ -65,47 +62,6 @@ export interface SettingsState {
   notifications: NotificationSettings;
   appearance: AppearanceSettings;
 }
-
-export const defaultSettings: SettingsState = {
-  profile: {
-    fullName: 'John Doe',
-    email: 'john.doe@myshopifystore.com',
-    jobTitle: 'Ecommerce Manager',
-    role: 'Administrator',
-  },
-  workspace: {
-    workspaceName: 'Acme Commerce',
-    // Seeded from the same values the Dashboard header renders.
-    storeName: dashboardMockData.storeName,
-    storeUrl: dashboardMockData.storeUrl,
-    platform: 'Shopify',
-    industry: 'Consumer Electronics',
-    country: 'Pakistan',
-    timezone: '(UTC+05:00) Karachi',
-    currency: 'PKR — Pakistani Rupee',
-  },
-  analysis: {
-    autoAnalysis: true,
-    frequency: 'Weekly',
-    crawlScope: 'Entire store',
-    pageLimit: 2000,
-    includeBlog: true,
-    includeCollections: true,
-    respectRobots: true,
-  },
-  notifications: {
-    analysisComplete: true,
-    criticalIssues: true,
-    scoreChanges: true,
-    weeklySummary: true,
-    integrationAlerts: true,
-    productUpdates: false,
-  },
-  appearance: {
-    density: 'Comfortable',
-    reduceMotion: false,
-  },
-};
 
 // ─── Option lists ────────────────────────────────────────────────────
 export const platformOptions = ['Shopify', 'Shopify Plus', 'WooCommerce', 'BigCommerce', 'Magento', 'Custom'];
@@ -189,18 +145,6 @@ export const notificationCopy: {
   },
 ];
 
-// ─── Integration summary (reads the real records) ────────────────────
-export const integrationSummary = () => {
-  const connected = integrationRecords.filter((record) => record.status === 'Connected');
-  const attention = integrationRecords.filter((record) => record.status === 'Needs Attention');
-  return {
-    records: integrationRecords,
-    connected: connected.length,
-    attention: attention.length,
-    total: integrationRecords.length,
-  };
-};
-
 // ─── Plan (no billing backend — presented read-only) ─────────────────
 export const planInfo = {
   name: 'Free',
@@ -214,15 +158,3 @@ export const planInfo = {
     { label: 'Team members', used: 1, limit: 1 },
   ],
 };
-
-// ─── Async load (mirrors dashboard.repository.ts) ────────────────────
-export async function fetchSettings(): Promise<SettingsState> {
-  await new Promise((resolve) => setTimeout(resolve, 450));
-  return structuredClone(defaultSettings);
-}
-
-export async function persistSettings(next: SettingsState): Promise<SettingsState> {
-  // No backend in this build: the change is held in session state only.
-  await new Promise((resolve) => setTimeout(resolve, 650));
-  return next;
-}

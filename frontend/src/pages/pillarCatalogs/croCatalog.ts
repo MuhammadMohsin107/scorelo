@@ -1,4 +1,4 @@
-import type { GenericSubPillarConfig } from '../PillarSubPillarPage';
+import type { GenericSubPillarConfig } from './genericTypes';
 import { clarityBehaviorData, cartRecoveryData, trustSocialProofData, returnsFlowData, orderTrackingData, codCheckoutData, productOptionsData, subscriptionOpportunityData, wishlistData, storeLocatorData, mobileUxData, priorityIssues } from '../../data/cro/cro.mock';
 
 const status = (score: number) => score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Needs Work' : 'Critical';

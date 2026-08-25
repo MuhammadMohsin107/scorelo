@@ -1,4 +1,4 @@
-import type { GenericSubPillarDetails } from '../PillarSubPillarPage';
+import type { GenericSubPillarDetails } from './genericTypes';
 import {
   collectionDescriptionsData,
   metafieldCompletenessData,

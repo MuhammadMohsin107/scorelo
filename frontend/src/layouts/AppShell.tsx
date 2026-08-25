@@ -9,8 +9,16 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('scorelo-sidebar-collapsed') === 'true';
+  });
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    window.localStorage.setItem('scorelo-sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -19,7 +27,12 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex h-screen min-h-0 overflow-hidden bg-surface-50">
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        isCollapsed={sidebarCollapsed}
+        onClose={() => setSidebarOpen(false)}
+        onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)}
+      />
 
       {/* Main Content Area */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

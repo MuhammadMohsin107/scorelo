@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, ChevronRight, Clock3, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowRight, Clock3, RefreshCw, Settings2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
-  fetchAnalysis,
   type RowStatus,
   type SubPillarAnalysis,
   type SubPillarFinding,
 } from '../../data/seo/subpillar.model';
+import { fetchSubPillarAnalysis } from '../../data/seo/subpillar.repository';
 import ScoreCard from '../../components/seo/subpillar/ScoreCard';
 import HealthCard from '../../components/seo/subpillar/HealthCard';
 import FindingsList from '../../components/seo/subpillar/FindingsList';
@@ -14,6 +14,13 @@ import EvidenceTable from '../../components/seo/subpillar/EvidenceTable';
 import InvestigationDrawer from '../../components/seo/subpillar/InvestigationDrawer';
 import SubPillarSkeleton from '../../components/seo/subpillar/SubPillarSkeleton';
 import { card, eyebrow } from '../../components/seo/subpillar/tone';
+import PageSettingsPanel from '../../components/settings/PageSettingsPanel';
+import {
+  getDefaultSubPillarSettings,
+  getSubPillarSettingsDefinition,
+  type PageSettingValue,
+} from '../../data/pageSettings.registry';
+import { fetchSubPillarSettings, saveSubPillarSettings } from '../../data/pageSettings.repository';
 
 type LoadState = 'loading' | 'success' | 'error';
 
@@ -33,14 +40,27 @@ export default function SeoSubPillarPage({ analysis }: Props) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeFinding, setActiveFinding] = useState<SubPillarFinding | null>(null);
   const [statusFilter, setStatusFilter] = useState<RowStatus | 'All'>('All');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pageSettings, setPageSettings] = useState<Record<string, PageSettingValue>>(() => getDefaultSubPillarSettings(analysis.slug));
   const evidenceRef = useRef<HTMLDivElement>(null);
+  const settingsDefinition = getSubPillarSettingsDefinition(analysis.slug);
+
+  useEffect(() => {
+    let active = true;
+    setPageSettings(getDefaultSubPillarSettings(analysis.slug));
+    setSettingsOpen(false);
+    fetchSubPillarSettings(analysis.slug)
+      .then((values) => { if (active) setPageSettings(values); })
+      .catch((error) => console.error('Failed to load page settings', error));
+    return () => { active = false; };
+  }, [analysis.slug]);
 
   const load = useCallback(
     async (isRefresh = false) => {
       try {
         if (isRefresh) setIsRefreshing(true);
         else setState('loading');
-        const result = await fetchAnalysis(analysis);
+        const result = await fetchSubPillarAnalysis(analysis);
         setData(result);
         setState('success');
       } catch {
@@ -62,6 +82,16 @@ export default function SeoSubPillarPage({ analysis }: Props) {
   const focusEvidence = (status: RowStatus | 'All') => {
     setStatusFilter(status);
     evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const updatePageSetting = (key: string, value: PageSettingValue) => {
+    setPageSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const savePageSettings = () => {
+    saveSubPillarSettings(analysis.slug, pageSettings)
+      .catch((error) => console.error('Failed to save page settings', error));
+    setSettingsOpen(false);
   };
 
   if (state === 'loading') return <SubPillarSkeleton />;
@@ -97,26 +127,6 @@ export default function SeoSubPillarPage({ analysis }: Props) {
     // declare its own viewport height — that would add dead space below.
     <div className="bg-surface-50">
       <div className="mx-auto max-w-7xl px-5 pb-12 pt-6 md:px-8">
-        {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb">
-          <ol className="flex items-center gap-1 text-xs text-surface-500">
-            <li>
-              <Link
-                to="/seo"
-                className="rounded transition-colors hover:text-surface-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
-                SEO
-              </Link>
-            </li>
-            <li aria-hidden="true">
-              <ChevronRight size={13} className="text-surface-300" />
-            </li>
-            <li className="font-medium text-surface-800" aria-current="page">
-              {data.title}
-            </li>
-          </ol>
-        </nav>
-
         {/* Header */}
         <header className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -130,9 +140,17 @@ export default function SeoSubPillarPage({ analysis }: Props) {
             </span>
             <button
               type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg border border-surface-200 bg-white px-3 text-xs font-semibold text-surface-700 shadow-sm transition-colors hover:border-brand-200 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+            >
+              <Settings2 size={13} aria-hidden="true" />
+              Client settings
+            </button>
+            <button
+              type="button"
               onClick={() => load(true)}
               disabled={isRefreshing}
-              className="inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg border border-surface-200 bg-white px-3 text-xs font-semibold text-surface-700 shadow-sm transition-colors hover:border-surface-300 hover:bg-surface-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-60"
+              className="inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-60"
             >
               <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} aria-hidden="true" />
               {isRefreshing ? 'Re-analyzing' : 'Re-analyze'}
@@ -210,6 +228,16 @@ export default function SeoSubPillarPage({ analysis }: Props) {
           setActiveFinding(null);
           focusEvidence(finding.issueType);
         }}
+      />
+
+      <PageSettingsPanel
+        open={settingsOpen}
+        definition={settingsDefinition}
+        values={pageSettings}
+        onClose={() => setSettingsOpen(false)}
+        onChange={updatePageSetting}
+        onReset={() => setPageSettings(getDefaultSubPillarSettings(analysis.slug))}
+        onSave={savePageSettings}
       />
     </div>
   );

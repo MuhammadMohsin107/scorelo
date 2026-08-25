@@ -1,4 +1,4 @@
-import type { GenericSubPillarConfig } from '../PillarSubPillarPage';
+import type { GenericSubPillarConfig } from './genericTypes';
 import { collectionDescriptionsData, metafieldCompletenessData, duplicateTemplatedCopyData, blogFreshnessData, mediaRichnessData, productDescriptionsData, priorityIssues } from '../../data/content/content.mock';
 
 const status = (score: number) => score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Needs Work' : 'Critical';
