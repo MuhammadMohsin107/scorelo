@@ -5,7 +5,7 @@ import { db, pool } from '../db/client.js';
 import { auditScores, audits, findings, jobs, stores, users } from '../db/schema.js';
 import { runAuditJob } from '../audit-engine/runner.js';
 import { StoreDataError, type StoreDataProvider, type StoreSnapshot } from '../audit-engine/store-data/types.js';
-import { unavailableResult, type AuditCheck, type SubPillarResult } from '../audit-engine/types.js';
+import type { AuditCheck, SubPillarResult } from '../audit-engine/types.js';
 
 // Integration test: exercises the real worker against the real PostgreSQL database.
 // Only the external store-data provider is stubbed — everything else (transaction,
