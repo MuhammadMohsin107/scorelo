@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { shopifyConnections, stores } from '../../db/schema.js';
-import { decryptToken } from '../../lib/crypto.js';
+import { getValidAccessToken } from '../../services/shopify-oauth.service.js';
 import { ShopifyClient } from './shopify-client.js';
 import { ShopifyStoreDataProvider } from './shopify.provider.js';
 import { StoreDataError, type StoreDataProvider } from './types.js';
@@ -38,7 +38,9 @@ export async function resolveStoreDataProvider(storeId: number): Promise<StoreDa
   }
 
   // Decrypted only here, held only for this run's lifetime, never logged or returned by any API.
-  const accessToken = decryptToken(connection.accessTokenEncrypted);
+  // Expiring offline tokens live one hour, so this renews first when the stored token is at or
+  // near expiry — otherwise a long audit would start with a token that dies mid-run.
+  const accessToken = await getValidAccessToken(connection);
   const client = new ShopifyClient({ shopDomain: connection.shopDomain, accessToken });
 
   return new ShopifyStoreDataProvider(client, storeId, connection.shopDomain, store.pageLimit);

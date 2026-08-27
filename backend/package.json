@@ -14,7 +14,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "test": "tsx --test src/tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:shopify": "tsx src/scripts/verify-shopify.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -4,62 +4,115 @@ import { ShopifyClient } from '../audit-engine/store-data/shopify-client.js';
 import { ShopifyStoreDataProvider } from '../audit-engine/store-data/shopify.provider.js';
 import { StoreDataError } from '../audit-engine/store-data/types.js';
 
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+function gqlResponse(body: unknown) {
+  return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
-/** Routes a fake Shopify API from a path->body map; unlisted paths 404. */
-function providerFor(routes: Record<string, unknown>, productLimit = 100) {
+const SHOP = {
+  shop: {
+    id: 'gid://shopify/Shop/1',
+    name: 'Acme',
+    contactEmail: 'a@b.com',
+    myshopifyDomain: 'test.myshopify.com',
+    currencyCode: 'USD',
+    ianaTimezone: 'UTC',
+    plan: { displayName: 'Basic' },
+    billingAddress: { country: 'United States' },
+    primaryDomain: { url: 'https://test.myshopify.com', host: 'test.myshopify.com' },
+  },
+};
+
+const emptyConnection = { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
+
+/** Routes a fake GraphQL Admin API by operation name; anything unlisted returns an empty
+ * connection so a test only has to declare the resources it cares about. */
+function providerFor(operations: Record<string, unknown>, productLimit = 100) {
   const client = new ShopifyClient({
     shopDomain: 'test.myshopify.com',
     accessToken: 'token',
     sleepImpl: async () => {},
     maxRetries: 0,
-    fetchImpl: async (url) => {
-      const path = new URL(url).pathname.replace('/admin/api/2025-01/', '');
-      const match = Object.entries(routes).find(([route]) => path === route);
-      if (!match) return jsonResponse({}, 404);
-      if (match[1] instanceof Error) throw match[1];
-      return jsonResponse(match[1]);
+    fetchImpl: async (_url, init) => {
+      const { query } = JSON.parse(init?.body ?? '{}') as { query: string };
+      const name = query.match(/query\s+(\w+)/)?.[1] ?? '';
+      const configured = operations[name];
+
+      if (configured instanceof Error) throw configured;
+      if (configured !== undefined) return gqlResponse({ data: configured });
+
+      if (name === 'ScoreloShopIdentity') return gqlResponse({ data: { shop: null } });
+      if (name === 'ScoreloPolicies') return gqlResponse({ data: { shop: { shopPolicies: [] } } });
+      const key = name.replace('Scorelo', '').toLowerCase();
+      return gqlResponse({ data: { [key]: emptyConnection } });
     },
   });
   return new ShopifyStoreDataProvider(client, 42, 'test.myshopify.com', productLimit);
 }
 
-const SHOP = { shop: { name: 'Acme', email: 'a@b.com', currency: 'USD', country_name: 'US', iana_timezone: 'UTC', plan_name: 'basic' } };
+function productsPage(nodes: unknown[]) {
+  return { products: { nodes, pageInfo: { hasNextPage: false, endCursor: null } } };
+}
 
 describe('ShopifyStoreDataProvider normalization', () => {
   it('builds a snapshot with normalized store identity', async () => {
-    const snapshot = await providerFor({ 'shop.json': SHOP }).buildSnapshot();
+    const snapshot = await providerFor({ ScoreloShopIdentity: SHOP }).buildSnapshot();
     assert.equal(snapshot.storeId, 42);
     assert.equal(snapshot.shop.name, 'Acme');
+    assert.equal(snapshot.shop.email, 'a@b.com');
+    assert.equal(snapshot.shop.country, 'United States');
+    assert.equal(snapshot.shop.planName, 'Basic');
     assert.equal(snapshot.shop.primaryUrl, 'https://test.myshopify.com');
     assert.equal(snapshot.coverage.shop, true);
   });
 
+  it('uses the merchant custom domain for storefront URLs, not the myshopify domain', async () => {
+    const snapshot = await providerFor({
+      ScoreloShopIdentity: { shop: { ...SHOP.shop, primaryDomain: { url: 'https://shop.acme.com/', host: 'shop.acme.com' } } },
+      ScoreloProducts: productsPage([{ id: 'gid://shopify/Product/1', handle: 'mug' }]),
+    }).buildSnapshot();
+
+    // A store on a custom domain serves its pages from that domain; deriving evidence URLs from
+    // the myshopify domain would point every finding at the wrong host.
+    assert.equal(snapshot.shop.primaryUrl, 'https://shop.acme.com');
+    assert.equal(snapshot.products[0].url, 'https://shop.acme.com/products/mug');
+  });
+
   it('fails fast when the shop record is absent — store identity is not optional', async () => {
-    const error = await providerFor({ 'shop.json': { shop: null } }).buildSnapshot().catch((e) => e);
+    const error = await providerFor({}).buildSnapshot().catch((e) => e);
     assert.ok(error instanceof StoreDataError);
     assert.equal(error.code, 'MALFORMED_RESPONSE');
   });
 
-  it('derives real storefront URLs from handles', async () => {
+  it('prefers the real onlineStoreUrl over a handle-derived one', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'products.json': { products: [{ id: 1, title: 'Mug', handle: 'mug' }] },
+      ScoreloShopIdentity: SHOP,
+      ScoreloProducts: productsPage([
+        { id: 'gid://shopify/Product/1', handle: 'mug', onlineStoreUrl: 'https://test.myshopify.com/products/mug-2024' },
+        { id: 'gid://shopify/Product/2', handle: 'cup', onlineStoreUrl: null },
+      ]),
     }).buildSnapshot();
-    assert.equal(snapshot.products[0].url, 'https://test.myshopify.com/products/mug');
+
+    assert.equal(snapshot.products[0].url, 'https://test.myshopify.com/products/mug-2024');
+    // Unpublished products have no onlineStoreUrl, but the address they WOULD have is what a fix
+    // recommendation needs to name.
+    assert.equal(snapshot.products[1].url, 'https://test.myshopify.com/products/cup');
+  });
+
+  it('reduces gids to the numeric id merchants see in admin', async () => {
+    const snapshot = await providerFor({
+      ScoreloShopIdentity: SHOP,
+      ScoreloProducts: productsPage([{ id: 'gid://shopify/Product/9876543210', handle: 'p' }]),
+    }).buildSnapshot();
+    assert.equal(snapshot.products[0].id, '9876543210');
   });
 
   it('survives null and missing product fields without crashing', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'products.json': {
-        products: [
-          { id: 1 }, // everything absent
-          { id: 2, title: null, handle: null, body_html: null, tags: null, images: null, variants: null },
-        ],
-      },
+      ScoreloShopIdentity: SHOP,
+      ScoreloProducts: productsPage([
+        { id: 'gid://shopify/Product/1' }, // everything absent
+        { id: 'gid://shopify/Product/2', title: null, handle: null, descriptionHtml: null, tags: null, media: null, variantsCount: null, seo: null },
+      ]),
     }).buildSnapshot();
 
     assert.equal(snapshot.products.length, 2);
@@ -67,14 +120,24 @@ describe('ShopifyStoreDataProvider normalization', () => {
     assert.deepEqual(snapshot.products[1].tags, []);
     assert.deepEqual(snapshot.products[1].images, []);
     assert.equal(snapshot.products[1].variantCount, 0);
+    assert.equal(snapshot.products[1].seoTitle, null);
   });
 
   it('preserves the difference between a missing alt attribute and an empty one', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'products.json': {
-        products: [{ id: 1, handle: 'p', images: [{ id: 9, src: 'https://cdn/a.jpg' }, { id: 10, src: 'https://cdn/b.jpg', alt: '' }] }],
-      },
+      ScoreloShopIdentity: SHOP,
+      ScoreloProducts: productsPage([
+        {
+          id: 'gid://shopify/Product/1',
+          handle: 'p',
+          media: {
+            nodes: [
+              { id: 'gid://shopify/MediaImage/9', image: { url: 'https://cdn/a.jpg', width: 10, height: 10 } },
+              { id: 'gid://shopify/MediaImage/10', alt: '', image: { url: 'https://cdn/b.jpg', width: 10, height: 10 } },
+            ],
+          },
+        },
+      ]),
     }).buildSnapshot();
 
     // null = attribute absent, '' = present but blank. Collapsing these would make the
@@ -83,49 +146,83 @@ describe('ShopifyStoreDataProvider normalization', () => {
     assert.equal(snapshot.products[0].images[1].alt, '');
   });
 
-  it('drops images that have no usable src rather than emitting broken rows', async () => {
+  it('drops non-image media nodes rather than emitting broken rows', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'products.json': { products: [{ id: 1, handle: 'p', images: [{ id: 1 }, null, 'nonsense', { id: 2, src: 'https://cdn/ok.jpg' }] }] },
+      ScoreloShopIdentity: SHOP,
+      ScoreloProducts: productsPage([
+        {
+          id: 'gid://shopify/Product/1',
+          handle: 'p',
+          // A video node matches no inline fragment and comes back as an empty object.
+          media: { nodes: [{}, null, { id: 'x', image: null }, { id: 'gid://shopify/MediaImage/2', image: { url: 'https://cdn/ok.jpg' } }] },
+        },
+      ]),
     }).buildSnapshot();
+
     assert.equal(snapshot.products[0].images.length, 1);
     assert.equal(snapshot.products[0].images[0].src, 'https://cdn/ok.jpg');
   });
 
-  it('marks metafields unavailable (not empty) when they cannot be read', async () => {
+  it('reads SEO overrides from the native seo field on every product, not a sample', async () => {
+    // The REST provider could only afford to read SEO for the first 50 products (one extra
+    // request each); GraphQL returns it inline, so coverage is now total.
+    const nodes = Array.from({ length: 80 }, (_, index) => ({
+      id: `gid://shopify/Product/${index}`,
+      handle: `p${index}`,
+      seo: { title: `SEO ${index}`, description: 'desc' },
+      metafields: { nodes: [] },
+    }));
+
+    const snapshot = await providerFor({ ScoreloShopIdentity: SHOP, ScoreloProducts: productsPage(nodes) }, 100).buildSnapshot();
+    assert.equal(snapshot.products[79].seoTitle, 'SEO 79');
+    assert.ok(snapshot.products.every((product) => product.metafieldsAvailable));
+    assert.equal(snapshot.coverage.metafields, true);
+  });
+
+  it('marks metafields unavailable (not empty) when the connection is absent', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'products.json': { products: [{ id: 1, handle: 'p' }] },
-      // no metafields route -> 404 -> unavailable
+      ScoreloShopIdentity: SHOP,
+      ScoreloProducts: productsPage([{ id: 'gid://shopify/Product/1', handle: 'p' }]),
     }).buildSnapshot();
 
     assert.equal(snapshot.products[0].metafieldsAvailable, false);
     assert.equal(snapshot.coverage.metafields, false, 'must not claim coverage we do not have');
   });
 
-  it('reads SEO overrides out of global metafields when available', async () => {
+  it('reads page SEO overrides out of global metafields, which Page has no seo field for', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'products.json': { products: [{ id: 1, handle: 'p' }] },
-      'products/1/metafields.json': {
-        metafields: [
-          { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: 'Custom SEO title' },
-          { namespace: 'global', key: 'description_tag', type: 'multi_line_text_field', value: 'Custom SEO description' },
-        ],
+      ScoreloShopIdentity: SHOP,
+      ScoreloPages: {
+        pages: {
+          nodes: [
+            {
+              id: 'gid://shopify/Page/5',
+              title: 'About',
+              handle: 'about',
+              body: '<p>Hi</p>',
+              metafields: {
+                nodes: [
+                  { namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: 'Custom SEO title' },
+                  { namespace: 'global', key: 'description_tag', type: 'multi_line_text_field', value: 'Custom SEO description' },
+                ],
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
       },
     }).buildSnapshot();
 
-    assert.equal(snapshot.products[0].metafieldsAvailable, true);
-    assert.equal(snapshot.products[0].seoTitle, 'Custom SEO title');
-    assert.equal(snapshot.products[0].seoDescription, 'Custom SEO description');
-    assert.equal(snapshot.coverage.metafields, true);
+    assert.equal(snapshot.pages[0].seoTitle, 'Custom SEO title');
+    assert.equal(snapshot.pages[0].seoDescription, 'Custom SEO description');
+    assert.equal(snapshot.pages[0].url, 'https://test.myshopify.com/pages/about');
   });
 
   it('records a warning and degrades coverage when one resource group fails', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'products.json': { products: [{ id: 1, handle: 'p' }] },
-      'custom_collections.json': new Error('boom'),
+      ScoreloShopIdentity: SHOP,
+      ScoreloProducts: productsPage([{ id: 'gid://shopify/Product/1', handle: 'p' }]),
+      ScoreloCollections: new Error('boom'),
     }).buildSnapshot();
 
     // Products still captured; only collections degraded.
@@ -140,44 +237,91 @@ describe('ShopifyStoreDataProvider normalization', () => {
       accessToken: 'token',
       sleepImpl: async () => {},
       maxRetries: 0,
-      fetchImpl: async (url) =>
-        new URL(url).pathname.endsWith('shop.json') ? jsonResponse(SHOP) : jsonResponse({}, 401),
+      fetchImpl: async (_url, init) => {
+        const { query } = JSON.parse(init?.body ?? '{}') as { query: string };
+        return query.includes('ScoreloShopIdentity')
+          ? gqlResponse({ data: SHOP })
+          : new Response('{}', { status: 401, headers: { 'Content-Type': 'application/json' } });
+      },
     });
-    const provider = new ShopifyStoreDataProvider(client, 42, 'test.myshopify.com', 100);
-    const error = await provider.buildSnapshot().catch((e) => e);
+
+    const error = await new ShopifyStoreDataProvider(client, 42, 'test.myshopify.com', 100).buildSnapshot().catch((e) => e);
     assert.ok(error instanceof StoreDataError);
     assert.equal(error.code, 'TOKEN_REVOKED');
   });
 
   it('reports the applied scope limit so a partial scan is never presented as complete', async () => {
     const snapshot = await providerFor(
-      { 'shop.json': SHOP, 'products.json': { products: [{ id: 1, handle: 'a' }, { id: 2, handle: 'b' }] } },
+      {
+        ScoreloShopIdentity: SHOP,
+        ScoreloProducts: {
+          products: {
+            nodes: [{ id: 'gid://shopify/Product/1', handle: 'a' }],
+            pageInfo: { hasNextPage: true, endCursor: 'next' },
+          },
+        },
+      },
       1,
     ).buildSnapshot();
 
     assert.equal(snapshot.products.length, 1);
     assert.equal(snapshot.scope.productLimit, 1);
+    assert.equal(snapshot.scope.productsTruncated, true);
   });
 
-  it('merges custom and smart collections into one normalized list', async () => {
+  it('reads manual and automated collections from one connection', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'custom_collections.json': { custom_collections: [{ id: 1, title: 'Manual', handle: 'manual' }] },
-      'smart_collections.json': { smart_collections: [{ id: 2, title: 'Auto', handle: 'auto' }] },
+      ScoreloShopIdentity: SHOP,
+      ScoreloCollections: {
+        collections: {
+          nodes: [
+            { id: 'gid://shopify/Collection/1', title: 'Manual', handle: 'manual', productsCount: { count: 4 }, seo: { title: 'M', description: null } },
+            { id: 'gid://shopify/Collection/2', title: 'Auto', handle: 'auto', productsCount: { count: 9 } },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
     }).buildSnapshot();
 
     assert.deepEqual(snapshot.collections.map((c) => c.handle).sort(), ['auto', 'manual']);
     assert.equal(snapshot.collections[0].url, 'https://test.myshopify.com/collections/manual');
+    assert.equal(snapshot.collections[0].productCount, 4);
+    assert.equal(snapshot.collections[0].seoTitle, 'M');
   });
 
-  it('walks blogs to collect articles with correct blog-scoped URLs', async () => {
+  it('collects articles with blog-scoped URLs from the single articles connection', async () => {
     const snapshot = await providerFor({
-      'shop.json': SHOP,
-      'blogs.json': { blogs: [{ id: 7, handle: 'news' }] },
-      'blogs/7/articles.json': { articles: [{ id: 70, title: 'Post', handle: 'post' }] },
+      ScoreloShopIdentity: SHOP,
+      ScoreloArticles: {
+        articles: {
+          nodes: [
+            {
+              id: 'gid://shopify/Article/70',
+              title: 'Post',
+              handle: 'post',
+              body: '<p>x</p>',
+              blog: { id: 'gid://shopify/Blog/7', handle: 'news' },
+              image: { url: 'https://cdn/hero.jpg', altText: 'Hero', width: 100, height: 50 },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
     }).buildSnapshot();
 
     assert.equal(snapshot.articles.length, 1);
     assert.equal(snapshot.articles[0].url, 'https://test.myshopify.com/blogs/news/post');
+    assert.equal(snapshot.articles[0].blogId, '7');
+    assert.equal(snapshot.articles[0].image?.alt, 'Hero');
+  });
+
+  it('lower-cases the policy type enum so downstream checks keep matching', async () => {
+    const snapshot = await providerFor({
+      ScoreloShopIdentity: SHOP,
+      ScoreloPolicies: { shop: { shopPolicies: [{ id: 'gid://shopify/ShopPolicy/1', type: 'REFUND_POLICY', title: 'Refunds', body: 'text', url: 'https://x/policies/refund-policy' }] } },
+    }).buildSnapshot();
+
+    assert.equal(snapshot.policies[0].type, 'refund_policy');
+    assert.equal(snapshot.policies[0].title, 'Refunds');
   });
 });

@@ -38,9 +38,11 @@ export async function signup(input: SignupInput) {
   });
   if (!user) throw new ApiError(500, 'Unable to create account', 'SIGNUP_FAILED');
 
-  // A brand-new account has no store yet — Phase B's Shopify connect flow creates one.
-  // A default store row keeps every existing service (which all resolve "the user's store")
-  // working immediately after signup, before a real store is connected.
+  // A brand-new account has no shop connected yet. This placeholder row keeps every service
+  // that resolves "the user's store" working from the moment of signup, and platform
+  // 'Not connected' is exactly what resolveStoreForInstall() looks for: the first Shopify
+  // install CLAIMS this row and overwrites its identity, rather than creating a second store.
+  // Nothing here is presented as real store data — no audit can run until a shop is connected.
   await db.insert(stores).values({
     ownerId: user.id,
     workspaceName: `${input.fullName}'s workspace`,

@@ -1,4 +1,23 @@
-import { ShopifyClient } from './shopify-client.js';
+import type { ShopifyClient } from './shopify-client.js';
+import {
+  ARTICLES_QUERY,
+  COLLECTIONS_QUERY,
+  PAGES_QUERY,
+  POLICIES_QUERY,
+  PRODUCTS_QUERY,
+  fetchShopIdentity,
+  type ArticlesResponse,
+  type CollectionsResponse,
+  type GqlArticle,
+  type GqlCollection,
+  type GqlMediaImage,
+  type GqlMetafield,
+  type GqlPage,
+  type GqlProduct,
+  type PagesResponse,
+  type PoliciesResponse,
+  type ProductsResponse,
+} from './shopify.queries.js';
 import {
   StoreDataError,
   type SnapshotArticle,
@@ -11,9 +30,6 @@ import {
   type StoreSnapshot,
 } from './types.js';
 
-/** Per-product metafield reads are 1 request each, so they are sampled rather than exhaustive.
- * Products outside the sample carry metafieldsAvailable:false — "unknown", never "missing". */
-const METAFIELD_SAMPLE_LIMIT = 50;
 const COLLECTION_LIMIT = 250;
 const PAGE_LIMIT = 250;
 const ARTICLE_LIMIT = 250;
@@ -33,23 +49,55 @@ function num(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function id(value: unknown): string {
-  return value === null || value === undefined ? '' : String(value);
+/** GraphQL ids are gids (gid://shopify/Product/123). The numeric suffix is what merchants see in
+ * admin URLs, so it is what evidence rows should reference. */
+function id(gid: unknown): string {
+  const raw = typeof gid === 'string' ? gid : '';
+  if (!raw) return '';
+  const tail = raw.split('/').pop();
+  return tail && /^\d+$/.test(tail) ? tail : raw;
 }
 
-function normalizeImage(raw: unknown): SnapshotImage | null {
+/** A `media` connection contains every media type; non-image nodes come back as empty objects
+ * because the query only spreads MediaImage. Those are dropped, not emitted as broken rows. */
+function normalizeMedia(raw: GqlMediaImage | null | undefined): SnapshotImage | null {
   if (!raw || typeof raw !== 'object') return null;
-  const image = raw as Record<string, unknown>;
-  const src = str(image.src);
+  const src = str(raw.image?.url);
   if (!src) return null;
   return {
-    id: id(image.id),
+    id: id(raw.id),
     src,
-    // Preserved exactly: undefined/null alt means "no attribute", '' means "present but empty".
-    alt: typeof image.alt === 'string' ? image.alt : null,
-    width: num(image.width),
-    height: num(image.height),
+    // Preserved exactly: null alt means "no attribute", '' means "present but empty".
+    alt: typeof raw.alt === 'string' ? raw.alt : null,
+    width: num(raw.image?.width),
+    height: num(raw.image?.height),
   };
+}
+
+function normalizeMetafields(nodes: GqlMetafield[] | null | undefined) {
+  if (!Array.isArray(nodes)) return [];
+  return nodes.map((metafield) => ({
+    namespace: str(metafield?.namespace),
+    key: str(metafield?.key),
+    type: str(metafield?.type),
+    hasValue: metafield?.value !== null && metafield?.value !== undefined && String(metafield.value).trim().length > 0,
+  }));
+}
+
+/**
+ * Pages and Articles have no `seo` field — the online store stores their SEO overrides as
+ * `global.title_tag` / `global.description_tag` metafields. Products and Collections expose
+ * `seo` natively and do not go through here.
+ */
+function seoFromMetafields(nodes: GqlMetafield[] | null | undefined): { title: string | null; description: string | null } {
+  const result = { title: null as string | null, description: null as string | null };
+  if (!Array.isArray(nodes)) return result;
+  for (const metafield of nodes) {
+    if (str(metafield?.namespace) !== 'global') continue;
+    if (str(metafield?.key) === 'title_tag') result.title = nullableStr(metafield?.value);
+    if (str(metafield?.key) === 'description_tag') result.description = nullableStr(metafield?.value);
+  }
+  return result;
 }
 
 export class ShopifyStoreDataProvider implements StoreDataProvider {
@@ -64,15 +112,15 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
 
   async buildSnapshot(): Promise<StoreSnapshot> {
     const warnings: string[] = [];
-    const primaryUrl = `https://${this.shopDomain}`;
 
-    // The shop record is the one genuinely required resource — without it we cannot even
-    // establish store identity, so a failure here is fatal rather than degraded.
-    const shopResponse = await this.client.get<{ shop?: Record<string, unknown> }>('shop.json');
-    const rawShop = shopResponse?.shop;
-    if (!rawShop) {
-      throw new StoreDataError('MALFORMED_RESPONSE', 'Shopify did not return a shop record', false);
-    }
+    // Shop identity is the one genuinely required resource — without it we cannot even establish
+    // which store this is, so a failure here is fatal rather than degraded.
+    const identity = await fetchShopIdentity(this.client);
+
+    // The merchant's real storefront origin. A store on a custom domain serves its pages from
+    // that domain, so deriving URLs from the myshopify domain would point every evidence row and
+    // every storefront check at the wrong host.
+    const primaryUrl = (identity.primaryUrl ?? `https://${this.shopDomain}`).replace(/\/$/, '');
 
     const products = await this.safe('products', warnings, () => this.fetchProducts(primaryUrl));
     const collections = await this.safe('collections', warnings, () => this.fetchCollections(primaryUrl));
@@ -81,7 +129,6 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
     const policies = await this.safe('policies', warnings, () => this.fetchPolicies());
 
     const productList = products?.items ?? [];
-    const metafieldsCovered = productList.some((product) => product.metafieldsAvailable);
 
     return {
       storeId: this.storeId,
@@ -89,12 +136,12 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
       shop: {
         domain: this.shopDomain,
         primaryUrl,
-        name: str(rawShop.name, this.shopDomain),
-        email: nullableStr(rawShop.email),
-        currency: nullableStr(rawShop.currency),
-        country: nullableStr(rawShop.country_name),
-        timezone: nullableStr(rawShop.iana_timezone),
-        planName: nullableStr(rawShop.plan_name),
+        name: identity.name,
+        email: identity.contactEmail,
+        currency: identity.currencyCode,
+        country: identity.country,
+        timezone: identity.ianaTimezone,
+        planName: identity.planName,
       },
       products: productList,
       collections: collections?.items ?? [],
@@ -108,7 +155,10 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
         pages: pages !== null,
         articles: articles !== null,
         policies: policies !== null,
-        metafields: metafieldsCovered,
+        // GraphQL returns metafields inline with each product, so coverage is no longer a
+        // property of a sample — either the products query succeeded and every product carries
+        // real metafield data, or it did not.
+        metafields: products !== null && productList.some((product) => product.metafieldsAvailable),
       },
       scope: {
         productLimit: this.productLimit,
@@ -139,159 +189,147 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
   }
 
   private async fetchProducts(primaryUrl: string): Promise<{ items: SnapshotProduct[]; truncated: boolean }> {
-    const { items: raw, truncated } = await this.client.getPaginated<Record<string, unknown>>('products.json', 'products', this.productLimit);
+    const { items: raw, truncated } = await this.client.paginate<GqlProduct, ProductsResponse>(
+      PRODUCTS_QUERY,
+      (data) => data.products,
+      this.productLimit,
+    );
 
-    const products: SnapshotProduct[] = raw.map((product) => {
+    const items = raw.map((product): SnapshotProduct => {
       const handle = str(product.handle);
-      const images = Array.isArray(product.images)
-        ? product.images.map(normalizeImage).filter((image): image is SnapshotImage => image !== null)
-        : [];
+      const media = Array.isArray(product.media?.nodes) ? product.media.nodes : [];
+      // `metafields` is a non-null connection in the schema, so its presence means we genuinely
+      // read them. A missing connection means we could not look — "unknown", never "none".
+      const metafieldsAvailable = Array.isArray(product.metafields?.nodes);
+
       return {
         id: id(product.id),
         title: str(product.title),
         handle,
-        url: handle ? `${primaryUrl}/products/${handle}` : primaryUrl,
-        bodyHtml: str(product.body_html),
-        productType: str(product.product_type),
+        // onlineStoreUrl is null for an unpublished product; the handle-derived URL is still the
+        // address it would have, which is what a fix recommendation needs to name.
+        url: nullableStr(product.onlineStoreUrl) ?? (handle ? `${primaryUrl}/products/${handle}` : primaryUrl),
+        bodyHtml: str(product.descriptionHtml),
+        productType: str(product.productType),
         vendor: str(product.vendor),
-        tags: typeof product.tags === 'string' ? product.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
-        status: str(product.status, 'active'),
-        publishedAt: nullableStr(product.published_at),
-        updatedAt: nullableStr(product.updated_at),
-        images,
-        variantCount: Array.isArray(product.variants) ? product.variants.length : 0,
-        metafields: [],
-        metafieldsAvailable: false,
-        seoTitle: null,
-        seoDescription: null,
+        tags: Array.isArray(product.tags) ? product.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+        status: str(product.status, 'ACTIVE').toLowerCase(),
+        publishedAt: nullableStr(product.publishedAt),
+        updatedAt: nullableStr(product.updatedAt),
+        images: media.map(normalizeMedia).filter((image): image is SnapshotImage => image !== null),
+        variantCount: num(product.variantsCount?.count) ?? 0,
+        metafields: normalizeMetafields(product.metafields?.nodes),
+        metafieldsAvailable,
+        seoTitle: nullableStr(product.seo?.title),
+        seoDescription: nullableStr(product.seo?.description),
       };
     });
 
-    await this.hydrateMetafieldSample(products);
-    return { items: products, truncated };
-  }
-
-  /** Bounded metafield sample — also the source of merchant SEO overrides, which live as
-   * `global/title_tag` and `global/description_tag` metafields rather than product columns. */
-  private async hydrateMetafieldSample(products: SnapshotProduct[]): Promise<void> {
-    for (const product of products.slice(0, METAFIELD_SAMPLE_LIMIT)) {
-      if (!product.id) continue;
-      try {
-        const response = await this.client.get<{ metafields?: unknown }>(`products/${product.id}/metafields.json`);
-        // A null response means 404 — we could not READ the metafields. That is "unknown",
-        // and must not be recorded as "read successfully, found none", or a completeness
-        // check would report every field as missing on a store we never actually inspected.
-        if (response === null || !Array.isArray(response.metafields)) {
-          product.metafieldsAvailable = false;
-          continue;
-        }
-        const raw = response.metafields as Record<string, unknown>[];
-        product.metafields = raw.map((metafield) => ({
-          namespace: str(metafield.namespace),
-          key: str(metafield.key),
-          type: str(metafield.type),
-          hasValue: metafield.value !== null && metafield.value !== undefined && String(metafield.value).trim().length > 0,
-        }));
-        for (const metafield of raw) {
-          if (str(metafield.namespace) !== 'global') continue;
-          if (str(metafield.key) === 'title_tag') product.seoTitle = nullableStr(metafield.value);
-          if (str(metafield.key) === 'description_tag') product.seoDescription = nullableStr(metafield.value);
-        }
-        product.metafieldsAvailable = true;
-      } catch {
-        // Leave metafieldsAvailable false — the checks will report "unknown", not "missing".
-        product.metafieldsAvailable = false;
-      }
-    }
+    return { items, truncated };
   }
 
   private async fetchCollections(primaryUrl: string): Promise<{ items: SnapshotCollection[]; truncated: boolean }> {
-    const normalize = (raw: Record<string, unknown>): SnapshotCollection => {
-      const handle = str(raw.handle);
+    // One connection covers both manual and automated collections; the REST API split these
+    // across custom_collections and smart_collections and needed two paginated walks.
+    const { items: raw, truncated } = await this.client.paginate<GqlCollection, CollectionsResponse>(
+      COLLECTIONS_QUERY,
+      (data) => data.collections,
+      COLLECTION_LIMIT,
+    );
+
+    const items = raw.map((collection): SnapshotCollection => {
+      const handle = str(collection.handle);
       return {
-        id: id(raw.id),
-        title: str(raw.title),
+        id: id(collection.id),
+        title: str(collection.title),
         handle,
         url: handle ? `${primaryUrl}/collections/${handle}` : primaryUrl,
-        bodyHtml: str(raw.body_html),
-        productCount: num(raw.products_count),
-        seoTitle: null,
-        seoDescription: null,
+        bodyHtml: str(collection.descriptionHtml),
+        productCount: num(collection.productsCount?.count),
+        seoTitle: nullableStr(collection.seo?.title),
+        seoDescription: nullableStr(collection.seo?.description),
       };
-    };
+    });
 
-    // Shopify splits collections across two endpoints; a store may legitimately use either.
-    const custom = await this.client.getPaginated<Record<string, unknown>>('custom_collections.json', 'custom_collections', COLLECTION_LIMIT);
-    const smart = await this.client.getPaginated<Record<string, unknown>>('smart_collections.json', 'smart_collections', COLLECTION_LIMIT);
-
-    return {
-      items: [...custom.items.map(normalize), ...smart.items.map(normalize)],
-      truncated: custom.truncated || smart.truncated,
-    };
+    return { items, truncated };
   }
 
   private async fetchPages(primaryUrl: string): Promise<{ items: SnapshotPage[]; truncated: boolean }> {
-    const { items: raw, truncated } = await this.client.getPaginated<Record<string, unknown>>('pages.json', 'pages', PAGE_LIMIT);
-    return {
-      items: raw.map((page) => {
-        const handle = str(page.handle);
-        return {
-          id: id(page.id),
-          title: str(page.title),
-          handle,
-          url: handle ? `${primaryUrl}/pages/${handle}` : primaryUrl,
-          bodyHtml: str(page.body_html),
-          publishedAt: nullableStr(page.published_at),
-          updatedAt: nullableStr(page.updated_at),
-          seoTitle: null,
-          seoDescription: null,
-        };
-      }),
-      truncated,
-    };
+    const { items: raw, truncated } = await this.client.paginate<GqlPage, PagesResponse>(
+      PAGES_QUERY,
+      (data) => data.pages,
+      PAGE_LIMIT,
+    );
+
+    const items = raw.map((page): SnapshotPage => {
+      const handle = str(page.handle);
+      const seo = seoFromMetafields(page.metafields?.nodes);
+      return {
+        id: id(page.id),
+        title: str(page.title),
+        handle,
+        url: handle ? `${primaryUrl}/pages/${handle}` : primaryUrl,
+        bodyHtml: str(page.body),
+        publishedAt: nullableStr(page.publishedAt),
+        updatedAt: nullableStr(page.updatedAt),
+        seoTitle: seo.title,
+        seoDescription: seo.description,
+      };
+    });
+
+    return { items, truncated };
   }
 
   private async fetchArticles(primaryUrl: string): Promise<{ items: SnapshotArticle[]; truncated: boolean }> {
-    const blogs = await this.client.getPaginated<Record<string, unknown>>('blogs.json', 'blogs', 50);
-    const articles: SnapshotArticle[] = [];
-    let truncated = blogs.truncated;
+    const { items: raw, truncated } = await this.client.paginate<GqlArticle, ArticlesResponse>(
+      ARTICLES_QUERY,
+      (data) => data.articles,
+      ARTICLE_LIMIT,
+    );
 
-    for (const blog of blogs.items) {
-      const blogId = id(blog.id);
-      const blogHandle = str(blog.handle, 'news');
-      if (!blogId) continue;
-      const result = await this.client.getPaginated<Record<string, unknown>>(`blogs/${blogId}/articles.json`, 'articles', ARTICLE_LIMIT);
-      truncated = truncated || result.truncated;
-      for (const article of result.items) {
-        const handle = str(article.handle);
-        articles.push({
-          id: id(article.id),
-          blogId,
-          blogHandle,
-          title: str(article.title),
-          handle,
-          url: handle ? `${primaryUrl}/blogs/${blogHandle}/${handle}` : primaryUrl,
-          bodyHtml: str(article.body_html),
-          publishedAt: nullableStr(article.published_at),
-          updatedAt: nullableStr(article.updated_at),
-          image: normalizeImage(article.image),
-          seoTitle: null,
-          seoDescription: null,
-        });
-      }
-    }
+    const items = raw.map((article): SnapshotArticle => {
+      const handle = str(article.handle);
+      const blogHandle = str(article.blog?.handle, 'news');
+      const seo = seoFromMetafields(article.metafields?.nodes);
+      const image = article.image?.url
+        ? {
+            id: '',
+            src: str(article.image.url),
+            alt: typeof article.image.altText === 'string' ? article.image.altText : null,
+            width: num(article.image.width),
+            height: num(article.image.height),
+          }
+        : null;
 
-    return { items: articles, truncated };
+      return {
+        id: id(article.id),
+        blogId: id(article.blog?.id),
+        blogHandle,
+        title: str(article.title),
+        handle,
+        url: handle ? `${primaryUrl}/blogs/${blogHandle}/${handle}` : primaryUrl,
+        bodyHtml: str(article.body),
+        publishedAt: nullableStr(article.publishedAt),
+        updatedAt: nullableStr(article.updatedAt),
+        image,
+        seoTitle: seo.title,
+        seoDescription: seo.description,
+      };
+    });
+
+    return { items, truncated };
   }
 
   private async fetchPolicies(): Promise<SnapshotPolicy[]> {
-    const response = await this.client.get<{ policies?: unknown }>('policies.json');
-    const raw = Array.isArray(response?.policies) ? (response.policies as Record<string, unknown>[]) : [];
+    const data = await this.client.graphql<PoliciesResponse>(POLICIES_QUERY);
+    const raw = Array.isArray(data.shop?.shopPolicies) ? data.shop.shopPolicies : [];
     return raw.map((policy) => ({
-      type: str(policy.handle),
-      title: str(policy.title),
-      body: str(policy.body),
-      url: nullableStr(policy.url),
+      // ShopPolicyType is an enum (REFUND_POLICY, PRIVACY_POLICY, …); lower-cased it matches the
+      // handle the REST API used, so downstream checks keying on 'refund_policy' still work.
+      type: str(policy?.type).toLowerCase(),
+      title: str(policy?.title),
+      body: str(policy?.body),
+      url: nullableStr(policy?.url),
     }));
   }
 }

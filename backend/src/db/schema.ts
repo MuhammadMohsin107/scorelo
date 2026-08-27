@@ -296,6 +296,29 @@ export const shopifyConnections = mysqlTable(
     shopDomain: varchar('shop_domain', { length: 255 }).notNull().unique(),
     accessTokenEncrypted: text('access_token_encrypted').notNull(),
     scope: text('scope').notNull(),
+    // ── Expiring offline access tokens ────────────────────────────────
+    // Shopify requires public apps to use EXPIRING offline tokens for Admin API requests from
+    // 2027-01-01. An expiring access token lives 1 hour; the refresh token that renews it lives
+    // 90 days and is spent server-side with no merchant interaction.
+    //
+    // All four columns are nullable on purpose: a connection created before this change holds a
+    // legacy non-expiring token with no refresh token and no expiry, and must keep working
+    // untouched until the merchant reconnects. NULL `access_token_expires_at` therefore means
+    // "legacy, never expires", NOT "expired" — see needsRefresh() in shopify-oauth.service.ts.
+    refreshTokenEncrypted: text('refresh_token_encrypted'),
+    accessTokenExpiresAt: datetime('access_token_expires_at', { mode: 'date' }),
+    refreshTokenExpiresAt: datetime('refresh_token_expires_at', { mode: 'date' }),
+    // The shop's own Admin API identity (gid://shopify/Shop/123456). Captured from Shopify at
+    // install rather than assumed, so store identity survives a myshopify domain rename.
+    shopGid: varchar('shop_gid', { length: 64 }),
+    // Outcome of the last real read of the shop's data: resource counts actually fetched, which
+    // groups were truncated by the scope limit, and any non-fatal warnings. Persisted so the
+    // Integrations page can show what was genuinely synced instead of re-asserting "Connected",
+    // and so a partial sync of a large catalogue is never presented as a complete one.
+    lastSyncSummary: json('last_sync_summary'),
+    // Set when the last sync failed, cleared when one succeeds. A store that failed to sync must
+    // say so rather than keep displaying the previous success.
+    lastSyncError: text('last_sync_error'),
     installedAt: datetime('installed_at', { mode: 'date' }).notNull().default(now),
     uninstalledAt: datetime('uninstalled_at', { mode: 'date' }),
     lastWebhookAt: datetime('last_webhook_at', { mode: 'date' }),
