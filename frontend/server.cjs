@@ -46,15 +46,42 @@ if (apiTarget.protocol !== 'http:') {
 
 const API_TIMEOUT_MS = Number(process.env.API_TIMEOUT_MS || 120000);
 
+// Hop-by-hop headers describe one connection and must not be relayed to the next one
+// (RFC 9110 §7.6.1). Forwarding the client's `connection: keep-alive` or a `transfer-encoding`
+// that no longer applies makes the upstream negotiate against the wrong peer.
+const HOP_BY_HOP = new Set([
+  'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+  'te', 'trailer', 'transfer-encoding', 'upgrade',
+]);
+
+function withoutHopByHop(headers) {
+  const out = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (!HOP_BY_HOP.has(name.toLowerCase())) out[name] = value;
+  }
+  return out;
+}
+
 function failGateway(response, code, detail) {
   console.error(`[scorelo-frontend] API proxy ${code}:`, detail);
-  if (!response.headersSent) {
-    response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
+  // Once the upstream's headers and part of its body are on the wire, this response belongs to
+  // the API. Appending a JSON error would corrupt that partial body, so cut the connection and
+  // let the client see a truncated response, which is what actually happened.
+  if (response.headersSent) {
+    response.destroy();
+    return;
   }
+  response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   response.end(JSON.stringify({ error: code === 504 ? 'API timed out' : 'API unavailable' }));
 }
 
 function proxyToApi(request, response) {
+  // The API sits two hops from the browser (edge proxy -> here -> API). X-Forwarded-For is a
+  // list, so APPEND this hop rather than overwrite: the edge proxy already recorded the real
+  // client there, and replacing it would leave the API seeing only the edge proxy's address.
+  const forwardedFor = request.headers['x-forwarded-for'];
+  const thisHop = request.socket.remoteAddress ?? '';
+
   const upstream = http.request(
     {
       hostname: apiTarget.hostname,
@@ -62,17 +89,15 @@ function proxyToApi(request, response) {
       method: request.method,
       path: request.url,
       headers: {
-        ...request.headers,
+        ...withoutHopByHop(request.headers),
         host: apiTarget.host,
-        // The API sits two hops from the browser (edge proxy -> here -> API). Preserve the
-        // client's real address and the original scheme so it can build correct absolute URLs.
-        'x-forwarded-for': request.socket.remoteAddress ?? '',
+        'x-forwarded-for': forwardedFor ? `${forwardedFor}, ${thisHop}` : thisHop,
         'x-forwarded-proto': request.headers['x-forwarded-proto'] ?? 'http',
         'x-forwarded-host': request.headers.host ?? '',
       },
     },
     (upstreamResponse) => {
-      response.writeHead(upstreamResponse.statusCode || 502, upstreamResponse.headers);
+      response.writeHead(upstreamResponse.statusCode || 502, withoutHopByHop(upstreamResponse.headers));
       upstreamResponse.pipe(response);
     },
   );
@@ -87,6 +112,12 @@ function proxyToApi(request, response) {
     if (response.writableEnded) return;
     failGateway(response, 502, error.message);
   });
+
+  // A browser that navigates away mid-request leaves this socket half-open; without tearing the
+  // upstream down too, its request outlives the client and the sockets accumulate under load.
+  const abortUpstream = () => upstream.destroy();
+  request.on('aborted', abortUpstream);
+  response.on('close', abortUpstream);
 
   request.pipe(upstream);
 }
