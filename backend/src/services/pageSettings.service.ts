@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { insertReturning, updateReturning } from '../db/returning.js';
 import { pageSettings } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { getCurrentStoreId } from './store.service.js';
@@ -32,11 +33,11 @@ export async function upsertPageSettingsBySlug(userId: number, slug: string, inp
     .limit(1);
 
   if (existing) {
-    const [updated] = await db
-      .update(pageSettings)
-      .set({ values, updatedAt: new Date() })
-      .where(and(eq(pageSettings.storeId, resolvedStoreId), eq(pageSettings.slug, slug)))
-      .returning();
+    const [updated] = await updateReturning(
+      pageSettings,
+      { values, updatedAt: new Date() },
+      and(eq(pageSettings.storeId, resolvedStoreId), eq(pageSettings.slug, slug)),
+    );
 
     if (!updated) {
       throw new ApiError(404, 'Page settings not found', 'PAGE_SETTINGS_NOT_FOUND');
@@ -45,10 +46,7 @@ export async function upsertPageSettingsBySlug(userId: number, slug: string, inp
     return { slug: updated.slug, values: updated.values ?? {} };
   }
 
-  const [created] = await db
-    .insert(pageSettings)
-    .values({ storeId: resolvedStoreId, slug, values })
-    .returning();
+  const created = await insertReturning(pageSettings, { storeId: resolvedStoreId, slug, values });
 
   if (!created) {
     throw new ApiError(500, 'Unable to create page settings', 'PAGE_SETTINGS_CREATE_FAILED');

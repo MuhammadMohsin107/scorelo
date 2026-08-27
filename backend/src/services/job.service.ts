@@ -1,5 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { insertReturning } from '../db/returning.js';
 import { jobs } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { getCurrentStoreId } from './store.service.js';
@@ -29,9 +30,11 @@ export async function createAuditJob(userId: number, storeId?: number) {
 
   let job;
   try {
-    [job] = await db.insert(jobs).values({ storeId: resolvedStoreId, type: 'audit_run' }).returning();
+    job = await insertReturning(jobs, { storeId: resolvedStoreId, type: 'audit_run' });
   } catch (error) {
-    if (error instanceof Error && 'code' in error && (error as { code: string }).code === '23505') {
+    // MySQL reports a unique-index violation as ER_DUP_ENTRY (1062); Postgres used SQLSTATE
+    // 23505. Both mean jobs_store_active_unique_idx rejected a second active job for this store.
+    if (error instanceof Error && 'code' in error && (error as { code: string }).code === 'ER_DUP_ENTRY') {
       throw new ApiError(409, 'An audit run is already in progress for this store', 'AUDIT_RUN_IN_PROGRESS');
     }
     throw error;

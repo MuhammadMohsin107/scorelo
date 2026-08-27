@@ -1,5 +1,6 @@
-import { and, count, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, like, or } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { updateReturning } from '../db/returning.js';
 import { audits, findings } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { getCurrentStoreId } from './store.service.js';
@@ -17,7 +18,9 @@ function optionalConditions(query: FindingListQuery) {
   if (query.severity) conditions.push(eq(findings.severity, query.severity));
   if (query.search) {
     const term = `%${query.search}%`;
-    conditions.push(or(ilike(findings.title, term), ilike(findings.subPillar, term), ilike(findings.recommendation, term)));
+    // Postgres needed ILIKE for a case-insensitive match; MySQL's default collation
+    // (utf8mb4_general_ci / _0900_ai_ci) already compares LIKE case-insensitively.
+    conditions.push(or(like(findings.title, term), like(findings.subPillar, term), like(findings.recommendation, term)));
   }
   return conditions;
 }
@@ -54,7 +57,7 @@ export async function updateFindingStatus(userId: number, id: number, input: Upd
   const resolvedStoreId = await getCurrentStoreId(userId, storeId);
   const auditRows = await db.select({ id: audits.id }).from(audits).where(eq(audits.storeId, resolvedStoreId));
   const auditIds = auditRows.map(({ id: auditId }) => auditId);
-  const [updated] = auditIds.length === 0 ? [] : await db.update(findings).set({ status: input.status, statusChangedAt: new Date() }).where(and(eq(findings.id, id), inArray(findings.auditId, auditIds))).returning();
+  const [updated] = auditIds.length === 0 ? [] : await updateReturning(findings, { status: input.status, statusChangedAt: new Date() }, and(eq(findings.id, id), inArray(findings.auditId, auditIds)));
   if (!updated) throw new ApiError(404, 'Finding not found', 'FINDING_NOT_FOUND');
   return updated;
 }
@@ -64,5 +67,5 @@ export async function bulkUpdateFindingStatus(userId: number, input: BulkFinding
   const eligible = await db.select({ id: findings.id }).from(findings).innerJoin(audits, eq(findings.auditId, audits.id)).where(and(storeFindingCondition(resolvedStoreId), inArray(findings.id, input.ids)));
   const eligibleIds = eligible.map(({ id }) => id);
   if (eligibleIds.length !== input.ids.length) throw new ApiError(404, 'One or more findings were not found', 'FINDINGS_NOT_FOUND');
-  return db.update(findings).set({ status: input.status, statusChangedAt: new Date() }).where(inArray(findings.id, eligibleIds)).returning();
+  return updateReturning(findings, { status: input.status, statusChangedAt: new Date() }, inArray(findings.id, eligibleIds));
 }

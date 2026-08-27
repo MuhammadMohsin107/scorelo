@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { insertReturning } from '../db/returning.js';
 import { integrations, shopifyConnections, stores } from '../db/schema.js';
 import { env, shopifyConfigured } from '../config/env.js';
 import { ApiError } from '../middleware/error.js';
@@ -108,20 +109,17 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
       storeId = userStores.id;
       await db.update(stores).set({ name: shop, url: `https://${shop}`, platform: 'Shopify' }).where(eq(stores.id, storeId));
     } else {
-      const [created] = await db
-        .insert(stores)
-        .values({
-          ownerId: statePayload.sub,
-          workspaceName: shop,
-          name: shop,
-          url: `https://${shop}`,
-          platform: 'Shopify',
-          industry: 'Unspecified',
-          country: 'Unspecified',
-          timezone: '(UTC+00:00) UTC',
-          currency: 'USD — US Dollar',
-        })
-        .returning();
+      const created = await insertReturning(stores, {
+        ownerId: statePayload.sub,
+        workspaceName: shop,
+        name: shop,
+        url: `https://${shop}`,
+        platform: 'Shopify',
+        industry: 'Unspecified',
+        country: 'Unspecified',
+        timezone: '(UTC+00:00) UTC',
+        currency: 'USD — US Dollar',
+      });
       if (!created) throw new ApiError(500, 'Unable to create store for Shopify connection', 'STORE_CREATE_FAILED');
       storeId = created.id;
     }
@@ -131,8 +129,10 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
   await db
     .insert(integrations)
     .values({ storeId, provider: 'shopify', status: 'connected', accountDetail: shop, lastSyncedAt: new Date() })
-    .onConflictDoUpdate({
-      target: [integrations.storeId, integrations.provider],
+    // MySQL's equivalent of ON CONFLICT DO UPDATE. It keys off any unique index the insert
+    // violates, which here is integrations_store_provider_idx (store_id, provider) — the same
+    // target the Postgres form named explicitly.
+    .onDuplicateKeyUpdate({
       set: { status: 'connected', accountDetail: shop, lastSyncedAt: new Date(), notice: null },
     });
 

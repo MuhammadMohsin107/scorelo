@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { updateReturning } from '../db/returning.js';
 import { users } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { toPublicUser } from '../lib/publicUser.js';
@@ -12,7 +13,7 @@ export async function getUserById(id: number) {
 }
 
 export async function updateUserById(id: number, input: UpdateUserInput) {
-  const [user] = await db.update(users).set(input).where(eq(users.id, id)).returning();
+  const [user] = await updateReturning(users, input, eq(users.id, id));
   if (!user) throw new ApiError(404, 'User not found', 'USER_NOT_FOUND');
   return toPublicUser(user);
 }

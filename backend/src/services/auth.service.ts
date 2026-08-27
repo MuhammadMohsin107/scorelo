@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { insertReturning } from '../db/returning.js';
 import { stores, users } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { refreshTokenTtlMs, signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
@@ -29,10 +30,12 @@ export async function signup(input: SignupInput) {
   if (existing) throw new ApiError(409, 'An account with this email already exists', 'EMAIL_TAKEN');
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
-  const [user] = await db
-    .insert(users)
-    .values({ fullName: input.fullName, email: input.email, passwordHash, jobTitle: input.jobTitle })
-    .returning();
+  const user = await insertReturning(users, {
+    fullName: input.fullName,
+    email: input.email,
+    passwordHash,
+    jobTitle: input.jobTitle,
+  });
   if (!user) throw new ApiError(500, 'Unable to create account', 'SIGNUP_FAILED');
 
   // A brand-new account has no store yet — Phase B's Shopify connect flow creates one.

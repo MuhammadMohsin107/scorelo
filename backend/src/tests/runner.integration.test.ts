@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
 import { eq } from 'drizzle-orm';
 import { db, pool } from '../db/client.js';
+import { insertReturning } from '../db/returning.js';
 import { auditScores, audits, findings, jobs, stores, users } from '../db/schema.js';
 import { runAuditJob } from '../audit-engine/runner.js';
 import { StoreDataError, type StoreDataProvider, type StoreSnapshot } from '../audit-engine/store-data/types.js';
 import type { AuditCheck, SubPillarResult } from '../audit-engine/types.js';
 
-// Integration test: exercises the real worker against the real PostgreSQL database.
+// Integration test: exercises the real worker against the real MySQL database.
 // Only the external store-data provider is stubbed — everything else (transaction,
 // persistence, scoring, job lifecycle) is the genuine production code path.
 
@@ -73,21 +74,18 @@ const throwingCheck: AuditCheck = {
 };
 
 async function createStoreFixture(email: string) {
-  const [user] = await db.insert(users).values({ fullName: 'ITest', email, passwordHash: 'x' }).returning();
-  const [store] = await db
-    .insert(stores)
-    .values({
-      ownerId: user.id,
-      workspaceName: 'ITest',
-      name: 'ITest store',
-      url: 'https://itest.myshopify.com',
-      platform: 'Shopify',
-      industry: 'x',
-      country: 'x',
-      timezone: 'UTC',
-      currency: 'USD',
-    })
-    .returning();
+  const user = await insertReturning(users, { fullName: 'ITest', email, passwordHash: 'x' });
+  const store = await insertReturning(stores, {
+    ownerId: user.id,
+    workspaceName: 'ITest',
+    name: 'ITest store',
+    url: 'https://itest.myshopify.com',
+    platform: 'Shopify',
+    industry: 'x',
+    country: 'x',
+    timezone: 'UTC',
+    currency: 'USD',
+  });
   return { user, store };
 }
 
@@ -103,7 +101,7 @@ describe('audit worker (integration, real DB)', () => {
   it('persists a complete audit and marks the job succeeded', async () => {
     const { user, store } = await createStoreFixture(`itest-ok-${process.pid}@test.local`);
     try {
-      const [job] = await db.insert(jobs).values({ storeId: store.id, type: 'audit_run' }).returning();
+      const job = await insertReturning(jobs, { storeId: store.id, type: 'audit_run' });
 
       await runAuditJob(job.id, {
         resolveProvider: async () => stubProvider(store.id),
@@ -141,7 +139,7 @@ describe('audit worker (integration, real DB)', () => {
   it('isolates a crashing check: the audit still completes and other checks survive', async () => {
     const { user, store } = await createStoreFixture(`itest-isolate-${process.pid}@test.local`);
     try {
-      const [job] = await db.insert(jobs).values({ storeId: store.id, type: 'audit_run' }).returning();
+      const job = await insertReturning(jobs, { storeId: store.id, type: 'audit_run' });
 
       await runAuditJob(job.id, {
         resolveProvider: async () => stubProvider(store.id),
@@ -171,7 +169,7 @@ describe('audit worker (integration, real DB)', () => {
   it('marks the job failed with a reason when the store data source is unusable', async () => {
     const { user, store } = await createStoreFixture(`itest-fail-${process.pid}@test.local`);
     try {
-      const [job] = await db.insert(jobs).values({ storeId: store.id, type: 'audit_run' }).returning();
+      const job = await insertReturning(jobs, { storeId: store.id, type: 'audit_run' });
 
       await runAuditJob(job.id, {
         resolveProvider: async () => {
@@ -196,7 +194,7 @@ describe('audit worker (integration, real DB)', () => {
     const { user, store } = await createStoreFixture(`itest-history-${process.pid}@test.local`);
     try {
       for (const score of [60, 95]) {
-        const [job] = await db.insert(jobs).values({ storeId: store.id, type: 'audit_run' }).returning();
+        const job = await insertReturning(jobs, { storeId: store.id, type: 'audit_run' });
         await runAuditJob(job.id, {
           resolveProvider: async () => stubProvider(store.id),
           checks: [passingCheck('title-tags', score)],

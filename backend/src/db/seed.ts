@@ -21,6 +21,7 @@ import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import { sql } from 'drizzle-orm';
 import { db, pool } from './client.js';
+import { insertReturning } from './returning.js';
 import { auditScores, audits, findings, integrations, notifications, stores, users } from './schema.js';
 
 interface SubPillarSeedEntry {
@@ -61,14 +62,18 @@ async function seed() {
   // run would hand out id 2 for the "only" user, breaking mock-auth's
   // hardcoded req.user = { id: 1 }. CASCADE also clears every FK-dependent
   // table (audits, audit_scores, findings, integrations, notifications, page_settings).
-  await db.execute(sql`TRUNCATE TABLE ${users}, ${stores} RESTART IDENTITY CASCADE`);
+  // MySQL truncates one table per statement, has no CASCADE, and resets AUTO_INCREMENT on its
+  // own (no RESTART IDENTITY). Foreign key checks are dropped for the duration so the two
+  // parent tables can be emptied in either order; every child cascades from stores anyway.
+  await db.execute(sql`SET FOREIGN_KEY_CHECKS = 0`);
+  await db.execute(sql`TRUNCATE TABLE ${stores}`);
+  await db.execute(sql`TRUNCATE TABLE ${users}`);
+  await db.execute(sql`SET FOREIGN_KEY_CHECKS = 1`);
 
   // Demo login: moshin.akhlaq@example.com / password123 — dev/demo only, never used in production.
   const passwordHash = await bcrypt.hash('password123', 12);
 
-  const [user] = await db
-    .insert(users)
-    .values({
+  const user = await insertReturning(users, {
       fullName: 'Moshin Akhlaq',
       email: 'moshin.akhlaq@example.com',
       passwordHash,
@@ -82,12 +87,9 @@ async function seed() {
       notifyProductUpdates: false,
       density: 'Comfortable',
       reduceMotion: false,
-    })
-    .returning();
+  });
 
-  const [store] = await db
-    .insert(stores)
-    .values({
+  const store = await insertReturning(stores, {
       ownerId: user.id,
       workspaceName: 'Acme Commerce',
       name: 'My Shopify Store',
@@ -104,8 +106,7 @@ async function seed() {
       includeBlog: true,
       includeCollections: true,
       respectRobots: true,
-    })
-    .returning();
+  });
 
   const now = Date.now();
   const minutesAgo = (n: number) => new Date(now - n * 60 * 1000);
@@ -217,12 +218,9 @@ async function seed() {
   const insertedAudits = [];
   for (let i = 0; i < weeklyScores.length; i++) {
     const weeksFromLatest = weeklyScores.length - 1 - i;
-    const [audit] = await db
-      .insert(audits)
-      // source:'seed' is what keeps these demo fixtures distinguishable from a real
-      // engine-computed audit — they must never be shown to a customer as their own results.
-      .values({ storeId: store.id, overallScore: weeklyScores[i], runAt: daysAgo(weeksFromLatest * 7), source: 'seed' })
-      .returning();
+    // source:'seed' is what keeps these demo fixtures distinguishable from a real
+    // engine-computed audit — they must never be shown to a customer as their own results.
+    const audit = await insertReturning(audits, { storeId: store.id, overallScore: weeklyScores[i], runAt: daysAgo(weeksFromLatest * 7), source: 'seed' });
     insertedAudits.push(audit);
   }
   const latestAudit = insertedAudits[insertedAudits.length - 1];

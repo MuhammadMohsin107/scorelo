@@ -1,6 +1,6 @@
 # Scorelo
 
-Store optimization dashboard for Shopify merchants. The project contains a React frontend with realistic mock data and an Express/Drizzle/PostgreSQL backend foundation.
+Store optimization dashboard for Shopify merchants. The project contains a React frontend with realistic mock data and an Express/Drizzle/MySQL backend foundation.
 
 ## Project Status
 
@@ -14,7 +14,7 @@ Store optimization dashboard for Shopify merchants. The project contains a React
 
 - Node.js 20 or newer
 - npm
-- PostgreSQL when running the backend
+- MySQL 8 or MariaDB 10.5+ when running the backend
 
 ## Repository Layout
 
@@ -29,7 +29,7 @@ scorelo2/
 	backend/                  Express + Drizzle API foundation
 		src/server.ts           API entry point
 		src/routes/health.ts    Database-aware health endpoint
-		src/db/schema.ts        PostgreSQL schema
+		src/db/schema.ts        MySQL schema
 		drizzle/                SQL migrations
 	SEO_IMPLEMENTATION_GUIDE.js
 	skills-lock.json
@@ -61,7 +61,7 @@ Create `backend/.env`:
 ```env
 NODE_ENV=development
 PORT=5000
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
+DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/DATABASE
 ```
 
 Then run:
@@ -83,7 +83,7 @@ npm run db:generate  # Generate a Drizzle migration
 npm run db:migrate   # Apply migrations
 ```
 
-Health endpoint: `GET http://localhost:5000/api/health`. It returns `200` when PostgreSQL is reachable and `503` otherwise.
+Health endpoint: `GET http://localhost:5000/api/health`. It returns `200` when MySQL is reachable and `503` otherwise.
 
 ## Frontend Routes
 
@@ -167,7 +167,7 @@ Create `backend/.env` on the server. Bind the API to loopback only — never exp
 ```ini
 NODE_ENV=production
 PORT=5000
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/scorelo
+DATABASE_URL=mysql://USER:PASSWORD@localhost:3306/scorelo
 MOCK_AUTH=false
 # Generate fresh values — never reuse development secrets:
 #   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
@@ -214,7 +214,7 @@ The backend schema includes users, stores, audits, audit scores, findings, and i
 
 - No authentication, authorization, sessions, or multi-tenant isolation.
 - Feature APIs and frontend API integration are not implemented.
-- Fixes, integration changes, and finding statuses are not persisted to PostgreSQL.
+- Fixes, integration changes, and finding statuses are not persisted to MySQL.
 - No automated test suite or frontend test script.
 - Deep-link refresh behavior and a catch-all not-found route need hardening before production.
 - Some visible workflow controls are simulations rather than connected operations.

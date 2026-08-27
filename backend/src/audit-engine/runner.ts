@@ -72,6 +72,9 @@ async function persistAudit(storeId: number, outcomes: PillarOutcome[], snapshot
   const overall = scoreOverall(pillarScores);
 
   return db.transaction(async (tx) => {
+    // MySQL has no RETURNING; $returningId reads back the auto-increment id the insert
+    // assigned. Used directly rather than via db/returning.ts so the read stays inside
+    // this transaction — the audit row is not visible outside it until commit.
     const [audit] = await tx
       .insert(audits)
       .values({
@@ -99,7 +102,7 @@ async function persistAudit(storeId: number, outcomes: PillarOutcome[], snapshot
           checksRegistered: checkCount,
         },
       })
-      .returning();
+      .$returningId();
     if (!audit) throw new Error('Failed to create audit record');
 
     for (const [index, outcome] of outcomes.entries()) {

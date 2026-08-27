@@ -1,5 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { updateReturning } from '../db/returning.js';
 import { stores } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import type { UpdateStoreInput } from '../schemas/store.schema.js';
@@ -27,7 +28,7 @@ export async function listStores(userId: number) {
 
 export async function updateCurrentStore(userId: number, input: UpdateStoreInput, storeId?: number) {
   const store = await resolveStore(userId, storeId);
-  const [updatedStore] = await db.update(stores).set(input).where(eq(stores.id, store.id)).returning();
+  const [updatedStore] = await updateReturning(stores, input, eq(stores.id, store.id));
   if (!updatedStore) throw new ApiError(404, 'Store not found', 'STORE_NOT_FOUND');
   return updatedStore;
 }
