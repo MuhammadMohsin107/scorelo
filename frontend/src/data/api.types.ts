@@ -51,6 +51,19 @@ export interface FindingRow {
   statusChangedAt: string | null;
 }
 
+export interface JobRow {
+  id: number;
+  storeId: number;
+  type: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  progress: number;
+  error: string | null;
+  auditId: number | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
 export interface IntegrationRow {
   id: number;
   storeId: number;

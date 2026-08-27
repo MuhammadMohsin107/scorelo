@@ -9,8 +9,10 @@ import ScoreTrend from '../components/dashboard/ScoreTrend';
 import ScoreOverview from '../components/dashboard/ScoreOverview';
 import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
 import DashboardError from '../components/dashboard/DashboardError';
+import DashboardEmpty from '../components/dashboard/DashboardEmpty';
+import { ApiError } from '../lib/api';
 
-type LoadState = 'loading' | 'success' | 'error';
+type LoadState = 'loading' | 'success' | 'empty' | 'error';
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -27,8 +29,10 @@ export default function Dashboard() {
       const result = await fetchDashboardData();
       setData(result);
       setState('success');
-    } catch {
-      setState('error');
+    } catch (err) {
+      // A store that has never been audited is a first-run state, not a failure — the backend
+      // says so explicitly with AUDITS_NOT_FOUND, so don't show it as a broken dashboard.
+      setState(err instanceof ApiError && err.code === 'AUDITS_NOT_FOUND' ? 'empty' : 'error');
     } finally {
       setIsRefreshing(false);
     }
@@ -40,6 +44,10 @@ export default function Dashboard() {
 
   if (state === 'loading') {
     return <DashboardSkeleton />;
+  }
+
+  if (state === 'empty') {
+    return <DashboardEmpty onAuditComplete={() => loadData()} />;
   }
 
   if (state === 'error' || !data) {

@@ -1,6 +1,9 @@
 import { clearTokens, getAccessToken, getRefreshToken, setAccessToken, setTokens } from './authTokens';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:5000/api';
+// Default to a same-origin '/api' path: in production the static server (server.cjs) proxies
+// /api to the backend, so the browser never needs a separate API hostname. Dev uses the Vite
+// proxy for the same reason. Set VITE_API_BASE_URL only to point at a genuinely separate host.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 export class ApiError extends Error {
   constructor(

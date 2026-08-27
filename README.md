@@ -143,6 +143,67 @@ npm ci --omit=dev
 
 Restart the cPanel app after installation. Do not set a fixed `PORT`; cPanel provides it. Do not build on a server where dev dependencies were omitted. Do not configure the same domain as both a static document root and a Node.js proxy.
 
+### CloudPanel — frontend and API on one domain
+
+The app calls a **same-origin `/api`**. One hostname, one certificate, no CORS, no API subdomain. `server.cjs` proxies `/api` to the API process; everything else serves the SPA.
+
+```
+browser -> nginx (TLS) -> server.cjs :3002 -> API :5000 (loopback)
+```
+
+Deploy the API first — the frontend is useless without it.
+
+**1. API process.** Upload `backend/` (or `git pull`), then build and migrate:
+
+```bash
+cd ~/scorelo-api
+npm ci
+npm run build
+npm run db:migrate
+```
+
+Create `backend/.env` on the server. Bind the API to loopback only — never expose port 5000 publicly:
+
+```ini
+NODE_ENV=production
+PORT=5000
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/scorelo
+MOCK_AUTH=false
+# Generate fresh values — never reuse development secrets:
+#   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+# Both point at the public site: the browser and Shopify only ever see this one origin.
+BACKEND_URL=https://your-domain.example.com
+FRONTEND_URL=https://your-domain.example.com
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+TOKEN_ENCRYPTION_KEY=
+```
+
+Run `npm run start:prod` under a process manager (PM2 or systemd) so it survives restarts.
+
+**2. Frontend.** Build with `VITE_API_BASE_URL` **unset** so the app resolves to same-origin `/api`:
+
+```bash
+cd frontend
+npm ci
+npm run build
+```
+
+`VITE_*` values are inlined at build time — a wrong URL is compiled into the bundle and cannot be corrected by server config. Changing it always requires a rebuild.
+
+Upload `server.cjs`, `package.json`, `package-lock.json`, and `dist/`, then `npm ci --omit=dev`. Set `API_ORIGIN` only if the API is not on `http://127.0.0.1:5000`. Restart the app.
+
+**3. Verify before testing the UI.** This single call exercises DNS, TLS, nginx, `server.cjs`, the API, and the database:
+
+```bash
+curl https://your-domain.example.com/api/health
+```
+
+It must return JSON (`{"status":"ok","database":"connected"}`). **HTML means `/api` is not reaching the API** — the SPA catch-all is answering instead, and every API call will fail. Fix that before going further.
+
+Do not point the frontend at a separate API hostname unless that hostname has its own DNS record and TLS certificate; a missing record fails at DNS resolution, which surfaces in DevTools as a request with provisional headers, no status code, and zero bytes transferred.
+
 ## Data and Persistence
 
 Frontend mock data is under `frontend/src/data`. The UI simulates network latency and some workflows with React state or `localStorage`.
