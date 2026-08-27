@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, ChevronRight, Clock3, RefreshCw, Settings2 } from 'lucide-react';
+import { AlertCircle, ArrowRight, ChevronRight, Clock3, Radar, RefreshCw, Settings2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { type RowStatus, type SubPillarAnalysis, type SubPillarFinding } from '../data/seo/subpillar.model';
-import { fetchSubPillarAnalysis } from '../data/seo/subpillar.repository';
+import { fetchSubPillarAnalysis, isNotAuditedYet } from '../data/seo/subpillar.repository';
 import { buildAnalysis } from '../data/genericAnalysis';
 import ScoreCard from '../components/seo/subpillar/ScoreCard';
 import HealthCard from '../components/seo/subpillar/HealthCard';
@@ -26,7 +26,7 @@ export default function NonSeoSubPillarPage() {
   const config = genericCatalog[routeKey];
   const details = detailCatalog[routeKey];
   const [data, setData] = useState<SubPillarAnalysis | null>(null);
-  const [state, setState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [state, setState] = useState<'loading' | 'success' | 'empty' | 'error'>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeFinding, setActiveFinding] = useState<SubPillarFinding | null>(null);
   const [statusFilter, setStatusFilter] = useState<RowStatus | 'All'>('All');
@@ -37,7 +37,7 @@ export default function NonSeoSubPillarPage() {
   const evidenceRef = useRef<HTMLDivElement>(null);
 
   const analysis = useMemo(() => config ? buildAnalysis(routeKey, config, details) : null, [config, details, routeKey]);
-  const load = useCallback(async (refresh = false) => { if (!analysis) return; try { if (refresh) setIsRefreshing(true); else setState('loading'); setData(await fetchSubPillarAnalysis(analysis)); setState('success'); } catch { setState('error'); } finally { setIsRefreshing(false); } }, [analysis]);
+  const load = useCallback(async (refresh = false) => { if (!analysis) return; try { if (refresh) setIsRefreshing(true); else setState('loading'); setData(await fetchSubPillarAnalysis(analysis)); setState('success'); } catch (error) { setState(isNotAuditedYet(error) ? 'empty' : 'error'); } finally { setIsRefreshing(false); } }, [analysis]);
   useEffect(() => { setActiveFinding(null); setStatusFilter('All'); load(); }, [load]);
   useEffect(() => {
     let active = true;
@@ -62,6 +62,10 @@ export default function NonSeoSubPillarPage() {
 
   if (!config || !analysis) return <div className="mx-auto max-w-3xl px-5 py-16"><div className={`${card} p-10 text-center`}><h1 className="text-lg font-semibold text-surface-900">This analysis is not available yet.</h1><p className="mt-1 text-sm text-surface-500">Check back after the next audit run.</p></div></div>;
   if (state === 'loading') return <SubPillarSkeleton />;
+  // "Not audited yet" is a first-run state, not a failure — the page must not imply a fault,
+  // and must not fill its layout with numbers to compensate.
+  if (state === 'empty') return <div className="mx-auto max-w-3xl px-5 py-16"><div className={`${card} flex flex-col items-center p-10 text-center`}><Radar size={24} className="text-brand-600" /><h1 className="mt-4 text-lg font-semibold text-surface-900">No {config.title.toLowerCase()} audit available</h1><p className="mt-1.5 max-w-sm text-sm text-surface-500">Run an audit to generate real results for this check. Nothing on this page is estimated.</p><Link to="/" className="btn-primary mt-6"><Radar size={15} />Run an audit</Link></div></div>;
+
   if (state === 'error' || !data) return <div className="mx-auto max-w-3xl px-5 py-16"><div className={`${card} flex flex-col items-center p-10 text-center`}><AlertCircle size={24} className="text-critical-600" /><h1 className="mt-4 text-lg font-semibold text-surface-900">Unable to load {config.title} analysis</h1><button type="button" onClick={() => load()} className="btn-primary mt-6"><RefreshCw size={15} />Retry</button></div></div>;
 
   const focusEvidence = (status: RowStatus | 'All') => { setStatusFilter(status); evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };

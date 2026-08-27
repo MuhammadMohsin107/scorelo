@@ -146,15 +146,12 @@ export const notificationCopy: {
 ];
 
 // ─── Plan (no billing backend — presented read-only) ─────────────────
+// `usage` was removed rather than updated: every entry was an invented consumption figure
+// (1,342 of 2,000 pages, 4 of 6 integrations) rendered as a filled meter, and nothing in the
+// product measures those. The Settings card now states that usage tracking is not connected.
 export const planInfo = {
   name: 'Free',
   price: 'PKR 0',
   cadence: 'per month',
   description: 'One store, weekly audits and the full pillar breakdown.',
-  usage: [
-    { label: 'Stores', used: 1, limit: 1 },
-    { label: 'Pages per audit', used: 1342, limit: 2000 },
-    { label: 'Connected integrations', used: 4, limit: 6 },
-    { label: 'Team members', used: 1, limit: 1 },
-  ],
 };

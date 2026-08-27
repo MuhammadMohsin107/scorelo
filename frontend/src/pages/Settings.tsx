@@ -750,29 +750,14 @@ function BillingSection() {
         </div>
       </SettingsCard>
 
+      {/* This card previously rendered hard-coded meters (1,342 / 2,000 pages, 4 / 6 integrations)
+          as filled progress bars, which read as measured consumption. Nothing tracks usage yet,
+          so it says that instead — the same treatment the Billing card below already had. */}
       <SettingsCard title="Usage" description="Your consumption against the current plan limits.">
-        <ul className="space-y-4">
-          {planInfo.usage.map((item) => {
-            const pct = Math.min((item.used / item.limit) * 100, 100);
-            const nearLimit = pct >= 80;
-            return (
-              <li key={item.label}>
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-sm font-semibold text-surface-800">{item.label}</span>
-                  <span className="text-xs tabular-nums text-surface-600">
-                    <span className="font-bold text-surface-900">{item.used.toLocaleString()}</span> / {item.limit.toLocaleString()}
-                  </span>
-                </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-100">
-                  <div
-                    className={`h-full rounded-full ${nearLimit ? 'bg-warning-500' : 'bg-brand-500'}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <PreviewNotice>
+          Usage tracking is not connected in this build. Consumption against plan limits will appear
+          here once audits record it.
+        </PreviewNotice>
       </SettingsCard>
 
       <SettingsCard title="Billing" description="Payment method and invoice history.">

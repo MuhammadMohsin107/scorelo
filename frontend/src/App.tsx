@@ -19,7 +19,6 @@ import Integrations from './pages/Integrations';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
-import SchemaJsonLdPage from './pages/seo/SchemaJsonLdPage';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import RequireAuth from './components/auth/RequireAuth';
@@ -85,7 +84,10 @@ function AuthenticatedApp() {
           <Route path="/settings/:section" element={<Settings />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/seo" element={<SeoDashboard />} />
-          <Route path="/seo/schema" element={<SchemaJsonLdPage />} />
+          {/* /seo/schema used to be served by a bespoke page that rendered a hard-coded score,
+              three invented findings and fourteen fabricated evidence rows without ever calling
+              the API. It now falls through to the same real-data route as the other seven SEO
+              sub-pillars. */}
           <Route path="/seo/:subPillar" element={<SeoSubPillarRoute />} />
 
           <Route path="/content" element={<ContentDashboard />} />

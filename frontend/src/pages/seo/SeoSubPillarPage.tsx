@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, Clock3, RefreshCw, Settings2 } from 'lucide-react';
+import { AlertCircle, ArrowRight, Clock3, Radar, RefreshCw, Settings2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   type RowStatus,
   type SubPillarAnalysis,
   type SubPillarFinding,
 } from '../../data/seo/subpillar.model';
-import { fetchSubPillarAnalysis } from '../../data/seo/subpillar.repository';
+import { fetchSubPillarAnalysis, isNotAuditedYet } from '../../data/seo/subpillar.repository';
 import ScoreCard from '../../components/seo/subpillar/ScoreCard';
 import HealthCard from '../../components/seo/subpillar/HealthCard';
 import FindingsList from '../../components/seo/subpillar/FindingsList';
@@ -22,7 +22,7 @@ import {
 } from '../../data/pageSettings.registry';
 import { fetchSubPillarSettings, saveSubPillarSettings } from '../../data/pageSettings.repository';
 
-type LoadState = 'loading' | 'success' | 'error';
+type LoadState = 'loading' | 'success' | 'empty' | 'error';
 
 interface Props {
   /** The sub-pillar's own analysis. Layout is shared; data is not. */
@@ -63,8 +63,10 @@ export default function SeoSubPillarPage({ analysis }: Props) {
         const result = await fetchSubPillarAnalysis(analysis);
         setData(result);
         setState('success');
-      } catch {
-        setState('error');
+      } catch (error) {
+        // A store with no audit yet is a first-run state, not a failure. Without this the page
+        // shows "Unable to load", implying something broke when nothing has been measured.
+        setState(isNotAuditedYet(error) ? 'empty' : 'error');
       } finally {
         setIsRefreshing(false);
       }
@@ -95,6 +97,28 @@ export default function SeoSubPillarPage({ analysis }: Props) {
   };
 
   if (state === 'loading') return <SubPillarSkeleton />;
+
+  if (state === 'empty') {
+    return (
+      <div className="mx-auto max-w-3xl px-5 py-16 md:px-8">
+        <div className={`${card} flex flex-col items-center p-10 text-center`}>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+            <Radar size={24} />
+          </span>
+          <h1 className="mt-4 text-lg font-semibold text-surface-900">
+            No {analysis.title.toLowerCase()} audit available
+          </h1>
+          <p className="mt-1.5 max-w-sm text-sm text-surface-500">
+            Run an audit to generate real results for this check. Nothing on this page is estimated.
+          </p>
+          <Link to="/" className="btn-primary mt-6">
+            <Radar size={15} />
+            Run an audit
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (state === 'error' || !data) {
     return (

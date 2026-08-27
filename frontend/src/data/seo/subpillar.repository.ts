@@ -1,4 +1,4 @@
-import { api } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { sortBySeverity, type EvidenceRow, type SubPillarAnalysis, type SubPillarFinding } from './subpillar.model';
 
 interface LiveSubPillarData {
@@ -34,6 +34,18 @@ function endpointFor(slug: string): { pillar: string; subPillar: string } {
  * the backend; `evidence.sorts` is rebuilt with the real findings since
  * `sortBySeverity` closes over them.
  */
+/**
+ * True when the failure means this store has not been audited yet, rather than something being
+ * broken. The backend distinguishes them by code; without this the pages render "Unable to load"
+ * for every brand-new store, which reads as a fault when nothing has been measured.
+ */
+export function isNotAuditedYet(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    ['AUDIT_NOT_FOUND', 'AUDITS_NOT_FOUND', 'SUB_PILLAR_NOT_FOUND'].includes(error.code ?? '')
+  );
+}
+
 export async function fetchSubPillarAnalysis(base: SubPillarAnalysis): Promise<SubPillarAnalysis> {
   const { pillar, subPillar } = endpointFor(base.slug);
   const data = await api.get<LiveSubPillarData>(`/audits/latest/${pillar}/${subPillar}`);
