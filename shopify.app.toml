@@ -1,0 +1,90 @@
+# Scorelo — Shopify app configuration
+#
+# This describes the EXISTING "Scorelo" Shopify app. It does not create one.
+#
+# ─── What this file does and does not do ─────────────────────────────────────
+# Scorelo is NOT a Shopify-CLI-templated app: there is no @shopify/* dependency, no App Bridge,
+# and no embedded admin surface. OAuth is implemented by hand in
+# backend/src/services/shopify-oauth.service.ts. This file therefore has NO effect at runtime —
+# the backend reads its credentials and URLs from backend/.env, never from here.
+#
+# It is useful for exactly two things:
+#   1. Documenting, in version control, the settings the Shopify app must have.
+#   2. Letting `shopify app config link` / `shopify app deploy` push those settings, IF you choose
+#      to install the Shopify CLI. Until then, apply the same values by hand in the Shopify dev
+#      dashboard. Nothing here is applied automatically.
+#
+# ─── URLs: read before editing ───────────────────────────────────────────────
+# The URLs below are the LOCAL development values, matching backend/.env
+# (BACKEND_URL=http://localhost:5000, FRONTEND_URL=http://localhost:5173).
+#
+# Shopify accepts http://localhost redirect URLs for development, and the OAuth callback is a
+# redirect of the MERCHANT'S OWN BROWSER — which is on this machine — so the connect flow works
+# end to end with no tunnel.
+#
+# Webhooks are different: Shopify's servers call those directly and cannot reach localhost. The
+# webhook URLs below are therefore placeholders. To test webhooks, run a tunnel, set BACKEND_URL
+# to the tunnel origin, and replace the three privacy_compliance URLs plus the app/uninstalled
+# subscription with that origin. Never commit a temporary tunnel hostname as if it were permanent.
+
+name = "Scorelo"
+
+# The client_id is the app's PUBLIC identifier — the same value Shopify requires in this file and
+# that appears in plain sight in the browser's address bar as ?client_id= during every OAuth
+# redirect. It is not a secret. SHOPIFY_API_SECRET is the secret, and it lives only in
+# backend/.env, which is git-ignored.
+client_id = "c07009f384e8686d1897b98026d07f57"
+
+# Where Shopify sends a merchant who opens the app. Scorelo is a standalone web app, so this is
+# the FRONTEND origin, not the API.
+application_url = "http://localhost:5173"
+
+# Scorelo renders in its own tab, authenticates with a bearer token, and redirects to
+# /integrations after OAuth. It is not framed inside the Shopify admin.
+embedded = false
+
+[access_scopes]
+# Justified one-by-one in the SCOPES block of backend/src/services/shopify-oauth.service.ts.
+# Keep the two lists identical — this file only documents what that constant actually requests.
+#   read_products    products/collections: seo{}, descriptionHtml, media alt text, metafields
+#   read_content     pages, blogs, articles (implicitly grants read_online_store_pages)
+#   read_themes      theme weight / app bloat for the Speed pillar
+#   read_metaobjects metaobject instances for Content + AI Discovery
+# read_orders and read_customers are deliberately absent: they are Protected Customer Data and no
+# Scorelo check reads an order or a customer.
+scopes = "read_products,read_content,read_themes,read_metaobjects"
+
+# REQUIRED for this app. Scorelo drives the classic authorization-code grant itself
+# (buildInstallUrl → /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install
+# flow would complete the install without ever handing Scorelo the `code`, so
+# handleShopifyCallback would never run and no token would ever be stored.
+use_legacy_install_flow = true
+
+[auth]
+# Must match redirectUri in buildInstallUrl() exactly:
+#   new URL('/api/shopify/callback', env.backendUrl)
+# The route is defined at backend/src/routes/shopify.ts:30.
+redirect_urls = [ "http://localhost:5000/api/shopify/callback" ]
+
+[webhooks]
+# Pinned to SHOPIFY_API_VERSION in backend/src/audit-engine/store-data/shopify-client.ts:11.
+# Keep these in step — a version skew here silently changes payload shapes.
+api_version = "2026-07"
+
+  # Registered programmatically at install time by registerAppUninstalledWebhook()
+  # (backend/src/services/shopify-webhook.service.ts:37), which builds its callbackUrl from
+  # BACKEND_URL. Declared here so the CLI-managed config matches what the code registers.
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "http://localhost:5000/api/shopify/webhooks/app-uninstalled"
+
+  # The three mandatory GDPR endpoints. Handlers exist at backend/src/routes/shopify.ts:39-41 and
+  # are verified by per-request HMAC, not a session. Shopify calls these from its own servers, so
+  # they need a PUBLIC https origin before they can succeed — see the URLs note at the top.
+  [webhooks.privacy_compliance]
+  customer_data_request_url = "http://localhost:5000/api/shopify/webhooks/customers-data-request"
+  customer_deletion_url = "http://localhost:5000/api/shopify/webhooks/customers-redact"
+  shop_deletion_url = "http://localhost:5000/api/shopify/webhooks/shop-redact"
+
+[build]
+include_config_on_deploy = true
