@@ -18,6 +18,9 @@ interface AuthLayoutProps {
   children: ReactNode;
   /** Rendered under the form — typically the link to the opposite auth page. */
   footer: ReactNode;
+  /** 'wide' gives the signup form room for its paired first/last name row without squeezing
+   * either field. Sign-in keeps the tighter default. */
+  width?: 'default' | 'wide';
 }
 
 /**
@@ -25,7 +28,7 @@ interface AuthLayoutProps {
  * sidebar) and the form on the right. The brand panel is decorative, so it is hidden below
  * `lg` rather than stacked — on mobile the form gets the full viewport and its own logo.
  */
-export default function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
+export default function AuthLayout({ title, subtitle, children, footer, width = 'default' }: AuthLayoutProps) {
   return (
     <div className="grid h-full grid-cols-1 overflow-y-auto bg-white lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       {/* ── Brand panel ─────────────────────────────────────────── */}
@@ -76,7 +79,7 @@ export default function AuthLayout({ title, subtitle, children, footer }: AuthLa
 
       {/* ── Form panel ──────────────────────────────────────────── */}
       <main className="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
-        <div className="w-full max-w-[400px]">
+        <div className={`w-full ${width === 'wide' ? 'max-w-[456px]' : 'max-w-[400px]'}`}>
           {/* Mobile-only logo, since the brand panel is hidden at this width */}
           <div className="mb-9 lg:hidden">
             <ScoreloLogo />

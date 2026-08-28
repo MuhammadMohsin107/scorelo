@@ -8,27 +8,34 @@ interface AuthPayload {
   refreshToken: string;
 }
 
-export interface SignupInput {
+/** Client-only session preference. It is deliberately NOT part of the request body: the backend
+ * schemas are `.strict()`, so an unexpected key is rejected with a 400. */
+interface SessionPreference {
+  /** true -> the session survives closing the browser; false -> it ends with the tab. */
+  rememberMe?: boolean;
+}
+
+export interface SignupInput extends SessionPreference {
   fullName: string;
   email: string;
   password: string;
 }
 
-export interface LoginInput {
+export interface LoginInput extends SessionPreference {
   email: string;
   password: string;
 }
 
 /** Creates an account and starts the session in one step — no separate "now log in". */
-export async function signup(input: SignupInput): Promise<UserRow> {
-  const payload = await api.post<AuthPayload>('/auth/signup', input, { skipAuth: true });
-  setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+export async function signup({ rememberMe, ...credentials }: SignupInput): Promise<UserRow> {
+  const payload = await api.post<AuthPayload>('/auth/signup', credentials, { skipAuth: true });
+  setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken }, { remember: rememberMe });
   return payload.user;
 }
 
-export async function login(input: LoginInput): Promise<UserRow> {
-  const payload = await api.post<AuthPayload>('/auth/login', input, { skipAuth: true });
-  setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+export async function login({ rememberMe, ...credentials }: LoginInput): Promise<UserRow> {
+  const payload = await api.post<AuthPayload>('/auth/login', credentials, { skipAuth: true });
+  setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken }, { remember: rememberMe });
   return payload.user;
 }
 

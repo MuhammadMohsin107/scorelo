@@ -1,4 +1,4 @@
-import { clearTokens, getAccessToken, getRefreshToken, setAccessToken, setTokens } from './authTokens';
+import { clearTokens, getAccessToken, getRefreshToken, replaceRefreshToken, setAccessToken } from './authTokens';
 
 // Default to a same-origin '/api' path: in production the static server (server.cjs) proxies
 // /api to the backend, so the browser never needs a separate API hostname. Dev uses the Vite
@@ -47,8 +47,10 @@ async function refreshAccessToken(): Promise<boolean> {
         return false;
       }
       // The backend rotates refresh tokens, so store the new pair, not just the access token.
-      if (data.refreshToken) setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      else setAccessToken(data.accessToken);
+      // The rotation is written back to whichever store already held the token, so a refresh
+      // never promotes a "don't remember me" session into a persistent one.
+      setAccessToken(data.accessToken);
+      if (data.refreshToken) replaceRefreshToken(data.refreshToken);
       return true;
     } catch {
       return false;
