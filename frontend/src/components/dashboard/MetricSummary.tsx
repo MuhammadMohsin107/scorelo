@@ -1,5 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, CircleAlert, FileCheck2, ListChecks, type LucideIcon } from 'lucide-react';
-import type { KeyMetric, OverallScore } from '../../data/dashboard/dashboard.mock';
+import type { KeyMetric, OverallScore } from '../../data/dashboard/dashboard.types';
 
 interface Props {
   metrics: KeyMetric[];

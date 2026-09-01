@@ -101,6 +101,16 @@ export default function Settings() {
   }, [section]);
   const activeMeta = SECTIONS.find((item) => item.id === active) ?? SECTIONS[0];
 
+  // Rewrite the address bar when the URL names a section that does not exist. The page already
+  // fell back to Profile, but the bogus path stayed visible and shareable — so a link like
+  // /settings/billling looked meaningful, and bookmarking it preserved the mistake.
+  // `/settings` with no section is left alone: it is a legitimate entry point, not a typo.
+  useEffect(() => {
+    if (section !== undefined && section !== active) {
+      navigate(`/settings/${active}`, { replace: true });
+    }
+  }, [section, active, navigate]);
+
   const load = useCallback(async () => {
     try {
       setState('loading');

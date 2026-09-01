@@ -8,7 +8,10 @@ interface LiveSubPillarData {
   totals: { score: number; analyzed: number; healthy: number; issues: number; critical: number; contextLabel: string; contextValue: string };
   findings: SubPillarFinding[];
   evidenceRows: EvidenceRow[];
+  healthyStatus?: string;
   lastAnalyzed: string;
+  status?: 'ok' | 'unavailable';
+  unavailableReason?: string | null;
 }
 
 function formatLastAnalyzed(isoDate: string): string {
@@ -68,8 +71,11 @@ export async function fetchSubPillarAnalysis(base: SubPillarAnalysis): Promise<S
     evidence: {
       ...base.evidence,
       rows: data.evidenceRows,
-      sorts: [sortBySeverity(data.findings), ...base.evidence.sorts],
+      healthyStatus: data.healthyStatus,
+      sorts: [sortBySeverity(data.findings, data.healthyStatus), ...base.evidence.sorts],
     },
     lastAnalyzed: formatLastAnalyzed(data.lastAnalyzed),
+    status: data.status ?? 'ok',
+    unavailableReason: data.unavailableReason ?? null,
   };
 }

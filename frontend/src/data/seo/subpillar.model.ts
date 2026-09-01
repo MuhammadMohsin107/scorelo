@@ -37,6 +37,14 @@ export interface SubPillarFinding {
   whatIsWrong: string;
   whyItMatters: string;
   recommendation: string;
+  /**
+   * The rows this finding actually flagged, as recorded by the check that raised it.
+   *
+   * Optional because not every check attaches rows to its findings. When it is absent the caller
+   * falls back to filtering the sub-pillar sample by `issueType` — which is only correct when one
+   * finding owns that issue type, so prefer this list whenever it is present.
+   */
+  evidenceRows?: EvidenceRow[];
 }
 
 // ─── Evidence ────────────────────────────────────────────────────────
@@ -99,6 +107,8 @@ export interface EvidenceConfig {
   sorts: SortOption[];
   /** Noun for the sample line, e.g. "crawled pages". */
   sampleNoun: string;
+  /** This sub-pillar's word for a row with nothing wrong. Defaults to "Healthy".  */
+  healthyStatus?: string;
 }
 
 // ─── Totals ──────────────────────────────────────────────────────────
@@ -141,14 +151,78 @@ export interface SubPillarAnalysis {
   evidence: EvidenceConfig;
   relatedAreas: RelatedArea[];
   lastAnalyzed: string;
+  /**
+   * 'unavailable' means the check ran but could not measure anything (no articles to score, a
+   * resource the granted scopes cannot read). `totals.score` is a placeholder in that case and
+   * must not be rendered as a result. Defaults to 'ok' for static config and seeded fixtures.
+   */
+  status?: 'ok' | 'unavailable';
+  /** Plain-language reason shown instead of the score when status is 'unavailable'. */
+  unavailableReason?: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
-export const isIssueStatus = (status: RowStatus): boolean => status !== HEALTHY;
+/**
+ * True when a row represents a problem.
+ *
+ * `healthyStatus` is the sub-pillar's own word for a good row — 'Lean' theme assets, 'Optimized'
+ * images, 'Unique' copy. It defaults to 'Healthy' for configs and older audits that used it.
+ */
+export const isIssueStatus = (status: RowStatus, healthyStatus: string = HEALTHY): boolean =>
+  status !== healthyStatus && status !== HEALTHY;
+
+/**
+ * The finding a given evidence row belongs to.
+ *
+ * Matching on issue type alone is ambiguous: several findings in one sub-pillar can share a type
+ * (many checks label every non-critical finding "Needs Work"), and a bare lookup then returns
+ * whichever was raised first regardless of which row was clicked. So the row's own id is tried
+ * against each finding's recorded rows first, and the type is only a fallback.
+ */
+export function findingForRow(
+  row: EvidenceRow,
+  findings: SubPillarFinding[],
+  healthyStatus?: string,
+): SubPillarFinding | undefined {
+  if (!isIssueStatus(row.status, healthyStatus)) return undefined;
+  const owner = findings.find((finding) => finding.evidenceRows?.some((candidate) => candidate.id === row.id));
+  return owner ?? findings.find((finding) => finding.issueType === row.status);
+}
+
+/**
+ * The evidence the investigation drawer should show for a finding.
+ *
+ * WHEN THE USER PICKED ITEMS, THOSE ARE THE ONLY ITEMS SHOWN. Investigating an item is a question
+ * about that item, so padding the panel with other examples of the same issue answers a question
+ * nobody asked and reads as though the selection was ignored. One selected row shows one row;
+ * three show three.
+ *
+ * With no selection — the drawer was opened from the findings list, where an issue was chosen but
+ * no item — there is nothing to narrow to, so a sample stands in. It is drawn from:
+ *   1. the rows the check itself attributed to this finding — authoritative; or
+ *   2. the sub-pillar sample filtered by issue type — lossy, because two findings can share a
+ *      type, but the only option for checks that attach no rows.
+ */
+export function investigationEvidence(
+  finding: SubPillarFinding,
+  sample: EvidenceRow[],
+  selectedRows: EvidenceRow[],
+  limit: number,
+): EvidenceRow[] {
+  if (selectedRows.length > 0) return selectedRows;
+  const scoped = finding.evidenceRows?.length
+    ? finding.evidenceRows
+    : sample.filter((row) => row.status === finding.issueType);
+  return scoped.slice(0, limit);
+}
 
 /** Severity for a row, resolved through the findings list. */
-export function severityForStatus(status: RowStatus, findings: SubPillarFinding[]): Severity | 'healthy' {
-  if (!isIssueStatus(status)) return 'healthy';
+export function severityForStatus(
+  status: RowStatus,
+  findings: SubPillarFinding[],
+  healthyStatus?: string,
+): Severity | 'healthy' {
+  if (!isIssueStatus(status, healthyStatus)) return 'healthy';
   return findings.find((finding) => finding.issueType === status)?.severity ?? 'low';
 }
 
@@ -157,12 +231,12 @@ export const bySeverity = (findings: SubPillarFinding[]): SubPillarFinding[] =>
   [...findings].sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
 
 /** Standard sorts every sub-pillar gets. */
-export const sortBySeverity = (findings: SubPillarFinding[]): SortOption => ({
+export const sortBySeverity = (findings: SubPillarFinding[], healthyStatus?: string): SortOption => ({
   key: 'severity',
   label: 'Sort: severity',
   compare: (a, b) => {
     const rank = (row: EvidenceRow) => {
-      const severity = severityForStatus(row.status, findings);
+      const severity = severityForStatus(row.status, findings, healthyStatus);
       return severity === 'healthy' ? 99 : severityRank[severity];
     };
     return rank(a) - rank(b);

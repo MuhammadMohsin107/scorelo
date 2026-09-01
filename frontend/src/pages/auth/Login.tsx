@@ -105,7 +105,16 @@ export default function Login() {
           />
         </div>
 
-        <div className="mt-6">
+        <div className="mt-3 flex justify-end">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-semibold text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
+        <div className="mt-4">
           <AuthSubmitButton pending={pending} pendingLabel="Signing in…">
             Sign in
           </AuthSubmitButton>

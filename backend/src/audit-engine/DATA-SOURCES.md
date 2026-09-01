@@ -14,7 +14,7 @@ score. The **Source** column below is the guard against that.
 | Key | Meaning |
 |---|---|
 | **Admin** | Shopify Admin GraphQL API — already implemented in `store-data/shopify.provider.ts` |
-| **Crawl** | Requires fetching and parsing rendered storefront HTML. **Not implemented.** |
+| **Crawl** | Rendered storefront HTML, fetched by `audit-engine/storefront/crawler.ts`. **Implemented.** |
 | **Lab** | Requires a performance measurement tool (Lighthouse / PageSpeed Insights / CrUX). **Not implemented.** |
 | **Protected** | Requires a scope Scorelo deliberately does not request (`read_orders` / `read_customers`), which needs Shopify Protected Customer Data approval |
 
@@ -22,10 +22,11 @@ score. The **Source** column below is the guard against that.
 
 | Scope | Unlocks | Used by |
 |---|---|---|
-| `read_products` | Product, Collection: title, `descriptionHtml`, `seo`, media alt text, metafields | SEO, Content, CRO |
+| `read_products` | Product, Collection: title, `descriptionHtml`, `seo`, media alt text, metafields, product options, variants (sku/barcode/price/availability), `sellingPlanGroupCount` | SEO, Content, CRO, AI Discovery |
 | `read_content` | Page, Blog, Article (implicitly grants `read_online_store_pages`) | SEO, Content |
 | `read_themes` | Online store theme records | Speed |
 | `read_metaobjects` | Metaobject instances | Content, AI Discovery |
+| `read_legal_policies` | Shop policies (refund/shipping/privacy/terms) | CRO |
 
 ---
 
@@ -33,75 +34,121 @@ score. The **Source** column below is the guard against that.
 
 | Sub-pillar | Required data | Source | Scope | Status |
 |---|---|---|---|---|
-| `title-tags` | `Product.seo.title`, `Collection.seo.title`, Page/Article `global.title_tag` metafield, fallback titles | Admin | `read_products`, `read_content` | Supported — data available, **checker not implemented** |
-| `meta-descriptions` | `.seo.description` + `global.description_tag` | Admin | `read_products`, `read_content` | Supported — **checker not implemented** |
-| `schema` | JSON-LD blocks in rendered page `<head>` | **Crawl** | — | **Requires storefront crawl** |
-| `image-alt-text` | `MediaImage.alt` for catalog images; rendered `<img alt>` for theme images | Admin (partial) + **Crawl** | `read_products` | Partially supported — Admin covers product media only |
-| `canonicals` | `<link rel="canonical">` as rendered; duplicate handle detection | **Crawl** (+ Admin for handles) | `read_products` | **Requires storefront crawl** |
+| `title-tags` | `Product.seo.title`, `Collection.seo.title`, Page/Article `global.title_tag` metafield, fallback titles | Admin | `read_products`, `read_content` | **Implemented** — `checks/seo/title-tags.ts` |
+| `meta-descriptions` | `.seo.description` + `global.description_tag` | Admin | `read_products`, `read_content` | **Implemented** — `checks/seo/meta-descriptions.ts` |
+| `schema` | JSON-LD blocks in rendered page `<head>` | **Crawl** | — | **Implemented** — `checks/seo/schema.ts` |
+| `image-alt-text` | `MediaImage.alt` for catalog images; rendered `<img alt>` for theme images | Admin (partial) + **Crawl** | `read_products` | **Implemented (Admin half)** — `checks/seo/image-alt-text.ts`; rendered theme images are reported by `checks/cro/clarity.ts` |
+| `canonicals` | `<link rel="canonical">` as rendered; duplicate handle detection | **Crawl** (+ Admin for handles) | `read_products` | **Implemented (Admin half)** — `checks/seo/canonicals.ts`; rendered canonical is now captured by the crawler and not yet consumed |
 | `handles-redirects` | `UrlRedirect` records, handle quality | Admin | **`read_online_store_navigation` — NOT granted** | **Requires additional Shopify permission** |
-| `sitemap` | `/sitemap.xml`, `/robots.txt`, per-page `noindex` | **Crawl** | — | **Requires storefront crawl** |
-| `internal-links` | Rendered anchor graph, HTTP status of each target | **Crawl** | — | **Requires storefront crawl** |
+| `sitemap` | `/sitemap.xml`, `/robots.txt`, per-page `noindex` | **Crawl** | — | **Implemented** — `checks/seo/sitemap-indexability.ts` |
+| `internal-links` | Rendered anchor graph, HTTP status of each target | **Crawl** | — | **Implemented** — `checks/seo/internal-links.ts` |
 
 ## Content (6)
 
 | Sub-pillar | Required data | Source | Scope | Status |
 |---|---|---|---|---|
-| `product-descriptions` | `Product.descriptionHtml` | Admin | `read_products` | Supported — **checker not implemented** |
-| `collection-descriptions` | `Collection.descriptionHtml` | Admin | `read_products` | Supported — **checker not implemented** |
-| `metafields` | `Product.metafields`, metaobject definitions | Admin | `read_products`, `read_metaobjects` | Supported — **checker not implemented** |
-| `dup-templated` | Description corpus across products for similarity | Admin | `read_products` | Supported — **checker not implemented** |
-| `blog-freshness` | `Article.publishedAt` / `updatedAt` | Admin | `read_content` | Supported — **checker not implemented** |
-| `media-richness` | Media count per product/article | Admin | `read_products`, `read_content` | Supported — **checker not implemented** |
+| `product-descriptions` | `Product.descriptionHtml` | Admin | `read_products` | **Implemented** — `checks/content/descriptions.ts` |
+| `collection-descriptions` | `Collection.descriptionHtml` | Admin | `read_products` | **Implemented** — `checks/content/descriptions.ts` |
+| `metafields` | `Product.metafields`, metaobject definitions | Admin | `read_products`, `read_metaobjects` | **Implemented** — `checks/content/metafields.ts` |
+| `dup-templated` | Description corpus across products for similarity | Admin | `read_products` | **Implemented** — `checks/content/dup-templated.ts` |
+| `blog-freshness` | `Article.publishedAt` / `updatedAt` | Admin | `read_content` | **Implemented** — `checks/content/blog-freshness.ts` |
+| `media-richness` | Media count per product/article | Admin | `read_products`, `read_content` | **Implemented** — `checks/content/media-richness.ts` |
 
 ## Speed (4)
 
 | Sub-pillar | Required data | Source | Scope | Status |
 |---|---|---|---|---|
-| `cwv` | LCP, INP, CLS — field (CrUX) or lab (Lighthouse) | **Lab** | — | **Requires measurement tooling** |
-| `image-weight` | Transferred bytes and dimensions per rendered image | **Lab** + Admin (dimensions) | `read_products` | Partially supported — Admin gives dimensions, not bytes |
-| `app-bloat` | Third-party scripts on the rendered page | **Crawl** | — | **Requires storefront crawl** |
-| `theme-weight` | Theme record + rendered asset weight, font loading, lazy-load | Admin (partial) + **Lab** | `read_themes` | Partially supported |
+| `cwv` | LCP, INP, CLS — field (CrUX) or lab (Lighthouse) | **Lab** | — | **Implemented as `not_measured`** — needs real performance tooling |
+| `image-weight` | Transferred bytes and dimensions per rendered image | **Lab** + Admin (dimensions) | `read_products` | **Implemented (Admin half)** — `checks/speed/image-weight.ts`; transferred bytes still need Lab |
+| `app-bloat` | Third-party scripts on the rendered page | **Crawl** | — | **Implemented (Admin half)** — `checks/speed/app-bloat.ts`; rendered scripts are now captured by the crawler and not yet consumed |
+| `theme-weight` | Theme record + rendered asset weight, font loading, lazy-load | Admin (partial) + **Lab** | `read_themes` | **Implemented (Admin half)** — `checks/speed/theme-weight.ts` |
 
 ## CRO (11)
 
 | Sub-pillar | Required data | Source | Scope | Status |
 |---|---|---|---|---|
-| `clarity` | Rendered PDP structure and copy hierarchy | **Crawl** | — | **Requires storefront crawl** |
+| `clarity` | Rendered PDP structure and copy hierarchy | **Crawl** | — | **Implemented** — `checks/cro/clarity.ts` (objective structure only) |
 | `cart-recovery` | Abandoned checkout behaviour | **Protected** | `read_orders` — not granted | **Requires additional Shopify permission** |
-| `trust` | Review widgets, badges, policy links as rendered | **Crawl** (+ Admin for policies) | `read_content` | Partially supported — policy presence only |
-| `returns` | `ShopPolicy` of type `REFUND_POLICY` | Admin | `read_content` | Supported — **checker not implemented** |
+| `trust` | Review widgets, badges, policy links as rendered | **Crawl** (+ Admin for policies) | `read_content` | **Implemented** — `checks/cro/storefront-signals.ts` |
+| `returns` | `ShopPolicy` of type `REFUND_POLICY` | Admin | `read_legal_policies` | **Implemented** — `checks/cro/returns.ts` |
 | `tracking` | Fulfilment/tracking configuration | **Protected** | `read_orders` — not granted | **Requires additional Shopify permission** |
-| `cod` | Payment method configuration at checkout | **Crawl** | — | **Requires storefront crawl** |
-| `options` | `Product.options`, variant structure | Admin | `read_products` | Supported — **checker not implemented** |
-| `subscription` | Selling plan groups | Admin | `read_products` | Supported — **checker not implemented** |
-| `wishlist` | Wishlist app presence on rendered page | **Crawl** | — | **Requires storefront crawl** |
-| `locator` | Store locator page/app presence | **Crawl** (+ Admin for pages) | `read_content` | Partially supported |
-| `mobile-ux` | Rendered mobile viewport behaviour | **Crawl** + **Lab** | — | **Requires storefront crawl** |
+| `cod` | Payment method configuration at checkout | **Checkout — not readable** | — | **Implemented as permanently `not_measured`** — page copy is not proof of checkout config |
+| `options` | `Product.options`, variant structure | Admin | `read_products` | **Implemented** — `checks/cro/options.ts` |
+| `subscription` | Selling plan groups | Admin | `read_products` | **Implemented** — `checks/cro/subscription.ts` |
+| `wishlist` | Wishlist app presence on rendered page | **Crawl** | — | **Implemented** — `checks/cro/storefront-signals.ts` |
+| `locator` | Store locator page/app presence | **Crawl** (+ Admin for pages) | `read_content` | **Implemented** — `checks/cro/storefront-signals.ts` |
+| `mobile-ux` | Rendered mobile viewport behaviour | **Lab** | — | **Implemented as `not_measured`** — needs a rendering browser |
 
 ## AI Discovery (4)
 
 | Sub-pillar | Required data | Source | Scope | Status |
 |---|---|---|---|---|
-| `agents-md` | `/agents.md`, `/llms.txt` at the storefront root | **Crawl** | — | **Requires storefront crawl** |
-| `agentic-attrs` | Structured product attributes | Admin | `read_products`, `read_metaobjects` | Supported — **checker not implemented** |
+| `agents-md` | `/agents.md`, `/llms.txt` at the storefront root | **Crawl** | — | **Implemented** — `checks/ai-discovery/agents-md.ts` |
+| `agentic-attrs` | Structured product attributes | Admin | `read_products`, `read_metaobjects` | **Implemented** — `checks/ai-discovery/agentic-attrs.ts` |
 | `answerable-qa` | FAQ content + FAQPage JSON-LD as rendered | Admin (content) + **Crawl** (schema) | `read_content`, `read_metaobjects` | Partially supported |
-| `feed` | Product identifiers, availability, price completeness | Admin | `read_products` | Supported — **checker not implemented** |
+| `feed` | Product identifiers, availability, price completeness | Admin | `read_products` | **Implemented** — `checks/ai-discovery/feed.ts` |
 
 ---
 
 ## Summary
 
-| Status | Count |
+Recalculated from `checkRegistry` in `index.ts`, which is the only source of truth. The table
+above and these counts are derived from the same 33 rows and must always agree.
+
+### Implementation
+
+| | Count |
 |---|---|
-| Fully answerable from data the connector already fetches | **14** |
-| Partially answerable (Admin covers part; rest needs crawl/lab) | **6** |
-| Requires a storefront crawler | **10** |
-| Requires performance measurement tooling | **1** |
-| Requires a Shopify permission not currently requested | **3** |
+| Sub-pillars total | **33** |
+| Registered in `checkRegistry` | **30** |
+| Not implemented | **3** |
 
-**Checkers implemented today: 0.** `checkRegistry` in `index.ts` is an empty array. Every sub-pillar
-above reports "not measured" in the UI, which is the intended honest behaviour until real checks
-exist — the pillar pages render empty states rather than invented scores.
+By pillar: SEO 8/8 · Content 6/6 · Speed 4/4 · CRO 9/11 · AI Discovery 3/4.
 
-The 14 fully-supported rows are the correct place to start: they need no new infrastructure, only
-check implementations against the snapshot the provider already produces.
+The 3 unimplemented rows are `cro/cart-recovery`, `cro/tracking` (both need `read_orders`, which
+requires Shopify Protected Customer Data approval) and `ai-discovery/answerable-qa`.
+
+### Evidence source
+
+| Source | Count |
+|---|---|
+| Admin only | **17** |
+| Crawl only | **7** |
+| Admin + Crawl (partially answerable from each) | **6** |
+| Lab-dependent | **1** |
+| Checkout config — not readable by any current permission | **1** |
+| Requires a Shopify permission not currently requested | **2** |
+
+The 7 Crawl-only rows are `schema`, `internal-links`, `clarity`, `wishlist`, `locator`,
+`agents-md` and `sitemap`. The 6 Admin+Crawl rows are `image-alt-text`, `canonicals`, `trust`,
+`app-bloat`, `theme-weight` and `answerable-qa` — each has an Admin half that is implemented and
+a rendered half that the crawler now captures.
+
+**So: 13 sub-pillars have a storefront-crawl dependency — 7 require crawling entirely, and 6 are
+partially answerable from Admin data and need crawling for complete verification.** They are not
+all unavailable: `sitemap` was already answerable from HTTP probes, and every Admin half listed
+above scores today.
+
+### Registered but permanently or temporarily `not_measured`
+
+Four registered checks return `unavailable` by design rather than a score, because the evidence
+genuinely does not exist yet. They are registered so the UI can explain WHY rather than render an
+empty state with no reason:
+
+| Sub-pillar | Reason |
+|---|---|
+| `speed/cwv` | Needs real performance tooling (Lighthouse / CrUX) |
+| `cro/mobile-ux` | Needs a rendering browser at a phone viewport |
+| `cro/cod` | Checkout payment configuration is not inspectable; page copy is not proof |
+| `seo/handles-redirects` | Needs `read_online_store_navigation`, not granted |
+
+`cro/returns` and `cro/subscription` also report `unavailable` on some stores — the first when
+`read_legal_policies` has not been granted, the second when the store runs no subscription
+programme at all. Both score normally otherwise.
+
+### The rule these counts encode
+
+An `unavailable` sub-pillar is EXCLUDED from every average (see `scoring.ts`), never counted as
+zero. A store is never marked down for something Scorelo could not measure — only for something
+it measured and found wanting. `implementedSubPillars` is derived from the registry, so this file
+can go stale without the product lying to anyone.

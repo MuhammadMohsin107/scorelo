@@ -1,6 +1,6 @@
 import { ArrowRight, Clock3, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { RecommendedAction } from '../../data/dashboard/dashboard.mock';
+import type { RecommendedAction } from '../../data/dashboard/dashboard.types';
 import { cardClass, pillarRoutes } from './scoreTone';
 
 interface Props {

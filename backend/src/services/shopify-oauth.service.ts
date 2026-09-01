@@ -26,6 +26,10 @@ import { registerAppUninstalledWebhook } from './shopify-webhook.service.js';
  *   read_themes       Online store theme data. Feeds Speed (theme weight, app bloat).
  *   read_metaobjects  Metaobject instances. Feeds Content (metafields/metaobjects) and
  *                     AI Discovery (structured answerable content).
+ *   read_legal_policies  Shop policies (refund, shipping, privacy, terms). Feeds CRO (returns
+ *                     flow). `shopPolicies` used to be readable under read_content and now
+ *                     requires this scope of its own — without it Shopify denies the field
+ *                     outright, so the returns check reports "not measured" rather than scoring.
  *
  * Deliberately NOT requested:
  *   read_orders, read_customers — Protected Customer Data. They force a Level 2 approval review
@@ -38,7 +42,7 @@ import { registerAppUninstalledWebhook } from './shopify-webhook.service.js';
  * the scope string they were granted (stored per-connection), so a widened list only takes effect
  * for merchants who reconnect.
  */
-const SCOPES = ['read_products', 'read_content', 'read_themes', 'read_metaobjects'].join(',');
+const SCOPES = ['read_products', 'read_content', 'read_themes', 'read_metaobjects', 'read_legal_policies'].join(',');
 
 /** Renew an expiring access token this many ms BEFORE it actually expires, so a long audit run
  * cannot have its token die mid-flight. */
@@ -209,12 +213,31 @@ async function markReauthRequired(connection: ShopifyConnection) {
  */
 async function resolveStoreForInstall(userId: number, shop: string, shopName: string): Promise<number> {
   const ownedStores = await db.select().from(stores).where(eq(stores.ownerId, userId));
+  const shopUrl = `https://${shop}`;
+
+  // FIRST: a store this owner already has for THIS EXACT SHOP.
+  //
+  // Reconnecting the same shop must land on the same store row, otherwise every disconnect ->
+  // reconnect cycle forks the merchant's history: disconnectShopify() deletes the token but
+  // leaves platform = 'Shopify', so the placeholder branch below no longer matches and a
+  // DUPLICATE store was created. The old row kept every audit while the new row held the live
+  // connection, so the dashboard read one store and the audit runner needed the other — the
+  // store looked connected yet no audit could run and no results ever appeared.
+  //
+  // Matching on the shop URL is what makes reconnect idempotent.
+  const sameShop = ownedStores.find((store) => store.url === shopUrl);
+  if (sameShop) {
+    // Re-assert identity in case the shop was renamed while disconnected.
+    await db.update(stores).set({ name: shopName, url: shopUrl, platform: 'Shopify' }).where(eq(stores.id, sameShop.id));
+    return sameShop.id;
+  }
+
   // 'Not connected' is exactly the platform value signup writes and the callback overwrites, so
   // it identifies an unclaimed placeholder and never a store already backed by a real shop.
   const placeholder = ownedStores.find((store) => store.platform === 'Not connected');
 
   if (placeholder) {
-    await db.update(stores).set({ name: shopName, url: `https://${shop}`, platform: 'Shopify' }).where(eq(stores.id, placeholder.id));
+    await db.update(stores).set({ name: shopName, url: shopUrl, platform: 'Shopify' }).where(eq(stores.id, placeholder.id));
     return placeholder.id;
   }
 
@@ -222,7 +245,7 @@ async function resolveStoreForInstall(userId: number, shop: string, shopName: st
     ownerId: userId,
     workspaceName: shopName,
     name: shopName,
-    url: `https://${shop}`,
+    url: shopUrl,
     platform: 'Shopify',
     industry: 'Unspecified',
     country: 'Unspecified',

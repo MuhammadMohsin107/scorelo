@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { RefreshCw, Clock, Globe } from 'lucide-react';
-import type { DashboardData } from '../data/dashboard/dashboard.mock';
+import type { DashboardData } from '../data/dashboard/dashboard.types';
 import { fetchDashboardData, formatLastUpdated } from '../data/dashboard/dashboard.repository';
 import PillarOverview from '../components/dashboard/PillarOverview';
 import PriorityIssues from '../components/dashboard/PriorityIssues';

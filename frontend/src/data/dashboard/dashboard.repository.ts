@@ -1,5 +1,6 @@
 import { api } from '../../lib/api';
 import type { AuditRow, AuditScoreRow, FindingRow, StoreRow, TrendAuditRow } from '../api.types';
+import { describeCoverage, isMeasuredScore } from '../api.types';
 import { describeOverall, describePillar, pillarMeta, pillarOrder, scoreToStatus } from '../pillarMeta';
 import type {
   DashboardData,
@@ -8,7 +9,7 @@ import type {
   PriorityIssue,
   RecommendedAction,
   ScoreTrendPoint,
-} from './dashboard.mock';
+} from './dashboard.types';
 
 interface DashboardSummary {
   latest: AuditRow;
@@ -64,25 +65,59 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   ]);
 
   const { latest, previous, scores, priorityFindings } = summary;
+
+  // The engine writes overallAvailable:false when NO pillar produced a measurable result; the
+  // accompanying overall_score is a NOT-NULL placeholder zero, not a real score (runner.ts:83).
+  // Rendering it through scoreToStatus() is what made an unmeasured store read as "Critical 0/100".
+  // Older seeded audits predate the metadata column, so `undefined` is treated as measured —
+  // only an explicit `false` suppresses the score.
+  const measured = latest.metadata?.overallAvailable !== false;
+  // Only products are surfaced here: it is the resource that actually gets truncated on large
+  // catalogues, and stacking every resource type onto the hero card would bury the point.
+  const coverageNote = describeCoverage(latest.metadata?.coverageDetail?.products, 'products');
+
   const { trend: scoreTrendDir, trendValue } = trendFrom(latest.overallScore, previous?.overallScore ?? null);
-  const overallStatus = scoreToStatus(latest.overallScore);
+  const overallStatus = measured
+    ? scoreToStatus(latest.overallScore)
+    : { status: 'not-measured' as const, statusLabel: 'Not measured' };
 
   const pillarScores = scores.filter((score) => score.subPillar === null);
-  const pillars = pillarOrder
-    .map((key) => pillarScores.find((score) => score.pillar === key))
-    .filter((score): score is AuditScoreRow => Boolean(score))
-    .map((score) => {
-      const key = score.pillar as PillarKey;
-      const meta = pillarMeta[key];
-      const { status, statusLabel } = scoreToStatus(score.score);
-      const checksTotal = score.checksTotal ?? 0;
-      const checksPassed = score.checksPassed ?? 0;
-      return {
-        key, label: meta.label, score: score.score, status, statusLabel,
-        description: describePillar(meta.label, score.score, checksTotal, checksPassed),
-        icon: meta.icon, checksTotal, checksPassed, subPillars: meta.subPillars,
-      };
-    });
+
+  // Driven by the pillar CATALOG, not by what the audit happened to return — the same rule
+  // pillarDashboard.repository.ts already applies to sub-pillar areas.
+  //
+  // This previously did `.filter(Boolean)` on the lookup, which silently DELETED any pillar the
+  // engine produced no row for. With checks registered only for SEO and Content, that dropped
+  // Speed, CRO and AI Discovery from the dashboard entirely — they were absent, not zero, so the
+  // merchant had no way to tell "not measured yet" from "does not exist". Keeping the catalog as
+  // the source means a pillar can never disappear, and a future pillar needs no change here.
+  const pillars = pillarOrder.map((key) => {
+    const meta = pillarMeta[key];
+    const row = pillarScores.find((score) => score.pillar === key);
+    // A row whose details say 'unavailable' carries a NOT-NULL placeholder zero, not a result.
+    const measured = row ? isMeasuredScore(row) : false;
+    const score = measured && row ? row.score : null;
+    const checksTotal = measured ? row?.checksTotal ?? 0 : 0;
+    const checksPassed = measured ? row?.checksPassed ?? 0 : 0;
+    const { status, statusLabel } = measured && score !== null
+      ? scoreToStatus(score)
+      : { status: 'not-measured' as const, statusLabel: 'Not measured' };
+
+    return {
+      key,
+      label: meta.label,
+      score,
+      status,
+      statusLabel,
+      description: measured && score !== null
+        ? describePillar(meta.label, score, checksTotal, checksPassed)
+        : `${meta.label} has not been analyzed yet.`,
+      icon: meta.icon,
+      checksTotal,
+      checksPassed,
+      subPillars: meta.subPillars,
+    };
+  });
 
   const totalChecksPassed = pillarScores.reduce((sum, score) => sum + (score.checksPassed ?? 0), 0);
   const criticalCount = priorityFindings.filter((finding) => finding.severity === 'critical').length;
@@ -91,7 +126,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     { id: 'overall-health', label: 'Overall Health', value: latest.overallScore, statusLabel: overallStatus.statusLabel, color: 'success', trend: scoreTrendDir, trendValue },
     { id: 'issues', label: 'Total Issues', value: priorityFindings.length, color: priorityFindings.length > 0 ? 'warning' : 'success' },
     { id: 'critical', label: 'Critical', value: criticalCount, color: 'critical' },
-    { id: 'passed', label: 'Passed Checks', value: totalChecksPassed, color: 'success' },
+    { id: 'passed', label: 'Healthy Items', value: totalChecksPassed, color: 'success' },
   ];
 
   const scoreTrend: ScoreTrendPoint[] = trend.map((audit) => ({
@@ -109,9 +144,13 @@ export async function fetchDashboardData(): Promise<DashboardData> {
       score: latest.overallScore,
       status: overallStatus.status,
       statusLabel: overallStatus.statusLabel,
-      description: describeOverall(latest.overallScore),
+      description: measured
+        ? describeOverall(latest.overallScore)
+        : 'No audit data available yet. Run an audit to measure your store.',
       trend: scoreTrendDir,
       trendValue,
+      measured,
+      coverageNote,
     },
     keyMetrics,
     pillars,

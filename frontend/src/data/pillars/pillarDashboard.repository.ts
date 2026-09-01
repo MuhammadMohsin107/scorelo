@@ -9,7 +9,8 @@
 
 import { api, ApiError } from '../../lib/api';
 import type { AuditRow, AuditScoreRow, FindingRow, StoreRow } from '../api.types';
-import type { PillarKey } from '../dashboard/dashboard.mock';
+import { isMeasuredScore } from '../api.types';
+import type { PillarKey } from '../dashboard/dashboard.types';
 import { pillarMeta } from '../pillarMeta';
 
 /** Thrown-through so callers can tell "no audit yet" from a genuine failure. */
@@ -75,13 +76,17 @@ export async function fetchPillarDashboard(pillar: PillarKey): Promise<PillarDas
   // reach still appears — as "not measured" rather than silently vanishing from the page.
   const areas: PillarArea[] = meta.subPillars.map((sub) => {
     const row = bySubPillar.get(sub.id);
-    const analyzed = row?.analyzedCount ?? null;
-    const healthy = row?.healthyCount ?? null;
+    // A row whose details say 'unavailable' carries a placeholder zero, not a score — treat it
+    // exactly like a sub-pillar the engine never reached, so the card reads "Not measured"
+    // instead of a fabricated 0. (A store with no blog articles is the common case.)
+    const measured = row ? isMeasuredScore(row) : false;
+    const analyzed = measured ? row?.analyzedCount ?? null : null;
+    const healthy = measured ? row?.healthyCount ?? null : null;
     return {
       id: sub.id,
       label: sub.label,
       route: `/${pillar}/${sub.id}`,
-      score: row ? row.score : null,
+      score: measured && row ? row.score : null,
       analyzedCount: analyzed,
       healthyCount: healthy,
       issueCount: analyzed !== null && healthy !== null ? analyzed - healthy : null,

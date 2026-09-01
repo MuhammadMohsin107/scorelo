@@ -1,74 +1,77 @@
 # Scorelo — Shopify app configuration
 #
-# This describes the EXISTING "Scorelo" Shopify app. It does not create one.
+# Describes the EXISTING "Scorelo" Shopify app. It does not create one.
 #
-# ─── What this file does and does not do ─────────────────────────────────────
-# Scorelo is NOT a Shopify-CLI-templated app: there is no @shopify/* dependency, no App Bridge,
-# and no embedded admin surface. OAuth is implemented by hand in
-# backend/src/services/shopify-oauth.service.ts. This file therefore has NO effect at runtime —
-# the backend reads its credentials and URLs from backend/.env, never from here.
+# ─── What this file does ─────────────────────────────────────────────────────
+# Scorelo is not a CLI-templated app: no @shopify/* runtime dependency, no App Bridge, no embedded
+# admin surface. OAuth is hand-rolled in backend/src/services/shopify-oauth.service.ts, and the
+# backend reads its credentials and URLs from backend/.env — never from this file.
 #
-# It is useful for exactly two things:
-#   1. Documenting, in version control, the settings the Shopify app must have.
-#   2. Letting `shopify app config link` / `shopify app deploy` push those settings, IF you choose
-#      to install the Shopify CLI. Until then, apply the same values by hand in the Shopify dev
-#      dashboard. Nothing here is applied automatically.
+# So this file has NO runtime effect. It matters only when the Shopify CLI reads it:
+# `shopify app config link` pulls the live app's settings down into it, and `shopify app deploy`
+# pushes what is written here UP to the real app.
 #
-# ─── URLs: read before editing ───────────────────────────────────────────────
-# The URLs below are the LOCAL development values, matching backend/.env
-# (BACKEND_URL=http://localhost:5000, FRONTEND_URL=http://localhost:5173).
+# ─── Read before running `shopify app deploy` ────────────────────────────────
+# As of CLI 4.x, deploy ALWAYS overwrites the live app's configuration with this file — the old
+# opt-out (`include_config_on_deploy`) was removed. Anything configured in the dashboard but
+# missing here is wiped.
 #
-# Shopify accepts http://localhost redirect URLs for development, and the OAuth callback is a
-# redirect of the MERCHANT'S OWN BROWSER — which is on this machine — so the connect flow works
-# end to end with no tunnel.
+# That is why redirect_urls below lists BOTH origins. Deploying a single-entry list would delete
+# the other one and break that environment's OAuth until someone noticed.
 #
-# Webhooks are different: Shopify's servers call those directly and cannot reach localhost. The
-# webhook URLs below are therefore placeholders. To test webhooks, run a tunnel, set BACKEND_URL
-# to the tunnel origin, and replace the three privacy_compliance URLs plus the app/uninstalled
-# subscription with that origin. Never commit a temporary tunnel hostname as if it were permanent.
+# Deploy creates a new app version and is roll-back-able from the app's Versions page.
 
 name = "Scorelo"
 
-# The client_id is the app's PUBLIC identifier — the same value Shopify requires in this file and
-# that appears in plain sight in the browser's address bar as ?client_id= during every OAuth
-# redirect. It is not a secret. SHOPIFY_API_SECRET is the secret, and it lives only in
-# backend/.env, which is git-ignored.
+# PUBLIC identifier — it appears in the browser address bar as ?client_id= during every OAuth
+# redirect. Not a secret. SHOPIFY_API_SECRET stays only in backend/.env (git-ignored).
 client_id = "c07009f384e8686d1897b98026d07f57"
 
 # Where Shopify sends a merchant who opens the app. Scorelo is a standalone web app, so this is
 # the FRONTEND origin, not the API.
-application_url = "http://localhost:5173"
+application_url = "https://scorelo-staging.tlxapps.com"
 
-# Scorelo renders in its own tab, authenticates with a bearer token, and redirects to
-# /integrations after OAuth. It is not framed inside the Shopify admin.
+# Renders in its own tab, authenticates with a bearer token, redirects to /integrations after
+# OAuth. Not framed inside the Shopify admin.
 embedded = false
 
 [access_scopes]
-# Justified one-by-one in the SCOPES block of backend/src/services/shopify-oauth.service.ts.
-# Keep the two lists identical — this file only documents what that constant actually requests.
-#   read_products    products/collections: seo{}, descriptionHtml, media alt text, metafields
+# Must stay identical to the SCOPES constant at
+# backend/src/services/shopify-oauth.service.ts:41, which documents each one:
+#   read_products    product/collection seo{}, descriptionHtml, media alt text, metafields
 #   read_content     pages, blogs, articles (implicitly grants read_online_store_pages)
 #   read_themes      theme weight / app bloat for the Speed pillar
 #   read_metaobjects metaobject instances for Content + AI Discovery
-# read_orders and read_customers are deliberately absent: they are Protected Customer Data and no
+#   read_legal_policies shop policies (refund/shipping/privacy) for the CRO returns check —
+#                    shopPolicies used to fall under read_content and now needs its own scope
+# read_orders and read_customers are deliberately absent — Protected Customer Data, and no
 # Scorelo check reads an order or a customer.
-scopes = "read_products,read_content,read_themes,read_metaobjects"
+scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_policies"
 
-# REQUIRED for this app. Scorelo drives the classic authorization-code grant itself
-# (buildInstallUrl → /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install
-# flow would complete the install without ever handing Scorelo the `code`, so
-# handleShopifyCallback would never run and no token would ever be stored.
-use_legacy_install_flow = true
+# REQUIRED. Scorelo drives the classic authorization-code grant itself (buildInstallUrl →
+# /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install would finish the
+# install without ever handing Scorelo the `code`, so handleShopifyCallback would never run and
+# no access token would ever be stored.
+use_legacy_install_flow = false
 
 [auth]
-# Must match redirectUri in buildInstallUrl() exactly:
-#   new URL('/api/shopify/callback', env.backendUrl)
-# The route is defined at backend/src/routes/shopify.ts:30.
-redirect_urls = [ "http://localhost:5000/api/shopify/callback" ]
+# Each entry must match redirectUri in buildInstallUrl() exactly, for the BACKEND_URL that
+# environment runs with:
+#   new URL('/api/shopify/callback', env.backendUrl)   [shopify-oauth.service.ts:67]
+# Route defined at backend/src/routes/shopify.ts:30.
+#
+# Both are listed so one deployed config serves staging and local development. Shopify accepts
+# http://localhost redirect URLs for development, and the callback is a redirect of the
+# merchant's own browser — which is on the developer's machine — so local OAuth needs no tunnel.
+redirect_urls = [
+  "https://scorelo-staging.tlxapps.com/api/shopify/callback",
+  "http://localhost:5000/api/shopify/callback",
+]
 
 [webhooks]
-# Pinned to SHOPIFY_API_VERSION in backend/src/audit-engine/store-data/shopify-client.ts:11.
-# Keep these in step — a version skew here silently changes payload shapes.
+# Pinned to SHOPIFY_API_VERSION at
+# backend/src/audit-engine/store-data/shopify-client.ts:11. Keep in step — a version skew here
+# silently changes payload shapes.
 api_version = "2026-07"
 
   # Registered programmatically at install time by registerAppUninstalledWebhook()
@@ -76,15 +79,12 @@ api_version = "2026-07"
   # BACKEND_URL. Declared here so the CLI-managed config matches what the code registers.
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
-  uri = "http://localhost:5000/api/shopify/webhooks/app-uninstalled"
+  uri = "https://scorelo-staging.tlxapps.com/api/shopify/webhooks/app-uninstalled"
 
-  # The three mandatory GDPR endpoints. Handlers exist at backend/src/routes/shopify.ts:39-41 and
-  # are verified by per-request HMAC, not a session. Shopify calls these from its own servers, so
-  # they need a PUBLIC https origin before they can succeed — see the URLs note at the top.
+  # The three mandatory GDPR endpoints. Handlers at backend/src/routes/shopify.ts:39-41, verified
+  # by per-request HMAC rather than a session. Shopify calls these from its OWN servers, so they
+  # must stay on a public https origin — localhost can never receive them.
   [webhooks.privacy_compliance]
-  customer_data_request_url = "http://localhost:5000/api/shopify/webhooks/customers-data-request"
-  customer_deletion_url = "http://localhost:5000/api/shopify/webhooks/customers-redact"
-  shop_deletion_url = "http://localhost:5000/api/shopify/webhooks/shop-redact"
-
-[build]
-include_config_on_deploy = true
+  customer_data_request_url = "https://scorelo-staging.tlxapps.com/api/shopify/webhooks/customers-data-request"
+  customer_deletion_url = "https://scorelo-staging.tlxapps.com/api/shopify/webhooks/customers-redact"
+  shop_deletion_url = "https://scorelo-staging.tlxapps.com/api/shopify/webhooks/shop-redact"

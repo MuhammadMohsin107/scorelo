@@ -203,3 +203,137 @@
   .stagger-4 { animation-delay: 0.2s; }
   .stagger-5 { animation-delay: 0.25s; }
 }
+
+/* ─── Authentication experience ───────────────────────────────────────────────
+   Scoped to the Login / Sign up / Forgot / Reset screens.
+   All animations are disabled under `prefers-reduced-motion`.
+
+   2026 Premium Edition:
+   · Deep aurora brand panel with 3D analytics scene
+   · Frosted glass auth card on light tinted surface
+   · Pillar badges, data-node ring visuals
+   · Precision uppercase field labels, taller inputs, multi-layer focus shadow
+   · Premium submit button with sheen sweep and inset highlight
+
+   Three.js canvas (AuthScene.tsx) handles 3D visuals separately.
+──────────────────────────────────────────────────────────────────────────── */
+
+@keyframes auth-aurora {
+  0%,  100% { transform: translate3d(0, 0, 0) scale(1); }
+  25%        { transform: translate3d(5%, -5%, 0) scale(1.08); }
+  50%        { transform: translate3d(-3%, 6%, 0) scale(1.14); }
+  75%        { transform: translate3d(-6%, -3%, 0) scale(0.92); }
+}
+
+@keyframes auth-rise {
+  from { opacity: 0; transform: translate3d(0, 20px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes auth-btn-sheen {
+  0%   { transform: translateX(-150%) skewX(-15deg); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateX(300%) skewX(-15deg); opacity: 0; }
+}
+
+@keyframes auth-field-focus-in {
+  from { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  to   { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12); }
+}
+
+@layer utilities {
+  /* ── Aurora blobs — GPU-friendly (transform only) ── */
+  .auth-aurora {
+    animation: auth-aurora 28s ease-in-out infinite;
+    will-change: transform;
+  }
+  .auth-aurora-slow {
+    animation-duration: 42s;
+    animation-direction: reverse;
+  }
+
+  /* ── Entrance animation — form card and brand copy ── */
+  .auth-rise {
+    animation: auth-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  /* ── Auth card — clean white with very subtle shadow ── */
+  .auth-card {
+    background-color: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    box-shadow:
+      0 1px 3px rgba(16, 24, 40, 0.05),
+      0 4px 12px rgba(16, 24, 40, 0.06),
+      0 20px 60px -16px rgba(79, 70, 229, 0.10);
+  }
+
+  /* ── Input base — transition is the only style here so components  ──
+        can still compose their own border/ring utilities freely.     */
+  .auth-input {
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background-color 0.18s ease;
+  }
+
+  /* ── Field group micro-lift on focus-within ── */
+  .auth-field-group {
+    transition: transform 0.18s ease;
+  }
+  .auth-field-group:focus-within {
+    transform: translateY(-1px);
+  }
+
+  /* ── Submit button hover / active states ── */
+  .auth-submit-btn:hover:not(:disabled) {
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.08),
+      0 0 0 1px rgba(79, 70, 229, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 18px 44px -8px rgba(79, 70, 229, 0.62) !important;
+    background: linear-gradient(180deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%) !important;
+    transform: translateY(-1px);
+  }
+  .auth-submit-btn:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.08),
+      0 0 0 1px rgba(79, 70, 229, 0.15),
+      inset 0 2px 4px rgba(0, 0, 0, 0.12),
+      0 4px 8px -4px rgba(79, 70, 229, 0.3) !important;
+  }
+
+  /* ── Sheen sweep on button hover ── */
+  .auth-btn-sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      105deg,
+      transparent 25%,
+      rgba(255, 255, 255, 0.18) 45%,
+      rgba(255, 255, 255, 0.28) 50%,
+      rgba(255, 255, 255, 0.18) 55%,
+      transparent 75%
+    );
+    transform: translateX(-150%) skewX(-15deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .auth-submit-btn:hover:not(:disabled) .auth-btn-sheen::after {
+    animation: auth-btn-sheen 0.9s ease-out forwards;
+  }
+
+  /* ── Reduced motion overrides ── */
+  @media (prefers-reduced-motion: reduce) {
+    .auth-aurora,
+    .auth-aurora-slow { animation: none !important; }
+    .auth-rise        { animation: none !important; opacity: 1; transform: none; }
+    .auth-submit-btn:hover:not(:disabled) .auth-btn-sheen::after { animation: none !important; }
+    .auth-submit-btn  { transition: none !important; }
+    .auth-field-group { transition: none !important; }
+    .auth-field-group:focus-within { transform: none; }
+    .auth-input       { transition: none !important; }
+  }
+}

@@ -21,6 +21,7 @@ import {
   SeedDataNotice,
 } from '../../components/pillars/PillarDashboardState';
 import { fetchPillarDashboard, isNoAuditError, type PillarDashboardData } from '../../data/pillars/pillarDashboard.repository';
+import { useAuditRun } from '../../data/useAuditRun';
 import { formatLastUpdated } from '../../data/dashboard/dashboard.repository';
 
 type IssueSeverity = 'critical' | 'high' | 'medium' | 'low';
@@ -93,6 +94,12 @@ export default function ContentDashboard() {
       setState(isNoAuditError(error) ? 'empty' : 'error');
     }
   }, []);
+
+  // "Refresh" must re-ANALYSE the store, not just re-read the audit already stored — that is
+  // why clicking it appeared to change nothing. reload() refreshes this page's data once the
+  // new audit has actually finished.
+  const auditRun = useAuditRun();
+  const refresh = () => void auditRun.run(load);
 
   useEffect(() => { load(); }, [load]);
 
@@ -182,11 +189,12 @@ export default function ContentDashboard() {
               </div>
 
               <button
-                onClick={load}
+                onClick={refresh}
+                disabled={auditRun.running}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-70 sm:ml-2"
               >
-                <RefreshCw size={14} />
-                Refresh
+                <RefreshCw size={14} className={auditRun.running ? 'animate-spin motion-reduce:animate-none' : undefined} />
+                {auditRun.running ? `Analyzing… ${auditRun.progress}%` : 'Refresh'}
               </button>
             </div>
           </div>

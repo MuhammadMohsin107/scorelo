@@ -16,7 +16,7 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react';
-import { pillarList, type PillarMeta } from '../data/pillarMeta';
+import { pillarList, pillarRoutes, type PillarMeta } from '../data/pillarMeta';
 import { fetchCurrentUser, initialsFor, subscribeCurrentUser } from '../data/user.repository';
 import { planInfo } from '../data/settings.mock';
 import type { UserRow } from '../data/api.types';
@@ -37,16 +37,7 @@ const pillarIcons: Record<string, React.ReactNode> = {
   'ai-discovery': <Sparkles size={16} strokeWidth={2} />,
 };
 
-// Map pillar keys to routes
-const pillarRoutes: Record<string, string> = {
-  seo: '/seo',
-  content: '/content',
-  speed: '/speed',
-  cro: '/cro',
-  'ai-discovery': '/ai-discovery',
-};
-
-// SEO sub-pillar routes - mapped from dashboard.mock.ts subPillars
+// SEO sub-pillar routes - mapped from dashboard.types.ts subPillars
 const seoSubRoutes: { id: string; label: string; path: string }[] = [
   { id: 'title-tags', label: 'Title tags', path: '/seo/title-tags' },
   { id: 'meta-descriptions', label: 'Meta descriptions', path: '/seo/meta-descriptions' },

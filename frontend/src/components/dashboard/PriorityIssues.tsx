@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, Info, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { PriorityIssue, Severity } from '../../data/dashboard/dashboard.mock';
+import type { PriorityIssue, Severity } from '../../data/dashboard/dashboard.types';
 import { cardClass, pillarRoutes } from './scoreTone';
 
 interface Props {

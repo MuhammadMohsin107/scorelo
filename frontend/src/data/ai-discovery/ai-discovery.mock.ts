@@ -83,7 +83,7 @@ export const catalogFeedReadinessData = {
 
 // ─── OVERALL AI DISCOVERY KPIs ──────────────────────────────────────
 // Index 0 = overall pillar score (must equal 82/100 to match
-// dashboard.mock.ts's ai-discovery pillar entry). Exactly 5 more
+// dashboard.types.ts's ai-discovery pillar entry). Exactly 5 more
 // summary KPIs mirror seoKpis' shape.
 export const aiDiscoveryKpis = [
   { label: 'Overall AI Discovery Score', value: '82/100', trend: '+3.6%', status: 'good' },

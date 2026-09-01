@@ -1,6 +1,6 @@
 import { ArrowUpRight, FileText, Search, Sparkles, Target, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { PillarScore } from '../../data/dashboard/dashboard.mock';
+import type { PillarScore } from '../../data/dashboard/dashboard.types';
 import { SCORE_TARGET, cardClass, pillarRoutes, statusTone } from './scoreTone';
 
 interface Props {
@@ -39,14 +39,21 @@ export default function PillarOverview({ pillars }: Props) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {pillars.map((pillar) => {
           const tone = statusTone[pillar.status];
-          const gap = SCORE_TARGET - pillar.score;
+          // null score = this pillar produced no measurable result. The card still renders, and
+          // still navigates, so the merchant can reach the pillar and see why.
+          const measured = pillar.score !== null;
+          const gap = measured ? SCORE_TARGET - pillar.score! : null;
           return (
             <button
               key={pillar.key}
               type="button"
               onClick={() => navigate(pillarRoutes[pillar.key] ?? '/')}
               className={`${cardClass} group flex cursor-pointer flex-col p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0`}
-              aria-label={`Open ${pillar.label}, score ${pillar.score} out of 100, ${pillar.statusLabel}`}
+              aria-label={
+                measured
+                  ? `Open ${pillar.label}, score ${pillar.score} out of 100, ${pillar.statusLabel}`
+                  : `Open ${pillar.label}, not analyzed yet`
+              }
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 min-w-0">
@@ -59,26 +66,43 @@ export default function PillarOverview({ pillars }: Props) {
               </div>
 
               <div className="mt-4 flex items-baseline gap-1.5">
-                <span className="text-[30px] font-semibold leading-none tracking-tight text-surface-950 tabular-nums">{pillar.score}</span>
-                <span className="text-xs font-medium text-surface-400">/100</span>
+                {measured ? (
+                  <>
+                    <span className="text-[30px] font-semibold leading-none tracking-tight text-surface-950 tabular-nums">{pillar.score}</span>
+                    <span className="text-xs font-medium text-surface-400">/100</span>
+                  </>
+                ) : (
+                  // An em dash, not a 0 — a pillar we could not measure must never read as a
+                  // pillar that scored zero.
+                  <span className="text-[30px] font-semibold leading-none tracking-tight text-surface-300 tabular-nums">—</span>
+                )}
                 <span className={`ml-auto inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone.badge}`}>
                   {pillar.statusLabel}
                 </span>
               </div>
 
-              {/* Bullet bar with target marker */}
+              {/* Bullet bar with target marker. Unmeasured pillars show an empty track: there is
+                  no value to plot, and a zero-width bar would still imply a measured zero. */}
               <div className="relative mt-3 h-2 w-full overflow-visible rounded-full bg-surface-100" aria-hidden="true">
-                <div className={`h-full rounded-full ${tone.bar} transition-[width] duration-700 ease-out motion-reduce:transition-none`} style={{ width: `${pillar.score}%` }} />
+                {measured && (
+                  <div className={`h-full rounded-full ${tone.bar} transition-[width] duration-700 ease-out motion-reduce:transition-none`} style={{ width: `${pillar.score}%` }} />
+                )}
                 <span className="absolute -top-1 h-4 w-0.5 rounded-full bg-surface-900" style={{ left: `calc(${SCORE_TARGET}% - 1px)` }} />
               </div>
 
               <div className="mt-3 flex items-center justify-between text-[11px] text-surface-500">
-                <span className="tabular-nums">
-                  <span className="font-semibold text-surface-800">{pillar.checksPassed}</span>/{pillar.checksTotal} checks
-                </span>
-                <span className={gap > 0 ? 'tabular-nums' : 'font-medium text-success-700'}>
-                  {gap > 0 ? `${gap} to target` : 'On target'}
-                </span>
+                {measured ? (
+                  <>
+                    <span className="tabular-nums">
+                      <span className="font-semibold text-surface-800">{pillar.checksPassed}</span>/{pillar.checksTotal} items healthy
+                    </span>
+                    <span className={gap !== null && gap > 0 ? 'tabular-nums' : 'font-medium text-success-700'}>
+                      {gap !== null && gap > 0 ? `${gap} to target` : 'On target'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-medium text-surface-400">Not analyzed yet</span>
+                )}
               </div>
 
               <p className="mt-2 line-clamp-2 text-xs leading-5 text-surface-500">{pillar.description}</p>

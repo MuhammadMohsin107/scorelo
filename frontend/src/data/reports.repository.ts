@@ -1,7 +1,7 @@
 import { api } from '../lib/api';
 import type { AuditRow, AuditScoreRow, FindingRow, TrendAuditRow } from './api.types';
 import { pillarMeta, pillarOrder, scoreToStatus } from './pillarMeta';
-import type { PillarKey } from './dashboard/dashboard.mock';
+import type { PillarKey } from './dashboard/dashboard.types';
 
 export interface ReportPillar {
   key: PillarKey;

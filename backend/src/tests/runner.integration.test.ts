@@ -21,9 +21,16 @@ function snapshotFor(storeId: number): StoreSnapshot {
     collections: [],
     pages: [],
     articles: [],
-    policies: [],
-    coverage: { shop: true, products: true, collections: true, pages: true, articles: true, policies: true, metafields: false },
-    scope: { productLimit: 100, productsTruncated: false, collectionsTruncated: false, pagesTruncated: false, articlesTruncated: false },
+    policies: [],
+
+    policyAccess: { available: true },
+    theme: null,
+    storefront: null,
+    redirects: { available: false, reason: 'error', detail: 'not fetched in tests' },
+
+    crawl: null,
+    coverage: { shop: true, products: true, collections: true, pages: true, articles: true, policies: true, metafields: false, theme: false, storefront: false, crawl: false },
+    scope: { productLimit: 100, productsAvailable: null, collectionsAvailable: null, productsTruncated: false, collectionsTruncated: false, pagesTruncated: false, articlesTruncated: false },
     warnings: [],
   };
 }

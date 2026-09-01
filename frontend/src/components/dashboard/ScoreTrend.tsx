@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
-import type { ScoreTrendPoint } from '../../data/dashboard/dashboard.mock';
+import type { ScoreTrendPoint } from '../../data/dashboard/dashboard.types';
 import { SCORE_TARGET, cardClass } from './scoreTone';
 
 interface Props {

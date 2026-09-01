@@ -149,9 +149,15 @@ export const notificationCopy: {
 // `usage` was removed rather than updated: every entry was an invented consumption figure
 // (1,342 of 2,000 pages, 4 of 6 integrations) rendered as a filled meter, and nothing in the
 // product measures those. The Settings card now states that usage tracking is not connected.
+/**
+ * Scorelo has NO billing system: no provider, no subscriptions table, no plan API. Every
+ * account is on the same free tier, so "Free plan" is TRUE — but the previous "PKR 0 per
+ * month" invented a price and billing cadence for a system that does not exist. This object
+ * now states only what is real, and must be replaced by a billing API when one is built.
+ */
 export const planInfo = {
   name: 'Free',
-  price: 'PKR 0',
-  cadence: 'per month',
-  description: 'One store, weekly audits and the full pillar breakdown.',
+  price: '',
+  cadence: '',
+  description: 'All features are currently included. Paid plans are not available yet.',
 };

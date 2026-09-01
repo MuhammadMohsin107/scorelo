@@ -1,12 +1,19 @@
 import { useEffect, useRef } from 'react';
 import { ArrowRight, Lightbulb, X } from 'lucide-react';
-import type { EvidenceRow, SubPillarFinding } from '../../../data/seo/subpillar.model';
+import { investigationEvidence, type EvidenceRow, type SubPillarFinding } from '../../../data/seo/subpillar.model';
+import AiRecommendationPanel from '../../workflows/AiRecommendationPanel';
 import SeverityBadge from './SeverityBadge';
 import { eyebrow, toneStyles } from './tone';
 
 interface Props {
   finding: SubPillarFinding | null;
   evidence: EvidenceRow[];
+  /**
+   * The items the user opened this drawer for — the row whose Investigate button was pressed, or
+   * every ticked row when the pressed row was part of a tick selection. Empty when the drawer was
+   * opened from the findings list, where an issue was chosen but no item.
+   */
+  selectedRows?: EvidenceRow[];
   onClose: () => void;
   /** Filter the evidence table to this issue and close the drawer. */
   onReviewAffected: (finding: SubPillarFinding) => void;
@@ -17,8 +24,14 @@ const EVIDENCE_PREVIEW = 4;
 /**
  * Investigation panel. Opens beside the findings list so the user can
  * read the evidence without losing their place on the page.
+ *
+ * WHICH ROWS THIS SHOWS. When the user selected items, exactly those items — investigating an
+ * item is a question about that item, and padding the list with other examples reads as though
+ * the selection was ignored. Only when nothing was selected (opened from the findings list) does
+ * a sample stand in, preferring the rows the check itself attributed to the finding over the
+ * sub-pillar sample, which is shared between findings of the same issue type.
  */
-export default function InvestigationDrawer({ finding, evidence, onClose, onReviewAffected }: Props) {
+export default function InvestigationDrawer({ finding, evidence, selectedRows = [], onClose, onReviewAffected }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const isOpen = finding !== null;
@@ -59,9 +72,11 @@ export default function InvestigationDrawer({ finding, evidence, onClose, onRevi
 
   if (!finding) return null;
 
-  const rows = evidence.filter((row) => row.status === finding.issueType);
-  const preview = rows.slice(0, EVIDENCE_PREVIEW);
-  const notShown = finding.affected - preview.length;
+  const isSelection = selectedRows.length > 0;
+  const preview = investigationEvidence(finding, evidence, selectedRows, EVIDENCE_PREVIEW);
+  // "and N more" belongs to a sample, not to a selection — the user is looking at everything they
+  // picked, so telling them items are hidden would be wrong.
+  const notShown = isSelection ? 0 : finding.affected - preview.length;
   const tone = toneStyles[finding.severity];
 
   return (
@@ -115,9 +130,13 @@ export default function InvestigationDrawer({ finding, evidence, onClose, onRevi
 
           <section className="mt-5">
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-surface-500">Evidence</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-surface-500">
+                {isSelection ? (preview.length === 1 ? 'Selected item' : 'Selected items') : 'Evidence'}
+              </h3>
               <span className="text-[11px] text-surface-400">
-                {preview.length} of {finding.affected.toLocaleString()}
+                {isSelection
+                  ? `${preview.length} of ${finding.affected.toLocaleString()} affected`
+                  : `${preview.length} of ${finding.affected.toLocaleString()}`}
               </span>
             </div>
 
@@ -128,7 +147,10 @@ export default function InvestigationDrawer({ finding, evidence, onClose, onRevi
             ) : (
               <ul className="mt-2 space-y-2.5">
                 {preview.map((row) => (
-                  <li key={row.id} className="rounded-xl border border-surface-200 bg-surface-50/60 p-3">
+                  <li
+                    key={row.id}
+                    className={`rounded-xl border p-3 ${isSelection ? 'border-brand-300 bg-brand-50/60 ring-1 ring-brand-200' : 'border-surface-200 bg-surface-50/60'}`}
+                  >
                     {row.current?.meta && (
                       <p className="truncate font-mono text-[11px] text-surface-600">{row.current.meta}</p>
                     )}
@@ -176,7 +198,7 @@ export default function InvestigationDrawer({ finding, evidence, onClose, onRevi
           <section className="mt-5 rounded-xl border border-brand-100 bg-brand-50/60 p-4">
             <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
               <Lightbulb size={13} aria-hidden="true" />
-              Recommendation
+              Scorelo recommendation
             </h3>
             <p className="mt-2 text-sm leading-6 text-surface-700">{finding.recommendation}</p>
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-surface-600">
@@ -187,6 +209,7 @@ export default function InvestigationDrawer({ finding, evidence, onClose, onRevi
                 Effort <span className="font-semibold text-surface-800">{finding.effort}</span>
               </span>
             </div>
+            <AiRecommendationPanel findingId={finding.id} />
           </section>
         </div>
 

@@ -97,6 +97,24 @@ async function persistAudit(storeId: number, outcomes: PillarOutcome[], snapshot
             articles: snapshot.articles.length,
             policies: snapshot.policies.length,
           },
+          // Analysed-vs-available, so a partially-scanned catalogue is never presented as a full
+          // scan. `exact: false` means Shopify reported the total as AT_LEAST, not a firm number.
+          // `available: null` means the total could not be read — which is "unknown", not "equal
+          // to analysed", and the UI must not infer 100% coverage from it.
+          coverageDetail: {
+            products: {
+              analyzed: snapshot.products.length,
+              available: snapshot.scope.productsAvailable?.count ?? null,
+              exact: snapshot.scope.productsAvailable?.exact ?? null,
+              truncated: snapshot.scope.productsTruncated,
+            },
+            collections: {
+              analyzed: snapshot.collections.length,
+              available: snapshot.scope.collectionsAvailable?.count ?? null,
+              exact: snapshot.scope.collectionsAvailable?.exact ?? null,
+              truncated: snapshot.scope.collectionsTruncated,
+            },
+          },
           snapshotWarnings: snapshot.warnings,
           failedChecks: outcomes.flatMap((outcome) => outcome.failedChecks),
           checksRegistered: checkCount,

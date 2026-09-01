@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowRight, Search, SlidersHorizontal } from 'lucide-react';
 import {
   HEALTHY,
+  findingForRow,
   isIssueStatus,
   severityForStatus,
   type EvidenceColumn,
@@ -20,7 +21,8 @@ interface Props {
   statusFilter: RowStatus | 'All';
   onStatusFilterChange: (next: RowStatus | 'All') => void;
   findings: SubPillarFinding[];
-  onInvestigate: (finding: SubPillarFinding) => void;
+  /** The items the drawer should show: the ticked rows, or just the row that was pressed. */
+  onInvestigate: (finding: SubPillarFinding, rows: EvidenceRow[]) => void;
   supportsBulkFix?: boolean;
   bulkFixMode?: 'title-tags' | 'generic';
 }
@@ -45,8 +47,8 @@ export default function EvidenceTable({
   const [workingRows, setWorkingRows] = useState(evidence.rows);
 
   const statusFilters: (RowStatus | 'All')[] = useMemo(
-    () => ['All', ...findings.filter((finding) => finding.affected > 0).map((finding) => finding.issueType), HEALTHY],
-    [findings],
+    () => ['All', ...findings.filter((finding) => finding.affected > 0).map((finding) => finding.issueType), evidence.healthyStatus ?? HEALTHY],
+    [findings, evidence.healthyStatus],
   );
 
   const visible = useMemo(() => {
@@ -102,15 +104,20 @@ export default function EvidenceTable({
     const value = row.cells[column.key];
     const sub = column.subKey ? row.cells[column.subKey] : undefined;
 
-    if (column.variant === 'severity') return <SeverityBadge severity={severityForStatus(row.status, findings)} showIcon={false} />;
+    if (column.variant === 'severity') return <SeverityBadge severity={severityForStatus(row.status, findings, evidence.healthyStatus)} showIcon={false} />;
     if (column.variant === 'status') {
-      const issue = isIssueStatus(row.status);
+      const issue = isIssueStatus(row.status, evidence.healthyStatus);
       return <span className={`text-xs ${issue ? 'font-medium text-surface-800' : 'text-surface-400'}`}>{issue ? row.status : '—'}</span>;
     }
     if (column.variant === 'action') {
-      const finding = isIssueStatus(row.status) ? findings.find((item) => item.issueType === row.status) : undefined;
+      const finding = findingForRow(row, findings, evidence.healthyStatus);
+      // The items travel with the finding: this button is per item, so the drawer opens on what
+      // was actually chosen rather than on a generic sample of the issue type. Pressing Investigate
+      // on a row that is part of a tick selection investigates that whole selection; pressing it on
+      // any other row is a question about that row alone, whatever else happens to be ticked.
+      const investigating = selectedIds.includes(row.id) ? selectedRows : [row];
       return finding ? (
-        <button type="button" onClick={() => onInvestigate(finding)} className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 hover:text-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={`Investigate ${row.status} issue`}>
+        <button type="button" onClick={() => onInvestigate(finding, investigating)} className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 hover:text-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label={`Investigate ${row.status} issue`}>
           Investigate <ArrowRight size={12} />
         </button>
       ) : <span className="text-xs text-surface-300">—</span>;

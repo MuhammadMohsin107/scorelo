@@ -10,6 +10,7 @@ import {
   SeedDataNotice,
 } from '../../components/pillars/PillarDashboardState';
 import { fetchPillarDashboard, isNoAuditError, type PillarDashboardData } from '../../data/pillars/pillarDashboard.repository';
+import { useAuditRun } from '../../data/useAuditRun';
 import { formatLastUpdated } from '../../data/dashboard/dashboard.repository';
 
 type IssueSeverity = 'critical' | 'high' | 'medium' | 'low';
@@ -46,6 +47,12 @@ export default function CroDashboard() {
     }
   }, []);
 
+  // "Refresh" must re-ANALYSE the store, not just re-read the audit already stored — that is
+  // why clicking it appeared to change nothing. reload() refreshes this page's data once the
+  // new audit has actually finished.
+  const auditRun = useAuditRun();
+  const refresh = () => void auditRun.run(load);
+
   useEffect(() => { load(); }, [load]);
 
   if (state === 'loading') return <PillarDashboardSkeleton title="CRO" />;
@@ -72,7 +79,7 @@ export default function CroDashboard() {
 
   return (
     <div className="min-h-screen bg-surface-50">
-      <div className="mx-auto max-w-[1440px] px-5 py-8 md:px-8">
+      <div className="mx-auto max-w-7xl px-5 py-8 md:px-8">
         <div className="relative mb-6 overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-sm">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-100/70 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-warning-50 blur-3xl" />
@@ -83,7 +90,9 @@ export default function CroDashboard() {
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-surface-600">Find and prioritize the moments that help more shoppers understand, trust, and complete their purchase.</p>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs"><span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-50 px-2.5 py-1.5 text-surface-600"><Globe size={13} className="text-surface-400" /><span className="font-medium text-surface-800">{data.storeName}</span><span className="text-surface-300">·</span><span className="font-mono text-[11px] text-surface-500">{data.storeUrl}</span></span><span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-50 px-2.5 py-1.5 text-surface-600"><Clock3 size={13} className="text-surface-400" />Last analyzed <span className="font-medium text-surface-800">{formatLastUpdated(data.lastAnalyzed)}</span></span></div>
             </div>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:border-l lg:border-surface-100 lg:pl-6"><div className="flex items-center gap-4">{overallScore === null ? <div className="flex h-[104px] w-[104px] items-center justify-center rounded-full border-4 border-dashed border-surface-200 text-center text-[11px] font-medium text-surface-400">Not<br />measured</div> : <PillarScoreRing score={overallScore} gradientId="cro-score-ring-gradient" />}<div><p className="text-[11px] font-semibold uppercase tracking-wider text-surface-400">CRO Health</p><span className={`mt-1 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusPill[overallStatus] ?? 'border-surface-200 bg-surface-50 text-surface-500'}`}>{overallStatus}</span></div></div><button onClick={load} className="btn-secondary sm:ml-2"><RefreshCw size={14} />Refresh</button></div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:border-l lg:border-surface-100 lg:pl-6"><div className="flex items-center gap-4">{overallScore === null ? <div className="flex h-[104px] w-[104px] items-center justify-center rounded-full border-4 border-dashed border-surface-200 text-center text-[11px] font-medium text-surface-400">Not<br />measured</div> : <PillarScoreRing score={overallScore} gradientId="cro-score-ring-gradient" />}<div><p className="text-[11px] font-semibold uppercase tracking-wider text-surface-400">CRO Health</p><span className={`mt-1 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusPill[overallStatus] ?? 'border-surface-200 bg-surface-50 text-surface-500'}`}>{overallStatus}</span></div></div><button
+                onClick={refresh}
+                disabled={auditRun.running} className="btn-secondary sm:ml-2"><RefreshCw size={14} className={auditRun.running ? 'animate-spin motion-reduce:animate-none' : undefined} />{auditRun.running ? `Analyzing… ${auditRun.progress}%` : 'Refresh'}</button></div>
           </div>
         </div>
 

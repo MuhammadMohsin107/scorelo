@@ -1,4 +1,4 @@
-import type { ScoreStatus } from '../../data/dashboard/dashboard.mock';
+import type { ScoreStatus } from '../../data/dashboard/dashboard.types';
 
 /** Score thresholds shared across the dashboard. */
 export const SCORE_TARGET = 90; // "Excellent" threshold, shown as a target marker on bars
@@ -47,16 +47,20 @@ export const statusTone: Record<ScoreStatus, Tone> = {
     text: 'text-critical-700',
     hex: '#dc2626',
   },
+  // Neutral on purpose: an unmeasured store is not failing, so it must not borrow the
+  // critical/warning palette that would read as a bad result.
+  'not-measured': {
+    badge: 'bg-surface-100 text-surface-600 ring-1 ring-inset ring-surface-200',
+    bar: 'bg-surface-300',
+    text: 'text-surface-600',
+    hex: '#d4d4d8',
+  },
 };
 
 /** Shared card shell used by every dashboard section. */
 export const cardClass =
   'rounded-2xl border border-surface-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]';
 
-export const pillarRoutes: Record<string, string> = {
-  seo: '/seo',
-  content: '/content',
-  speed: '/speed',
-  cro: '/cro',
-  'ai-discovery': '/ai-discovery',
-};
+/** Re-exported from the canonical definition in data/pillarMeta.ts so this module's existing
+ * importers keep working while there is only one map to maintain. */
+export { pillarRoutes } from '../../data/pillarMeta';

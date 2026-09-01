@@ -386,8 +386,32 @@ async function seed() {
   );
 }
 
+/**
+ * Refuse to run anywhere but development.
+ *
+ * Everything below writes `source: 'seed'` audits with invented scores, a store called
+ * "My Shopify Store", and a demo login whose password is written in a comment in this file. On a
+ * staging or production database that is not a convenience, it is fabricated audit data sitting
+ * alongside real merchant data — exactly what every score in Scorelo is supposed never to be.
+ *
+ * The guard is deliberately opt-out-able (SEED_ALLOW_NON_DEV=true) for the rare case of
+ * rebuilding a throwaway demo environment, but it must be a conscious act, not a typo away.
+ */
+function assertSeedingAllowed(): void {
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  if (nodeEnv === 'development' || process.env.SEED_ALLOW_NON_DEV === 'true') return;
+  console.error(
+    `[scorelo-db] refusing to seed: NODE_ENV is '${nodeEnv}', not 'development'.\n` +
+    '[scorelo-db] This script writes demo audits and a known-password demo user. Running it\n' +
+    '[scorelo-db] outside development would mix fabricated results into real audit data.\n' +
+    '[scorelo-db] Set SEED_ALLOW_NON_DEV=true only if you are certain this database is disposable.',
+  );
+  process.exitCode = 1;
+}
+
 try {
-  await seed();
+  assertSeedingAllowed();
+  if (process.exitCode !== 1) await seed();
 } catch (error) {
   console.error('[scorelo-db] seed failed:', error instanceof Error ? error.message : error);
   process.exitCode = 1;

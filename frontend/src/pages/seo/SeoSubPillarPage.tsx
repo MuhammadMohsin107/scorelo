@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, Clock3, Radar, RefreshCw, Settings2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
+  type EvidenceRow,
   type RowStatus,
   type SubPillarAnalysis,
   type SubPillarFinding,
@@ -15,6 +16,8 @@ import InvestigationDrawer from '../../components/seo/subpillar/InvestigationDra
 import SubPillarSkeleton from '../../components/seo/subpillar/SubPillarSkeleton';
 import { card, eyebrow } from '../../components/seo/subpillar/tone';
 import PageSettingsPanel from '../../components/settings/PageSettingsPanel';
+import RunAuditButton from '../../components/audit/RunAuditButton';
+import { isSubPillarImplemented } from '../../data/audits.capabilities';
 import {
   getDefaultSubPillarSettings,
   getSubPillarSettingsDefinition,
@@ -38,9 +41,14 @@ export default function SeoSubPillarPage({ analysis }: Props) {
   const [data, setData] = useState<SubPillarAnalysis | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeFinding, setActiveFinding] = useState<SubPillarFinding | null>(null);
+  // The finding under investigation, plus the row it was opened from. `row` is null when the user
+  // came from the findings list, where they picked an issue rather than a specific item.
+  const [investigation, setInvestigation] = useState<{ finding: SubPillarFinding; rows: EvidenceRow[] } | null>(null);
   const [statusFilter, setStatusFilter] = useState<RowStatus | 'All'>('All');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // null = not yet known / lookup failed. Treated as "assume measurable" so a capability outage
+  // never hides a Run Audit button that would actually have worked.
+  const [implemented, setImplemented] = useState<boolean | null>(null);
   const [pageSettings, setPageSettings] = useState<Record<string, PageSettingValue>>(() => getDefaultSubPillarSettings(analysis.slug));
   const evidenceRef = useRef<HTMLDivElement>(null);
   const settingsDefinition = getSubPillarSettingsDefinition(analysis.slug);
@@ -49,6 +57,9 @@ export default function SeoSubPillarPage({ analysis }: Props) {
     let active = true;
     setPageSettings(getDefaultSubPillarSettings(analysis.slug));
     setSettingsOpen(false);
+    isSubPillarImplemented('seo', analysis.slug)
+      .then((value) => { if (active) setImplemented(value); })
+      .catch(() => { if (active) setImplemented(null); });
     fetchSubPillarSettings(analysis.slug)
       .then((values) => { if (active) setPageSettings(values); })
       .catch((error) => console.error('Failed to load page settings', error));
@@ -76,7 +87,7 @@ export default function SeoSubPillarPage({ analysis }: Props) {
 
   // Reset view state when navigating between sub-pillars.
   useEffect(() => {
-    setActiveFinding(null);
+    setInvestigation(null);
     setStatusFilter('All');
     load();
   }, [load]);
@@ -98,6 +109,26 @@ export default function SeoSubPillarPage({ analysis }: Props) {
 
   if (state === 'loading') return <SubPillarSkeleton />;
 
+  // The check ran but could not measure anything (e.g. a store with no blog articles). The score
+  // it carries is a placeholder zero, so this renders the reason instead of a fabricated result.
+  // Distinct from 'empty', which means no audit has been run at all.
+  if (data && data.status === 'unavailable') {
+    return (
+      <div className="mx-auto max-w-3xl px-5 py-16 md:px-8">
+        <div className={`${card} flex flex-col items-center p-10 text-center`}>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-100 text-surface-500">
+            <Radar size={24} />
+          </span>
+          <h1 className="mt-4 text-lg font-semibold text-surface-900">{data.title} — not measured</h1>
+          <p className="mt-1.5 max-w-md text-sm text-surface-500">
+            {data.unavailableReason ?? 'Scorelo could not measure this check for your store.'}
+          </p>
+          <p className="mt-3 text-xs text-surface-400">Last audit {data.lastAnalyzed}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (state === 'empty') {
     return (
       <div className="mx-auto max-w-3xl px-5 py-16 md:px-8">
@@ -106,15 +137,25 @@ export default function SeoSubPillarPage({ analysis }: Props) {
             <Radar size={24} />
           </span>
           <h1 className="mt-4 text-lg font-semibold text-surface-900">
-            No {analysis.title.toLowerCase()} audit available
+            No {analysis.title} audit available
           </h1>
-          <p className="mt-1.5 max-w-sm text-sm text-surface-500">
-            Run an audit to generate real results for this check. Nothing on this page is estimated.
-          </p>
-          <Link to="/" className="btn-primary mt-6">
-            <Radar size={15} />
-            Run an audit
-          </Link>
+          {implemented === false ? (
+            /* Scorelo has no check registered for this sub-pillar, so an audit run provably
+               cannot populate it. Offering the button here would be a dead end. */
+            <p className="mt-1.5 max-w-md text-sm text-surface-500">
+              Scorelo does not measure this check yet, so running an audit will not populate this
+              page. Support for it is still being built.
+            </p>
+          ) : (
+            <>
+              <p className="mt-1.5 max-w-sm text-sm text-surface-500">
+                Run an audit to generate real results for this check. Nothing on this page is estimated.
+              </p>
+              {/* Runs a real audit job and reloads this page's data when it finishes — it no
+                  longer just navigates to the dashboard while claiming to run one. */}
+              <RunAuditButton onComplete={() => { void load(); }} />
+            </>
+          )}
         </div>
       </div>
     );
@@ -195,8 +236,8 @@ export default function SeoSubPillarPage({ analysis }: Props) {
           <div className="col-span-12">
             <FindingsList
               findings={data.findings}
-              onInvestigate={setActiveFinding}
-              emptyTitle={`Excellent — no ${data.title.toLowerCase()} issues`}
+              onInvestigate={(finding) => setInvestigation({ finding, rows: [] })}
+              emptyTitle={`Excellent — no ${data.title} issues`}
               emptyBody="Nothing was flagged in the latest analysis."
             />
           </div>
@@ -211,7 +252,7 @@ export default function SeoSubPillarPage({ analysis }: Props) {
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
               findings={data.findings}
-              onInvestigate={setActiveFinding}
+              onInvestigate={(finding, rows) => setInvestigation({ finding, rows })}
             />
           </div>
 
@@ -245,11 +286,12 @@ export default function SeoSubPillarPage({ analysis }: Props) {
       </div>
 
       <InvestigationDrawer
-        finding={activeFinding}
+        finding={investigation?.finding ?? null}
         evidence={data.evidence.rows}
-        onClose={() => setActiveFinding(null)}
+        selectedRows={investigation?.rows ?? []}
+        onClose={() => setInvestigation(null)}
         onReviewAffected={(finding) => {
-          setActiveFinding(null);
+          setInvestigation(null);
           focusEvidence(finding.issueType);
         }}
       />

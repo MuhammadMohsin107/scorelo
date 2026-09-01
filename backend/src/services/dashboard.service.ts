@@ -13,5 +13,5 @@ export async function getDashboardSummary(userId: number, storeId?: number) {
   const previous = auditRows[1] ?? null;
   const scores = await db.select().from(auditScores).where(eq(auditScores.auditId, latest.id));
   const priorityFindings = await listPriorityFindings(userId, resolvedStoreId);
-  return { latest, previous, scores, priorityFindings: priorityFindings.map(({ finding }) => finding) };
+  return { latest, previous, scores, priorityFindings };
 }

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, like, or } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { updateReturning } from '../db/returning.js';
 import { audits, findings } from '../db/schema.js';
@@ -9,6 +9,30 @@ import type { BulkFindingStatusInput, FindingListQuery, UpdateFindingStatusInput
 function storeFindingCondition(storeId: number) {
   return eq(audits.storeId, storeId);
 }
+
+/**
+ * Findings belong to ONE audit, and every re-run writes a fresh set. Scoping reads to the newest
+ * audit is what stops the Fix Center showing the same issue once per historical run — three
+ * audits of this store were rendering 48 rows for 16 real problems, and "10 open" on the
+ * dashboard was counting the same handful of issues repeatedly.
+ *
+ * Correlated subquery rather than a second round trip, so the list and its COUNT(*) can never
+ * disagree about which audit they are describing.
+ */
+function latestAuditCondition(storeId: number) {
+  return eq(
+    findings.auditId,
+    sql`(SELECT MAX(${audits.id}) FROM ${audits} WHERE ${audits.storeId} = ${storeId})`,
+  );
+}
+
+/**
+ * Severity is a varchar, so ORDER BY severity DESC sorted it ALPHABETICALLY —
+ * medium > low > high > critical — which pushed critical findings to the very bottom of the
+ * "priority" list. In practice /findings/priority returned ten mediums and never surfaced a
+ * critical or high at all. FIELD() imposes the real severity ladder instead.
+ */
+const severityRank = sql`FIELD(${findings.severity}, 'critical', 'high', 'medium', 'low')`;
 
 function optionalConditions(query: FindingListQuery) {
   const conditions = [];
@@ -28,10 +52,10 @@ function optionalConditions(query: FindingListQuery) {
 export async function listFindings(userId: number, query: FindingListQuery, storeId?: number) {
   const resolvedStoreId = await getCurrentStoreId(userId, storeId);
   const offset = (query.page - 1) * query.limit;
-  const conditions = [storeFindingCondition(resolvedStoreId), ...optionalConditions(query)];
+  const conditions = [storeFindingCondition(resolvedStoreId), latestAuditCondition(resolvedStoreId), ...optionalConditions(query)];
   const where = and(...conditions);
   const [items, [{ total }]] = await Promise.all([
-    db.select({ finding: findings }).from(findings).innerJoin(audits, eq(findings.auditId, audits.id)).where(where).orderBy(desc(findings.affectedCount), desc(findings.id)).limit(query.limit).offset(offset),
+    db.select({ finding: findings }).from(findings).innerJoin(audits, eq(findings.auditId, audits.id)).where(where).orderBy(severityRank, desc(findings.affectedCount), desc(findings.id)).limit(query.limit).offset(offset),
     db.select({ total: count() }).from(findings).innerJoin(audits, eq(findings.auditId, audits.id)).where(where),
   ]);
 
@@ -43,7 +67,20 @@ export async function listFindings(userId: number, query: FindingListQuery, stor
 
 export async function listPriorityFindings(userId: number, storeId?: number, limit = 10) {
   const resolvedStoreId = await getCurrentStoreId(userId, storeId);
-  return db.select({ finding: findings }).from(findings).innerJoin(audits, eq(findings.auditId, audits.id)).where(and(storeFindingCondition(resolvedStoreId), inArray(findings.status, ['open', 'reviewed']))).orderBy(desc(findings.severity), desc(findings.affectedCount)).limit(limit);
+  const rows = await db
+    .select({ finding: findings })
+    .from(findings)
+    .innerJoin(audits, eq(findings.auditId, audits.id))
+    .where(and(
+      storeFindingCondition(resolvedStoreId),
+      latestAuditCondition(resolvedStoreId),
+      inArray(findings.status, ['open', 'reviewed']),
+    ))
+    .orderBy(severityRank, desc(findings.affectedCount))
+    .limit(limit);
+  // Unwrapped here rather than by each caller: GET /findings/priority was returning the raw
+  // join shape [{ finding: {...} }], so every consumer had to know about the wrapper.
+  return rows.map(({ finding }) => finding);
 }
 
 export async function getFinding(userId: number, id: number, storeId?: number) {

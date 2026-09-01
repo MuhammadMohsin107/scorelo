@@ -1,4 +1,4 @@
-import type { PillarKey } from './dashboard/dashboard.mock';
+import type { PillarKey } from './dashboard/dashboard.types';
 
 export type WorkflowSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type WorkflowStatus = 'open' | 'reviewed' | 'resolved' | 'ignored';

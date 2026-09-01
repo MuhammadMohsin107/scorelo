@@ -52,6 +52,14 @@ export interface SubPillarResult {
     healthChip: string;
     contextLabel: string;
     contextValue: string;
+    /**
+     * The row status this check uses to mean "nothing wrong here".
+     *
+     * Each sub-pillar names its own healthy state — 'Lean' theme assets, 'Optimized' images,
+     * 'Unique' copy — so a consumer cannot tell a good row from a bad one by looking for the
+     * literal word 'Healthy'. Omit only when this check genuinely uses 'Healthy'.
+     */
+    healthyStatus?: string;
     evidenceRows: SubPillarEvidenceRow[];
   };
   findings: SubPillarFindingResult[];

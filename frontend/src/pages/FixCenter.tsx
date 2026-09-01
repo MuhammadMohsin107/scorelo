@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronRight, Filter, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import type { FixFinding, WorkflowSeverity, WorkflowStatus } from '../data/workflows.mock';
 import { bulkUpdateFindingStatus, fetchFindings, updateFindingStatus } from '../data/findings.repository';
 import { Button, Drawer, MetricTile, ModuleHeader, SectionHeading, StatusBadge } from '../components/workflows/WorkflowPrimitives';
@@ -18,6 +18,8 @@ export default function FixCenter() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedFinding, setSelectedFinding] = useState<FixFinding | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  /** Set when a status write fails, after the optimistic change has been rolled back. */
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const loadFindings = () => fetchFindings()
     .then((data) => { setFindings(data); setLoadState('success'); })
@@ -35,17 +37,42 @@ export default function FixCenter() {
       && (status === 'All status' || finding.status === status);
   }), [findings, pillar, query, severity, status]);
 
+  /**
+   * Status changes are applied optimistically for responsiveness, but a failed request now
+   * ROLLS THE UI BACK and says so.
+   *
+   * Previously the failure was only console.error'd: the row kept its new badge while the
+   * database still held the old status, so the merchant believed an issue was handled until a
+   * refresh silently undid it. Showing stale success is worse than showing an error.
+   */
   const updateFinding = (id: string, nextStatus: WorkflowStatus) => {
+    const previous = findings;
+    const previousSelected = selectedFinding;
+    setActionError(null);
     setFindings((current) => current.map((finding) => finding.id === id ? { ...finding, status: nextStatus } : finding));
     setSelectedFinding((current) => current?.id === id ? { ...current, status: nextStatus } : current);
-    updateFindingStatus(id, nextStatus).catch((error) => console.error('Failed to update finding status', error));
+
+    updateFindingStatus(id, nextStatus).catch((error) => {
+      console.error('Failed to update finding status', error);
+      setFindings(previous);
+      setSelectedFinding(previousSelected);
+      setActionError('We could not update that finding. Please try again.');
+    });
   };
 
   const markSelectedReviewed = () => {
     const ids = selectedIds;
+    const previous = findings;
+    setActionError(null);
     setFindings((current) => current.map((finding) => ids.includes(finding.id) ? { ...finding, status: 'reviewed' } : finding));
     setSelectedIds([]);
-    bulkUpdateFindingStatus(ids, 'reviewed').catch((error) => console.error('Failed to bulk-update findings', error));
+
+    bulkUpdateFindingStatus(ids, 'reviewed').catch((error) => {
+      console.error('Failed to bulk-update findings', error);
+      setFindings(previous);
+      setSelectedIds(ids);
+      setActionError(`We could not update ${ids.length === 1 ? 'that finding' : `those ${ids.length} findings`}. Please try again.`);
+    });
   };
 
   const refresh = () => {
@@ -73,11 +100,17 @@ export default function FixCenter() {
         description="Prioritize the issues that have the biggest impact on your store performance."
         actions={(
           <>
-            <Button variant="secondary"><Filter size={15} />Filters</Button>
             <Button variant="secondary" onClick={refresh}><RefreshCw size={15} className={isRefreshing ? 'animate-spin' : ''} />{isRefreshing ? 'Refreshing' : 'Refresh'}</Button>
           </>
         )}
       />
+
+      {actionError && (
+        <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-critical-100 bg-critical-50 px-4 py-3">
+          <AlertCircle size={16} className="mt-px flex-shrink-0 text-critical-600" aria-hidden="true" />
+          <p className="text-sm leading-5 text-critical-700">{actionError}</p>
+        </div>
+      )}
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Finding summary">
         <MetricTile label="Total findings" value={findings.length} detail={`${openCount} still open`} />

@@ -5,7 +5,7 @@
 // even after scores/findings move to the database (see schema.ts's own
 // "deliberately excluded: UI-only, derived, or placeholder" note).
 
-import type { PillarKey, ScoreStatus, SubPillar } from './dashboard/dashboard.mock';
+import type { PillarKey, ScoreStatus, SubPillar } from './dashboard/dashboard.types';
 
 export interface PillarMeta {
   key: PillarKey;
@@ -95,6 +95,16 @@ export const pillarMeta: Record<PillarKey, PillarMeta> = {
 /** Canonical display order for the five pillars — sidebar nav, dashboard rows, report tables. */
 export const pillarOrder: PillarKey[] = ['seo', 'content', 'speed', 'cro', 'ai-discovery'];
 
+/**
+ * Route for each pillar dashboard. Derived from pillarOrder so it cannot fall out of step with
+ * the pillars themselves — the same map was previously written out by hand in BOTH
+ * components/Sidebar.tsx and components/dashboard/scoreTone.ts, where a future route rename
+ * updated in one place and not the other would have silently broken the other's navigation.
+ */
+export const pillarRoutes: Record<PillarKey, string> = Object.fromEntries(
+  pillarOrder.map((key) => [key, `/${key}`]),
+) as Record<PillarKey, string>;
+
 /** The pillars as an ordered list, for components that iterate rather than look up. */
 export const pillarList: PillarMeta[] = pillarOrder.map((key) => pillarMeta[key]);
 
@@ -113,10 +123,10 @@ export function scoreToStatus(score: number): { status: ScoreStatus; statusLabel
 
 export function describePillar(label: string, score: number, checksTotal: number, checksPassed: number): string {
   const { status } = scoreToStatus(score);
-  if (status === 'excellent') return `${label} is performing excellently — ${checksPassed} of ${checksTotal} checks pass.`;
-  if (status === 'good') return `${label} is in good shape with room to improve — ${checksPassed} of ${checksTotal} checks pass.`;
-  if (status === 'needs-work') return `${label} needs attention — only ${checksPassed} of ${checksTotal} checks pass.`;
-  return `${label} requires immediate attention — just ${checksPassed} of ${checksTotal} checks pass.`;
+  if (status === 'excellent') return `${label} is performing excellently — ${checksPassed} of ${checksTotal} analyzed items are healthy.`;
+  if (status === 'good') return `${label} is in good shape with room to improve — ${checksPassed} of ${checksTotal} analyzed items are healthy.`;
+  if (status === 'needs-work') return `${label} needs attention — only ${checksPassed} of ${checksTotal} analyzed items are healthy.`;
+  return `${label} requires immediate attention — just ${checksPassed} of ${checksTotal} analyzed items are healthy.`;
 }
 
 /** Overall-score narrative — no per-pillar check counts available at this level. */

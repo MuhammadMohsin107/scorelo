@@ -2,6 +2,19 @@ import type { Request, Response } from 'express';
 import { getAuditScores, getLatestAudit, getSubPillarAnalysis, listAudits } from '../services/audit.service.js';
 import { createAuditJob } from '../services/job.service.js';
 import { optionalStoreId, requireUserId } from '../lib/requestContext.js';
+import { implementedSubPillars } from '../audit-engine/index.js';
+
+/**
+ * Which sub-pillars the engine can actually measure, as `pillar/subPillar`.
+ *
+ * Store-independent — it describes Scorelo's capabilities, not this merchant's data. The UI needs
+ * it to tell two different empty states apart: "you have not run an audit yet" (offer to run one)
+ * versus "Scorelo cannot measure this yet" (running an audit will not change anything). Without
+ * it, every unimplemented sub-pillar shows a Run Audit button that provably cannot help.
+ */
+export function getCapabilities(_req: Request, res: Response) {
+  res.json({ data: { implementedSubPillars } });
+}
 
 export async function listAuditRuns(req: Request, res: Response) {
   res.json({ data: await listAudits(requireUserId(req), req.query as never, optionalStoreId(req)) });

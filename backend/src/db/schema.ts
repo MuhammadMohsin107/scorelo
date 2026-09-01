@@ -77,6 +77,37 @@ export const users = mysqlTable('users', {
   reduceMotion: boolean('reduce_motion').notNull().default(false),
 });
 
+// ─── password_reset_tokens ───────────────────────────────────────────
+// One row per password-reset request.
+//
+// A SEPARATE TABLE rather than columns on `users`, because a reset request is an event with its
+// own lifecycle (issued → used, or issued → expired) and a user can legitimately have several in
+// flight. Columns on `users` could only ever hold the newest, which makes "invalidate every other
+// outstanding token" impossible to express.
+//
+// SECURITY: only the SHA-256 hash of the token is stored. The raw token exists in exactly two
+// places — the email that was sent, and the URL the customer clicks. A database dump therefore
+// yields nothing usable, exactly as with `users.refresh_token_hash`.
+export const passwordResetTokens = mysqlTable(
+  'password_reset_tokens',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    userId: int('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** SHA-256 hex of the raw token. Unique so a lookup is an indexed point-read. */
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    expiresAt: datetime('expires_at', { mode: 'date' }).notNull(),
+    /** Set the moment the token is redeemed. Non-null == spent, and spent is forever. */
+    usedAt: datetime('used_at', { mode: 'date' }),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+  },
+  (table) => [
+    uniqueIndex('password_reset_tokens_hash_idx').on(table.tokenHash),
+    index('password_reset_tokens_user_idx').on(table.userId),
+  ],
+);
+
 // ─── stores ──────────────────────────────────────────────────────────
 // The storefront Scorelo analyzes. Identity fields feed the dashboard
 // header; analysis fields are Settings → Analysis (crawl behaviour).
@@ -205,6 +236,20 @@ export const findings = mysqlTable(
     evidence: json('evidence').$type<string[]>().notNull().default([]),
     // Structured row data for evidence tables that need richer than text-only payloads
     evidenceRows: json('evidence_rows'),
+    // ─── Optional AI enhancement ─────────────────────────────────────
+    // Cached so a recommendation is generated ONCE per finding rather than on every render —
+    // this is the cost control that keeps a dashboard refresh from becoming an API bill.
+    // Null is the normal state: no AI configured, not requested yet, or generation failed.
+    // `recommendation` above remains the deterministic source of truth and is never overwritten.
+    aiRecommendation: json('ai_recommendation').$type<{
+      recommendation: string;
+      whyItMatters: string;
+      suggestedAction: string;
+      confidence: 'high' | 'medium' | 'low';
+    }>(),
+    /** Which model produced the cached text, so a model change can be identified later. */
+    aiModel: varchar('ai_model', { length: 64 }),
+    aiGeneratedAt: datetime('ai_generated_at', { mode: 'date' }),
     // Per-sub-pillar-analysis extras (issueType/effort) that don't apply to every
     // pillar's findings — see SubPillarFinding in frontend/src/data/seo/subpillar.model.ts.
     details: json('details'),
@@ -385,5 +430,66 @@ export const pageSettings = mysqlTable(
   (table) => [
     uniqueIndex('page_settings_store_slug_idx').on(table.storeId, table.slug),
     index('page_settings_store_updated_idx').on(table.storeId, table.updatedAt),
+  ],
+);
+
+// ─── ai_fix_proposals ─────────────────────────────────────────────────
+// One AI-proposed value for one field of one resource, awaiting a human decision.
+//
+// This table exists because approval is a SEPARATE request from generation: the merchant reviews
+// a preview and comes back. The proposal therefore has to survive between the two, and it has to
+// be re-validated on the way out — a row here is a suggestion on record, never an authorisation
+// to change anything.
+//
+// `currentValue` is captured at proposal time so the preview can show current-vs-proposed, and so
+// approval can detect that the underlying resource moved on since the proposal was written.
+export const aiFixProposals = mysqlTable(
+  'ai_fix_proposals',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    findingId: int('finding_id')
+      .notNull()
+      .references(() => findings.id, { onDelete: 'cascade' }),
+    // Denormalized from the finding's audit so every tenancy check is one predicate, not a join
+    // through audits — the authorization path should be the hardest thing in here to get wrong.
+    storeId: int('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    // 'product' | 'collection' | 'page' | 'article' — see lib/ai/fix-policy.ts.
+    resourceType: varchar('resource_type', { length: 32 }).notNull(),
+    resourceId: varchar('resource_id', { length: 64 }).notNull(),
+    // Allow-listed field path, e.g. 'seo.title'. Never free-form.
+    field: varchar('field', { length: 64 }).notNull(),
+    currentValue: text('current_value').notNull(),
+    proposedValue: text('proposed_value').notNull(),
+    /** The model's one-sentence justification, shown beside the diff at approval time. */
+    reason: text('reason').notNull(),
+    /** The deterministic engine's own suggestion, kept so the preview can show both and so an
+     * approval remains possible when AI is later unavailable. */
+    deterministicValue: text('deterministic_value'),
+    /**
+     * proposed → approved → applied, or → rejected / failed.
+     * 'approved' and 'applied' are distinct on purpose: approval is the merchant's decision,
+     * application is what the fix engine subsequently managed to do with it.
+     */
+    status: varchar('status', { length: 16 }).notNull().default('proposed'),
+    /** Why an application failed, or why a proposal was rejected by validation. */
+    statusDetail: text('status_detail'),
+    aiModel: varchar('ai_model', { length: 64 }),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+    decidedAt: datetime('decided_at', { mode: 'date' }),
+    /** Who approved or rejected it. Null while still awaiting a decision. */
+    decidedBy: int('decided_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    index('ai_fix_proposals_finding_idx').on(table.findingId),
+    index('ai_fix_proposals_store_status_idx').on(table.storeId, table.status),
+    // One live proposal per resource+field. A re-run supersedes the old row rather than stacking
+    // duplicates the merchant would have to disambiguate.
+    uniqueIndex('ai_fix_proposals_target_idx').on(table.findingId, table.resourceType, table.resourceId, table.field),
+    check(
+      'ai_fix_proposals_status_valid',
+      sql`${table.status} IN ('proposed', 'approved', 'applied', 'rejected', 'failed')`,
+    ),
   ],
 );

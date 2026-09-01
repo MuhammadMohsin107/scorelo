@@ -48,6 +48,7 @@ interface SubPillarScoreDetails {
   healthChip?: string;
   contextLabel?: string;
   contextValue?: string;
+  healthyStatus?: string;
   evidenceRows?: unknown[];
 }
 
@@ -116,9 +117,18 @@ export async function getSubPillarAnalysis(userId: number, pillar: string, subPi
         whatIsWrong: finding.problem ?? '',
         whyItMatters: finding.why,
         recommendation: finding.recommendation,
+        // The rows THIS finding flagged, as recorded by the check that raised it. Without this the
+        // UI can only re-derive a finding's evidence by matching issue type against the sub-pillar
+        // sample, which returns the same handful of rows for every finding sharing that type.
+        // Null for checks that raise a finding without attaching rows — the caller falls back.
+        evidenceRows: (finding.evidenceRows as unknown[] | null) ?? undefined,
       };
     }),
     evidenceRows: details.evidenceRows ?? [],
+    // Each sub-pillar names its own healthy state ('Lean', 'Optimized', 'Unique'…). Without this
+    // the UI can only look for the literal word 'Healthy' and marks every good row as an issue.
+    // Audits recorded before this field existed fall back to 'Healthy', which is what they used.
+    healthyStatus: details.healthyStatus ?? 'Healthy',
     lastAnalyzed: audit.runAt,
   };
 }

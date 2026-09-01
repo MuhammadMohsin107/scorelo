@@ -65,3 +65,28 @@ export async function fetchSession(): Promise<UserRow | null> {
     return null;
   }
 }
+
+// ─── Password reset ──────────────────────────────────────────────────
+
+/**
+ * Asks for a reset link.
+ *
+ * Resolves the same way whether or not the address has an account — the backend answers 202 with
+ * one fixed message either way, so the UI has nothing to branch on. That is deliberate: any
+ * difference here would tell a stranger which addresses are registered.
+ */
+export async function requestPasswordReset(email: string): Promise<string> {
+  const payload = await api.post<{ message: string }>('/auth/forgot-password', { email }, { skipAuth: true });
+  return payload.message;
+}
+
+/**
+ * Redeems a reset token and sets the new password.
+ *
+ * No session is created. The customer signs in normally afterwards, which keeps a leaked link
+ * from being redeemable straight into an authenticated session.
+ */
+export async function resetPassword(input: { token: string; password: string; confirmPassword: string }): Promise<string> {
+  const payload = await api.post<{ message: string }>('/auth/reset-password', input, { skipAuth: true });
+  return payload.message;
+}
