@@ -15,6 +15,14 @@ export interface ProfileSettings {
   email: string;
   jobTitle: string;
   role: 'Administrator' | 'Editor' | 'Viewer';
+  // Server-owned account facts. They are carried in the draft so the Profile panel can render
+  // them beside the editable fields, but nothing in the UI writes them — they are echoed back
+  // unchanged by every save, which keeps the dirty check (a deep compare of saved vs draft)
+  // honest rather than permanently dirty.
+  /** ISO timestamp of account creation. */
+  createdAt: string;
+  /** False while the address has never been confirmed. */
+  emailVerified: boolean;
 }
 
 export interface WorkspaceSettings {

@@ -140,6 +140,10 @@ export interface UserRow {
   email: string;
   jobTitle: string | null;
   role: string;
+  /** ISO timestamp — the account's creation date, shown as "Member since" on Settings → Profile. */
+  createdAt: string;
+  /** ISO timestamp, or null while the address is still unconfirmed. */
+  emailVerifiedAt: string | null;
   notifyAnalysisComplete: boolean;
   notifyCriticalIssues: boolean;
   notifyScoreChanges: boolean;

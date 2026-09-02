@@ -10,8 +10,10 @@ import {
   Lock,
   Palette,
   RefreshCw,
+  Search,
   ShieldAlert,
   UserRound,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -28,7 +30,10 @@ import {
 } from '../data/settings.mock';
 import { fetchSettings, persistSettings } from '../data/settings.repository';
 import { fetchIntegrations, type IntegrationRecord } from '../data/integrations.repository';
+import { initialsFor } from '../data/user.repository';
+import { ApiError } from '../lib/api';
 import { Button, ModuleHeader, StatusBadge } from '../components/workflows/WorkflowPrimitives';
+import ProfileSection from '../components/settings/ProfileSection';
 import {
   ConfirmDialog,
   Field,
@@ -79,6 +84,10 @@ const SECTIONS: SectionMeta[] = [
 
 const GROUP_ORDER: SectionMeta['group'][] = ['Account', 'Workspace', 'Platform'];
 
+/** Sections whose fields feed the draft the save bar writes. The rest read live data or are
+ * read-only, so they neither show the save bar nor carry an unsaved-changes marker. */
+const EDITABLE_SECTIONS = new Set<SectionId>(['profile', 'workspace', 'analysis', 'notifications', 'appearance', 'security']);
+
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 const isDomain = (value: string) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(value.trim());
 
@@ -92,6 +101,7 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [search, setSearch] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmWord, setConfirmWord] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -156,14 +166,23 @@ export default function Settings() {
   const update = <K extends keyof SettingsState>(key: K, patch: Partial<SettingsState[K]>) =>
     setDraft((current) => (current ? { ...current, [key]: { ...current[key], ...patch } } : current));
 
+  // A rejected save used to leave `isSaving` true forever — the button stayed on "Saving…",
+  // the edits looked lost, and the reason (a duplicate email address, say) never reached the
+  // customer. The failure is now surfaced and the draft is left untouched so it can be retried.
   const onSave = async () => {
     if (!draft || hasErrors) return;
     setIsSaving(true);
-    const result = await persistSettings(draft);
-    setSaved(structuredClone(result));
-    setDraft(structuredClone(result));
-    setIsSaving(false);
-    setShowToast(true);
+    setSaveError(null);
+    try {
+      const result = await persistSettings(draft);
+      setSaved(structuredClone(result));
+      setDraft(structuredClone(result));
+      setShowToast(true);
+    } catch (error) {
+      setSaveError(error instanceof ApiError ? error.message : 'Could not save your changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const onDiscard = () => saved && setDraft(structuredClone(saved));
@@ -208,19 +227,51 @@ export default function Settings() {
         description="Manage your account, the store Scorelo analyzes, and how the platform behaves."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
         {/* ── Navigation ────────────────────────────────────────── */}
         <nav className="lg:sticky lg:top-6" aria-label="Settings sections">
-          <label className="relative mb-3 block">
-            <span className="sr-only">Search settings</span>
+          {/* Identity header: the same monogram the app header renders, so the settings nav
+              is visibly anchored to the account being edited. */}
+          <div className="mb-3 hidden items-center gap-3 rounded-xl border border-surface-200 bg-white p-3 lg:flex">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">
+              {initialsFor(draft.profile.fullName)}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[13px] font-bold text-surface-900">
+                {draft.profile.fullName.trim() || 'Your account'}
+              </span>
+              <span className="block truncate text-[11px] text-surface-500">{draft.profile.email}</span>
+            </span>
+          </div>
+
+          <div className="relative mb-3">
+            <label htmlFor="settings-search" className="sr-only">
+              Search settings
+            </label>
+            <Search
+              size={14}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
+            />
             <input
-              type="search"
+              id="settings-search"
+              type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search settings…"
-              className="w-full rounded-lg border border-surface-200 bg-white px-3 py-2 text-sm outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-surface-200 bg-white py-2 pl-8 pr-8 text-sm outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             />
-          </label>
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
 
           {/* Mobile / tablet: horizontal pills. Desktop: grouped list. */}
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2 lg:hidden">
@@ -238,6 +289,9 @@ export default function Settings() {
                 {item.label}
               </button>
             ))}
+            {visibleSections.length === 0 && (
+              <p className="px-2 py-2 text-xs text-surface-500">No settings match “{search}”.</p>
+            )}
           </div>
 
           <div className="hidden lg:block">
@@ -256,7 +310,7 @@ export default function Settings() {
                           <Link
                             to={`/settings/${item.id}`}
                             aria-current={isActive ? 'page' : undefined}
-                            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                            className={`group relative flex items-center gap-2.5 rounded-lg py-2 pl-3 pr-2.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                               isActive
                                 ? isDanger
                                   ? 'bg-critical-50 text-critical-700'
@@ -266,8 +320,31 @@ export default function Settings() {
                                   : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'
                             }`}
                           >
-                            <item.icon size={15} aria-hidden="true" className="flex-shrink-0" />
-                            {item.label}
+                            {/* Accent rail — reinforces the active row beyond colour alone. */}
+                            {isActive && (
+                              <span
+                                aria-hidden="true"
+                                className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full ${
+                                  isDanger ? 'bg-critical-500' : 'bg-brand-600'
+                                }`}
+                              />
+                            )}
+                            <item.icon
+                              size={15}
+                              aria-hidden="true"
+                              className={`flex-shrink-0 transition-colors ${
+                                isActive ? '' : 'text-surface-400 group-hover:text-surface-600'
+                              }`}
+                            />
+                            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                            {/* Unsaved-changes marker: the sections the save bar actually covers. */}
+                            {isDirty && EDITABLE_SECTIONS.has(item.id) && (
+                              <span
+                                className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-warning-500"
+                                title="Unsaved changes"
+                                aria-label="Unsaved changes"
+                              />
+                            )}
                           </Link>
                         </li>
                       );
@@ -284,62 +361,46 @@ export default function Settings() {
 
         {/* ── Active section ────────────────────────────────────── */}
         <div className="min-w-0">
-          <header className="mb-5 border-b border-surface-200 pb-4">
-            <h2 className="text-xl font-bold tracking-tight text-surface-950">{activeMeta.title}</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-surface-500">{activeMeta.description}</p>
+          <header className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-surface-200 pb-4">
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight text-surface-950">{activeMeta.title}</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-surface-500">{activeMeta.description}</p>
+            </div>
+            <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-surface-600">
+              <activeMeta.icon size={13} aria-hidden="true" className="text-surface-400" />
+              {activeMeta.group}
+            </span>
           </header>
+
+          {saveError && (
+            <div
+              role="alert"
+              className="mb-5 flex items-start gap-2.5 rounded-lg border border-critical-200 bg-critical-50 p-3.5"
+            >
+              <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-critical-600" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-critical-800">Changes were not saved</p>
+                <p className="mt-0.5 text-xs leading-5 text-critical-700">{saveError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSaveError(null)}
+                aria-label="Dismiss"
+                className="rounded p-1 text-critical-500 transition-colors hover:bg-critical-100 hover:text-critical-800"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
 
           <div className="space-y-5">
             {active === 'profile' && (
-              <SettingsCard title="Personal information" description="Shown on your account and used for Scorelo emails.">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full border border-brand-200 bg-brand-50 text-lg font-bold text-brand-700">
-                    {draft.profile.fullName
-                      .split(' ')
-                      .map((part) => part[0])
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .join('')
-                      .toUpperCase() || 'S'}
-                  </div>
-                  <p className="text-xs leading-5 text-surface-500">
-                    Your avatar is generated from your name. Image uploads are not part of this build.
-                  </p>
-                </div>
-
-                <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                  <Field label="Full name" htmlFor="fullName" error={errors.fullName} hint="Used across your Scorelo workspace.">
-                    <TextInput
-                      id="fullName"
-                      value={draft.profile.fullName}
-                      onChange={(value) => update('profile', { fullName: value })}
-                      invalid={Boolean(errors.fullName)}
-                      describedBy={errors.fullName ? 'fullName-error' : 'fullName-hint'}
-                    />
-                  </Field>
-                  <Field label="Email address" htmlFor="email" error={errors.email} hint="Where analysis and alert emails are sent.">
-                    <TextInput
-                      id="email"
-                      type="email"
-                      value={draft.profile.email}
-                      onChange={(value) => update('profile', { email: value })}
-                      invalid={Boolean(errors.email)}
-                      describedBy={errors.email ? 'email-error' : 'email-hint'}
-                    />
-                  </Field>
-                  <Field label="Job title" htmlFor="jobTitle" hint="Optional. Helps tailor recommendations.">
-                    <TextInput
-                      id="jobTitle"
-                      value={draft.profile.jobTitle}
-                      onChange={(value) => update('profile', { jobTitle: value })}
-                      describedBy="jobTitle-hint"
-                    />
-                  </Field>
-                  <Field label="Role" htmlFor="role" hint="Roles are assigned by the workspace owner.">
-                    <TextInput id="role" value={draft.profile.role} onChange={() => {}} disabled describedBy="role-hint" />
-                  </Field>
-                </div>
-              </SettingsCard>
+              <ProfileSection
+                profile={draft.profile}
+                workspace={draft.workspace}
+                errors={errors}
+                onChange={(patch) => update('profile', patch)}
+              />
             )}
 
             {active === 'workspace' && (
@@ -634,7 +695,7 @@ export default function Settings() {
           </div>
 
           {/* Save bar — only for sections that hold editable state. */}
-          {active !== 'integrations' && active !== 'billing' && active !== 'danger' && (
+          {EDITABLE_SECTIONS.has(active) && (
             <SaveBar
               visible={isDirty}
               saving={isSaving}

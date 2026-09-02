@@ -14,6 +14,9 @@ function toSettingsState(user: UserRow, store: StoreRow): SettingsState {
       email: user.email,
       jobTitle: user.jobTitle ?? '',
       role: user.role as SettingsState['profile']['role'],
+      // Both come straight off the real /users/me row (users.created_at, users.email_verified_at).
+      createdAt: user.createdAt,
+      emailVerified: user.emailVerifiedAt !== null,
     },
     workspace: {
       workspaceName: store.workspaceName,
