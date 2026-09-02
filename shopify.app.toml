@@ -25,7 +25,7 @@ name = "Scorelo"
 
 # PUBLIC identifier — it appears in the browser address bar as ?client_id= during every OAuth
 # redirect. Not a secret. SHOPIFY_API_SECRET stays only in backend/.env (git-ignored).
-client_id = "c07009f384e8686d1897b98026d07f57"
+client_id = "b3b946c45888d1581d1b8ba16aa414af"
 
 # Where Shopify sends a merchant who opens the app. Scorelo is a standalone web app, so this is
 # the FRONTEND origin, not the API.
