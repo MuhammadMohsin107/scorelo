@@ -35,7 +35,27 @@ export type SecurityEventType =
   // Turning a second factor on or off is exactly the change an account owner needs to see in
   // their own history — switching it off is the first thing an attacker holding a session does.
   | 'two_factor_enabled'
-  | 'two_factor_disabled';
+  | 'two_factor_disabled'
+  // An OPERATOR switched the second factor off, not the account owner. Kept distinct from
+  // 'two_factor_disabled' so the owner's own history can tell them which of the two happened —
+  // collapsing them would hide a privileged action inside a routine one.
+  | 'two_factor_admin_disabled'
+  // An operator invalidated the sign-in codes/tickets in flight on this account, ending any 2FA
+  // step already under way.
+  | 'two_factor_challenges_revoked';
+
+/**
+ * The 2FA slice of the vocabulary above. Exported because the admin monitoring endpoints filter
+ * on exactly this set, and hard-coding the list at a query site would let it drift from the union.
+ */
+export const TWO_FACTOR_EVENT_TYPES = [
+  'two_factor_enabled',
+  'two_factor_disabled',
+  'two_factor_admin_disabled',
+  'two_factor_challenges_revoked',
+] as const satisfies readonly SecurityEventType[];
+
+export type TwoFactorEventType = (typeof TWO_FACTOR_EVENT_TYPES)[number];
 
 /**
  * Non-secret context. The value type deliberately excludes strings that could carry a credential

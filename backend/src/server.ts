@@ -16,6 +16,7 @@ import { reportsRouter } from './routes/reports.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { pageSettingsRouter } from './routes/page-settings.js';
 import { securityRouter } from './routes/security.js';
+import { adminRouter } from './routes/admin.js';
 import { errorHandler, notFound } from './middleware/error.js';
 
 const app = express();
@@ -54,6 +55,9 @@ app.use('/api/ai-fixes', aiFixesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/page-settings', pageSettingsRouter);
 app.use('/api/security', securityRouter);
+// Platform-operator surface. Authenticated AND admin-authorized inside the router itself — see
+// routes/admin.ts, which applies both guards once for every route it will ever hold.
+app.use('/api/admin', adminRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/reports', reportsRouter);
 

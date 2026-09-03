@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { authChallenges } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
@@ -288,6 +288,53 @@ export async function peekTicketUser(ticket: string, purpose: TicketPurpose): Pr
 
   if (!challenge || challenge.expiresAt.getTime() <= Date.now()) return null;
   return challenge.userId;
+}
+
+/**
+ * Invalidates the open challenges a user holds for the given purposes, returning how many were
+ * closed.
+ *
+ * SAME MECHANISM AS EVERY OTHER INVALIDATION HERE: a `consumed_at` stamp. Nothing is deleted, so
+ * the delivery history of a killed challenge stays readable, and a consumed row is already how
+ * this service represents "spent" everywhere else.
+ *
+ * The purpose list is the caller's, so an operator ending a sign-in in progress closes the 2FA
+ * pair and nothing else — a password reset or an email verification the same person legitimately
+ * has in flight is untouched. That is the difference from consumeAllChallenges() below, which is
+ * for the one case where every outstanding credential really is moot.
+ */
+export async function consumeOpenChallenges(
+  userId: number,
+  purposes: readonly ChallengePurpose[],
+  tx: Executor = db,
+): Promise<number> {
+  if (purposes.length === 0) return 0;
+
+  const open = await tx
+    .select({ id: authChallenges.id })
+    .from(authChallenges)
+    .where(
+      and(
+        eq(authChallenges.userId, userId),
+        inArray(authChallenges.purpose, purposes as unknown as string[]),
+        isNull(authChallenges.consumedAt),
+      ),
+    );
+
+  if (open.length === 0) return 0;
+
+  await tx
+    .update(authChallenges)
+    .set({ consumedAt: new Date() })
+    .where(
+      and(
+        eq(authChallenges.userId, userId),
+        inArray(authChallenges.purpose, purposes as unknown as string[]),
+        isNull(authChallenges.consumedAt),
+      ),
+    );
+
+  return open.length;
 }
 
 /** Invalidates every open challenge a user holds, whatever its purpose. Called after a successful

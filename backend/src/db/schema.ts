@@ -64,7 +64,25 @@ export const users = mysqlTable('users', {
   refreshTokenExpiresAt: datetime('refresh_token_expires_at', { mode: 'date' }),
   createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
   jobTitle: varchar('job_title', { length: 255 }),
+  /**
+   * A PROFILE LABEL, NOT A PERMISSION. Settings → Profile displays this next to the job title, it
+   * defaults to 'Administrator' on every row, and no code has ever read it to make a decision.
+   *
+   * It is therefore unusable as an authorization input: treating it as one would grant platform
+   * admin to every account that has ever been created. `is_platform_admin` below is the real
+   * grant, and the two must never be conflated.
+   */
   role: varchar('role', { length: 64 }).notNull().default('Administrator'),
+  /**
+   * Platform-operator access to the admin APIs under /api/admin. FALSE for every existing and
+   * future account — there is no signup path, no API and no seed that sets it, so a grant is a
+   * deliberate UPDATE run by an operator against MySQL.
+   *
+   * WHY A COLUMN AND NOT A JWT CLAIM: middleware/requireAdmin.ts re-reads this on every admin
+   * request, so revoking the flag takes effect at the next call rather than whenever a
+   * fifteen-minute access token happens to expire.
+   */
+  isPlatformAdmin: boolean('is_platform_admin').notNull().default(false),
   // Notifications (Settings → Notifications: six explicit toggles)
   notifyAnalysisComplete: boolean('notify_analysis_complete').notNull().default(true),
   notifyCriticalIssues: boolean('notify_critical_issues').notNull().default(true),
@@ -171,7 +189,54 @@ export const securityEvents = mysqlTable(
     index('security_events_user_created_idx').on(table.userId, table.createdAt),
     check(
       'security_events_type_valid',
-      sql`${table.type} IN ('login_success', 'login_failed', 'logout', 'password_changed', 'password_reset', 'email_verified', 'session_revoked', 'sessions_revoked', 'two_factor_enabled', 'two_factor_disabled')`,
+      // `two_factor_admin_disabled` and `two_factor_challenges_revoked` are separate members
+      // rather than reuses of `two_factor_disabled`: "you switched this off" and "an operator
+      // switched this off for you" are different facts, and collapsing them would leave the
+      // account owner unable to tell from their own history which one happened.
+      sql`${table.type} IN ('login_success', 'login_failed', 'logout', 'password_changed', 'password_reset', 'email_verified', 'session_revoked', 'sessions_revoked', 'two_factor_enabled', 'two_factor_disabled', 'two_factor_admin_disabled', 'two_factor_challenges_revoked')`,
+    ),
+  ],
+);
+
+// ─── admin_security_actions ──────────────────────────────────────────
+// The operator trail: one row per privileged action an admin took against SOMEONE ELSE'S account.
+//
+// WHY NOT JUST security_events: that table answers "what happened to my account" for the account
+// owner, and its `metadata` column deliberately refuses strings so no credential can be smuggled
+// into it (see security-event.service.ts). A privileged action needs two things that column cannot
+// carry — WHO did it, and WHY — and a reason is free text by nature. So the customer-facing event
+// and the operator record are written together, each holding what it is actually for.
+//
+// SECURITY: no credential, code, ticket or hash is ever written here. `reason` is operator-authored
+// prose, validated at the route and bounded to the column width.
+//
+// CASCADE matches security_events: this is an operator trail for live accounts, not a compliance
+// archive meant to outlive them. Stated plainly rather than implied.
+export const adminSecurityActions = mysqlTable(
+  'admin_security_actions',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    /** The admin who acted. Resolved from the authenticated request, never from a request body. */
+    actorUserId: int('actor_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** The account acted upon. */
+    targetUserId: int('target_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    action: varchar('action', { length: 48 }).notNull(),
+    /** Why the operator did this. Required — an unexplained privileged action is not auditable. */
+    reason: varchar('reason', { length: 500 }).notNull(),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    userAgent: varchar('user_agent', { length: 512 }),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+  },
+  (table) => [
+    index('admin_security_actions_target_idx').on(table.targetUserId, table.createdAt),
+    index('admin_security_actions_actor_idx').on(table.actorUserId, table.createdAt),
+    check(
+      'admin_security_actions_action_valid',
+      sql`${table.action} IN ('two_factor_disabled', 'two_factor_challenges_revoked')`,
     ),
   ],
 );
