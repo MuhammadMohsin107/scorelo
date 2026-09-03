@@ -25,7 +25,7 @@ function monthAndYear(isoDate: string): string | null {
 /** Small label/value pair used across the identity card's meta strip. */
 function MetaPill({ icon: Icon, label, value }: { icon: typeof UserRound; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-surface-200 bg-white px-3 py-2">
+    <div className="flex items-center gap-2.5 rounded-lg border border-surface-200 bg-surface-0 px-3 py-2">
       <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-600">
         <Icon size={14} aria-hidden="true" />
       </span>
@@ -54,29 +54,35 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
       {/* ── Identity card ───────────────────────────────────────────── */}
       <section className={`${settingsCard} overflow-hidden`}>
         {/* The band is decorative only — it gives the avatar something to sit against and
-            anchors the section visually without inventing any content. */}
-        <div className="h-24 bg-gradient-to-br from-brand-600 via-brand-600 to-brand-800" aria-hidden="true">
+            anchors the section visually without inventing any content. Kept deliberately shallow:
+            it is a backdrop for the name, not a hero, and a taller one pushed the identity row so
+            far down the card that the name read as an afterthought. */}
+        <div className="h-16 bg-gradient-to-br from-brand-600 via-brand-600 to-brand-800" aria-hidden="true">
           <div className="h-full w-full bg-[radial-gradient(circle_at_18%_120%,rgba(255,255,255,0.28),transparent_58%)]" />
         </div>
 
         <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-          <div className="-mt-11 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          {/* The pull-up is half the avatar's height, so it always overlaps the band by exactly
+              half regardless of breakpoint — no separate mobile value to keep in step. */}
+          <div className="-mt-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
               <span
-                className="flex h-[88px] w-[88px] flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-2xl font-bold tracking-tight text-white shadow-[0_12px_28px_-12px_rgba(67,56,202,0.75)] ring-4 ring-white"
+                className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-bold tracking-tight text-white shadow-[0_10px_24px_-12px_rgba(67,56,202,0.75)] ring-4 ring-white"
                 aria-hidden="true"
               >
                 {initials}
               </span>
-              <div className="min-w-0 pb-1">
-                <h3 className="truncate text-xl font-bold tracking-tight text-surface-950">{displayName}</h3>
+              <div className="min-w-0 pb-0.5">
+                <h3 className="truncate text-[22px] font-bold leading-tight tracking-tight text-surface-950">
+                  {displayName}
+                </h3>
                 <p className="mt-0.5 truncate text-sm text-surface-500">
                   {profile.jobTitle.trim() || 'No job title set'}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 pb-1">
+            <div className="flex flex-wrap items-center gap-2 pb-0.5">
               <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1.5 text-[11px] font-bold text-brand-700">
                 <ShieldCheck size={13} aria-hidden="true" />
                 {profile.role}
@@ -94,7 +100,7 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
             </div>
           </div>
 
-          <div className="mt-5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             <MetaPill icon={AtSign} label="Email" value={profile.email || '—'} />
             {memberSince && <MetaPill icon={CalendarDays} label="Member since" value={memberSince} />}
             <MetaPill icon={Store} label="Workspace" value={workspace.workspaceName || '—'} />
@@ -151,7 +157,7 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
           <div>
             <p className="block text-sm font-semibold text-surface-800">Role</p>
             <div className="mt-1.5 flex items-center gap-2.5 rounded-lg border border-surface-200 bg-surface-50 px-3 py-2.5">
-              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-white text-brand-600 ring-1 ring-surface-200">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-surface-0 text-brand-600 ring-1 ring-surface-200">
                 <Briefcase size={13} aria-hidden="true" />
               </span>
               <span className="text-sm font-semibold text-surface-700">{profile.role}</span>

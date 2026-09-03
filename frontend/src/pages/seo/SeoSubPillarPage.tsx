@@ -199,14 +199,14 @@ export default function SeoSubPillarPage({ analysis }: Props) {
             <p className="mt-1.5 max-w-2xl text-sm leading-6 text-surface-600">{data.description}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
               <Clock3 size={13} className="text-surface-400" aria-hidden="true" />
               Last analyzed <span className="font-medium text-surface-800">{data.lastAnalyzed}</span>
             </span>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg border border-surface-200 bg-white px-3 text-xs font-semibold text-surface-700 shadow-sm transition-colors hover:border-brand-200 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+              className="inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg border border-surface-200 bg-surface-0 px-3 text-xs font-semibold text-surface-700 shadow-sm transition-colors hover:border-brand-200 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
             >
               <Settings2 size={13} aria-hidden="true" />
               Client settings
@@ -264,7 +264,7 @@ export default function SeoSubPillarPage({ analysis }: Props) {
                 <li key={area.href}>
                   <Link
                     to={area.href}
-                    className="group flex items-center justify-between gap-3 rounded-xl border border-surface-200/80 bg-white px-4 py-3 transition-colors hover:border-brand-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                    className="group flex items-center justify-between gap-3 rounded-xl border border-surface-200/80 bg-surface-0 px-4 py-3 transition-colors hover:border-brand-200 hover:bg-surface-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-surface-800 group-hover:text-brand-700">

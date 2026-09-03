@@ -11,10 +11,10 @@ export function PillarDashboardSkeleton({ title }: { title: string }) {
   return (
     <div className="min-h-screen bg-surface-50">
       <div className="mx-auto max-w-[1440px] px-5 py-8 md:px-8">
-        <div className="mb-6 h-40 animate-pulse rounded-2xl border border-surface-200 bg-white" />
+        <div className="mb-6 h-40 animate-pulse rounded-2xl border border-surface-200 bg-surface-0" />
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl border border-surface-200 bg-white" />
+            <div key={i} className="h-24 animate-pulse rounded-xl border border-surface-200 bg-surface-0" />
           ))}
         </div>
         <span className="sr-only">Loading {title} analysis…</span>

@@ -177,7 +177,7 @@ export default function Integrations() {
             <SectionHeading eyebrow="Connection group" title={group} />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {groupRecords.map((record) => (
-                <article key={record.id} className="group rounded-xl border border-surface-200 bg-white p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:border-brand-200">
+                <article key={record.id} className="group rounded-xl border border-surface-200 bg-surface-0 p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:border-brand-200">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-100 text-surface-700"><GroupIcon size={19} /></div>
                     {record.available
@@ -322,7 +322,7 @@ function ShopifyPanel({ status, busy, shopInput, shopInputError, onShopInputChan
   const summary = status.lastSyncSummary;
 
   return (
-    <section id="shopify-panel" className="scroll-mt-6 rounded-xl border border-surface-200 bg-white p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-6">
+    <section id="shopify-panel" className="scroll-mt-6 rounded-xl border border-surface-200 bg-surface-0 p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-100 text-surface-700"><Database size={21} /></div>

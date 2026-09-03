@@ -23,7 +23,7 @@ export function MetricTile({ label, value, detail, tone = 'neutral' }: { label: 
     info: 'border-surface-200',
   }[tone];
   return (
-    <div className={`rounded-xl border bg-white p-4 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] ${toneClass}`}>
+    <div className={`rounded-xl border bg-surface-0 p-4 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] ${toneClass}`}>
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{label}</p>
       <p className="mt-2 text-2xl font-bold tracking-tight text-surface-950 tabular-nums">{value}</p>
       {detail && <p className="mt-1 text-xs text-surface-500">{detail}</p>}
@@ -60,7 +60,7 @@ export function Drawer({ open, title, eyebrow, onClose, children }: { open: bool
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="workflow-drawer-title">
       <button className="absolute inset-0 bg-slate-950/30 backdrop-blur-[2px]" onClick={onClose} aria-label="Close details" />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-surface-200 bg-white shadow-2xl">
+      <aside className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-surface-200 bg-surface-0 shadow-2xl">
         <div className="flex items-start justify-between border-b border-surface-200 px-6 py-5">
           <div>
             {eyebrow && <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p>}

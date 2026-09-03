@@ -1,15 +1,307 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+/* ─── Theme tokens ─────────────────────────────────────────────────────
+ * ONE definition of every colour in the product. tailwind.config.js maps each palette entry to a
+ * variable below, so `bg-surface-50`, `text-surface-900` and `border-surface-200` — already
+ * written into 500+ places across the app — become theme-aware without a single component change.
+ * There are no `dark:` variants anywhere and no page-level palettes.
+ *
+ * THE SURFACE RAMP IS SEMANTIC. 50 means "page background", 950 means "strongest text". Dark mode
+ * therefore INVERTS the ramp rather than defining a second scale: `bg-surface-50` becomes a near
+ * black ground and `text-surface-900` becomes near-white type, automatically and everywhere.
+ *
+ * Three states, because the viewer has three:
+ *   :root                                    the complete light palette (unchanged baseline)
+ *   @media (prefers-color-scheme: dark)      the OS preference, when no explicit choice was made
+ *   :root[data-theme="dark"]                 an explicit choice, which beats the OS either way
+ *
+ * The media query is guarded with :not([data-theme="light"]) so choosing light on a dark OS wins.
+ * Never declare a colour ONLY inside the media block — a value that exists in one state and not
+ * the others is how a page ends up rendering one theme's text on the other theme's ground.
+ */
+:root {
+  color-scheme: light;
+
+  --c-brand-50:  #eef2ff;
+  --c-brand-100: #e0e7ff;
+  --c-brand-200: #c7d2fe;
+  --c-brand-300: #a5b4fc;
+  --c-brand-400: #818cf8;
+  --c-brand-500: #6366f1;
+  --c-brand-600: #4f46e5;
+  --c-brand-700: #4338ca;
+  --c-brand-800: #3730a3;
+  --c-brand-900: #312e81;
+  --c-brand-950: #1e1b4b;
+
+  --c-surface-0:   #ffffff;
+  --c-surface-50:  #fafafa;
+  --c-surface-100: #f4f4f5;
+  --c-surface-200: #e4e4e7;
+  --c-surface-300: #d4d4d8;
+  --c-surface-400: #a1a1aa;
+  --c-surface-500: #71717a;
+  --c-surface-600: #52525b;
+  --c-surface-700: #3f3f46;
+  --c-surface-800: #27272a;
+  --c-surface-900: #18181b;
+  --c-surface-950: #09090b;
+
+  --c-success-50:  #f0fdf4;
+  --c-success-100: #dcfce7;
+  --c-success-500: #22c55e;
+  --c-success-600: #16a34a;
+  --c-success-700: #15803d;
+
+  --c-warning-50:  #fefce8;
+  --c-warning-100: #fef9c3;
+  --c-warning-500: #eab308;
+  --c-warning-600: #ca8a04;
+  --c-warning-700: #a16207;
+
+  --c-critical-50:  #fef2f2;
+  --c-critical-100: #fee2e2;
+  --c-critical-200: #fecaca;
+  --c-critical-300: #fca5a5;
+  --c-critical-400: #f87171;
+  --c-critical-500: #ef4444;
+  --c-critical-600: #dc2626;
+  --c-critical-700: #b91c1c;
+
+  --c-info-50:  #eff6ff;
+  --c-info-100: #dbeafe;
+  --c-info-500: #3b82f6;
+  --c-info-600: #2563eb;
+  --c-info-700: #1d4ed8;
+
+  --c-sidebar:             #0f172a;
+  --c-sidebar-hover:       #1e293b;
+  --c-sidebar-active:      #1e293b;
+  --c-sidebar-border:      #1e293b;
+  --c-sidebar-text:        #94a3b8;
+  --c-sidebar-text-active: #ffffff;
+
+  /* Chrome the sidebar and header paint directly. Named by role, not by hue, so the dark values
+   * are a considered set rather than a lightened guess. */
+  --c-chrome:        #f7f6f4;
+  --c-chrome-border: #e6e2dc;
+  --c-chrome-raised: #ffffff;
+  --c-chrome-hover:  #f0eeea;
+  --c-chrome-active: #e9e7e4;
+  --c-chrome-muted:  #64748b;
+  --c-logo-mark:     #5b4ee4;
+  --c-logo-text:     #101828;
+
+  /* Data visualisation. Kept apart from the accent so a chart series and a button never have to
+   * fight over one value, and so both stay legible on either ground. */
+  --c-chart-grid:   #e4e4e7;
+  --c-chart-axis:   #a1a1aa;
+  --c-chart-line:   #4f46e5;
+  --c-chart-fill:   rgba(79, 70, 229, 0.12);
+  --c-chart-target: #a1a1aa;
+
+  /* Shadows read as depth on light and as noise on dark, so they are tokenised too. */
+  --c-shadow-sm: rgba(15, 23, 42, 0.06);
+  --c-shadow-md: rgba(15, 23, 42, 0.10);
+  --c-shadow-lg: rgba(15, 23, 42, 0.20);
+}
+
+/* The OS preference, applied only when the customer has not chosen for themselves. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Brand: lifted, because #4f46e5 on a near-black ground is legible but joyless. The mid
+     * values brighten for text and icons; the tints darken, since a tint's job is to sit quietly
+     * behind content in either theme. */
+    --c-brand-50:  #1c1b33;
+    --c-brand-100: #262450;
+    --c-brand-200: #322f6b;
+    --c-brand-300: #4b47a1;
+    --c-brand-400: #6a66d6;
+    --c-brand-500: #7c78f0;
+    --c-brand-600: #8b87f5;
+    --c-brand-700: #a5a1ff;
+    --c-brand-800: #c0bdff;
+    --c-brand-900: #d9d7ff;
+    --c-brand-950: #ecebff;
+
+    /* The inversion. Read it as: 0 = raised sheet, 50 = page ground, 200 = hairline,
+     * 500 = muted type, 900 = body type, 950 = headings. */
+    --c-surface-0:   #17171a;
+    --c-surface-50:  #0c0c0e;
+    --c-surface-100: #191a1d;
+    --c-surface-200: #2a2b2f;
+    --c-surface-300: #3a3b40;
+    --c-surface-400: #6d6e75;
+    --c-surface-500: #9b9ca3;
+    --c-surface-600: #babbc1;
+    --c-surface-700: #d5d6da;
+    --c-surface-800: #e7e8ea;
+    --c-surface-900: #f2f3f4;
+    --c-surface-950: #fbfbfc;
+
+    /* Semantic colours: tints go dark, the -600/-700 text values go light. Both directions are
+     * needed — a badge is a tinted ground WITH text on it, and only inverting one half would
+     * leave dark text on a dark chip. */
+    --c-success-50:  #10231a;
+    --c-success-100: #16311f;
+    --c-success-500: #3ddc84;
+    --c-success-600: #4ade80;
+    --c-success-700: #86efac;
+
+    --c-warning-50:  #241f0c;
+    --c-warning-100: #332c11;
+    --c-warning-500: #f5c518;
+    --c-warning-600: #facc15;
+    --c-warning-700: #fde047;
+
+    --c-critical-50:  #2a1416;
+    --c-critical-100: #3c1a1e;
+    --c-critical-200: #55242a;
+    --c-critical-300: #7c343c;
+    --c-critical-400: #f87171;
+    --c-critical-500: #f87171;
+    --c-critical-600: #fca5a5;
+    --c-critical-700: #fecaca;
+
+    --c-info-50:  #101d2e;
+    --c-info-100: #16283f;
+    --c-info-500: #60a5fa;
+    --c-info-600: #7db8fb;
+    --c-info-700: #bfdbfe;
+
+    /* The sidebar was already dark. In dark mode it goes DARKER than the page rather than
+     * lighter, so the app still reads as chrome-then-content and not as two competing panels. */
+    --c-sidebar:             #08080a;
+    --c-sidebar-hover:       #17171a;
+    --c-sidebar-active:      #17171a;
+    --c-sidebar-border:      #2a2b2f;
+    --c-sidebar-text:        #9b9ca3;
+    --c-sidebar-text-active: #fbfbfc;
+
+    --c-chrome:        #121214;
+    --c-chrome-border: #2a2b2f;
+    --c-chrome-raised: #1d1d21;
+    --c-chrome-hover:  #26262b;
+    --c-chrome-active: #303036;
+    --c-chrome-muted:  #9b9ca3;
+    --c-logo-mark:     #8b87f5;
+    --c-logo-text:     #f2f3f4;
+
+    --c-chart-grid:   #2a2b2f;
+    --c-chart-axis:   #6d6e75;
+    --c-chart-line:   #8b87f5;
+    --c-chart-fill:   rgba(139, 135, 245, 0.18);
+    --c-chart-target: #6d6e75;
+
+    /* Black shadows vanish on a black ground. Deepened so elevation still reads. */
+    --c-shadow-sm: rgba(0, 0, 0, 0.40);
+    --c-shadow-md: rgba(0, 0, 0, 0.55);
+    --c-shadow-lg: rgba(0, 0, 0, 0.70);
+  }
+}
+
+/* An explicit dark choice. Same values, higher specificity, so the toggle wins over a light OS. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-brand-50:  #1c1b33;
+  --c-brand-100: #262450;
+  --c-brand-200: #322f6b;
+  --c-brand-300: #4b47a1;
+  --c-brand-400: #6a66d6;
+  --c-brand-500: #7c78f0;
+  --c-brand-600: #8b87f5;
+  --c-brand-700: #a5a1ff;
+  --c-brand-800: #c0bdff;
+  --c-brand-900: #d9d7ff;
+  --c-brand-950: #ecebff;
+
+  --c-surface-0:   #17171a;
+  --c-surface-50:  #0c0c0e;
+  --c-surface-100: #191a1d;
+  --c-surface-200: #2a2b2f;
+  --c-surface-300: #3a3b40;
+  --c-surface-400: #6d6e75;
+  --c-surface-500: #9b9ca3;
+  --c-surface-600: #babbc1;
+  --c-surface-700: #d5d6da;
+  --c-surface-800: #e7e8ea;
+  --c-surface-900: #f2f3f4;
+  --c-surface-950: #fbfbfc;
+
+  --c-success-50:  #10231a;
+  --c-success-100: #16311f;
+  --c-success-500: #3ddc84;
+  --c-success-600: #4ade80;
+  --c-success-700: #86efac;
+
+  --c-warning-50:  #241f0c;
+  --c-warning-100: #332c11;
+  --c-warning-500: #f5c518;
+  --c-warning-600: #facc15;
+  --c-warning-700: #fde047;
+
+  --c-critical-50:  #2a1416;
+  --c-critical-100: #3c1a1e;
+  --c-critical-200: #55242a;
+  --c-critical-300: #7c343c;
+  --c-critical-400: #f87171;
+  --c-critical-500: #f87171;
+  --c-critical-600: #fca5a5;
+  --c-critical-700: #fecaca;
+
+  --c-info-50:  #101d2e;
+  --c-info-100: #16283f;
+  --c-info-500: #60a5fa;
+  --c-info-600: #7db8fb;
+  --c-info-700: #bfdbfe;
+
+  --c-sidebar:             #08080a;
+  --c-sidebar-hover:       #17171a;
+  --c-sidebar-active:      #17171a;
+  --c-sidebar-border:      #2a2b2f;
+  --c-sidebar-text:        #9b9ca3;
+  --c-sidebar-text-active: #fbfbfc;
+
+  --c-chrome:        #121214;
+  --c-chrome-border: #2a2b2f;
+  --c-chrome-raised: #1d1d21;
+  --c-chrome-hover:  #26262b;
+  --c-chrome-active: #303036;
+  --c-chrome-muted:  #9b9ca3;
+  --c-logo-mark:     #8b87f5;
+  --c-logo-text:     #f2f3f4;
+
+  --c-chart-grid:   #2a2b2f;
+  --c-chart-axis:   #6d6e75;
+  --c-chart-line:   #8b87f5;
+  --c-chart-fill:   rgba(139, 135, 245, 0.18);
+  --c-chart-target: #6d6e75;
+
+  --c-shadow-sm: rgba(0, 0, 0, 0.40);
+  --c-shadow-md: rgba(0, 0, 0, 0.55);
+  --c-shadow-lg: rgba(0, 0, 0, 0.70);
+}
+
 @theme {
-  --color-critical-50: #fef2f2;
-  --color-critical-100: #fee2e2;
-  --color-critical-200: #fecaca;
-  --color-critical-300: #fca5a5;
-  --color-critical-400: #f87171;
-  --color-critical-500: #ef4444;
-  --color-critical-600: #dc2626;
-  --color-critical-700: #b91c1c;
+  /* Chrome and chart roles exposed as Tailwind utilities (bg-chrome, text-chart-axis, …) so the
+   * components that used to hardcode these hexes have a token to use instead. */
+  --color-chrome: var(--c-chrome);
+  --color-chrome-border: var(--c-chrome-border);
+  --color-chrome-raised: var(--c-chrome-raised);
+  --color-chrome-hover: var(--c-chrome-hover);
+  --color-chrome-active: var(--c-chrome-active);
+  --color-chrome-muted: var(--c-chrome-muted);
+  --color-logo-mark: var(--c-logo-mark);
+  --color-logo-text: var(--c-logo-text);
+  --color-chart-grid: var(--c-chart-grid);
+  --color-chart-axis: var(--c-chart-axis);
+  --color-chart-line: var(--c-chart-line);
+  --color-chart-fill: var(--c-chart-fill);
+  --color-chart-target: var(--c-chart-target);
 }
 
 @font-face {
@@ -105,7 +397,7 @@
 @layer components {
   /* Refined Card styling: depth without heavy borders */
   .card {
-    @apply bg-white rounded-card shadow-sm transition-shadow duration-200;
+    @apply bg-surface-0 rounded-card shadow-sm transition-shadow duration-200;
   }
   .card:hover {
     @apply shadow-md;
@@ -139,7 +431,7 @@
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md border border-surface-200 bg-white px-4 py-2 text-[13px] font-medium text-surface-700 shadow-sm
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md border border-surface-200 bg-surface-0 px-4 py-2 text-[13px] font-medium text-surface-700 shadow-sm
       transition-all duration-200 hover:border-surface-300 hover:bg-surface-50 hover:text-surface-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
       active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
   }

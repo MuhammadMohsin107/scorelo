@@ -65,7 +65,7 @@ export default function AiRecommendationPanel({ findingId }: Props) {
   return (
     <div className="mt-4 border-t border-brand-100 pt-3">
       {ai && (
-        <div className="rounded-lg border border-brand-200 bg-white/70 p-3">
+        <div className="rounded-lg border border-brand-200 bg-surface-0/70 p-3">
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-semibold uppercase tracking-wide text-brand-700">
             <Sparkles size={12} aria-hidden="true" />
             AI-enhanced recommendation
@@ -93,7 +93,7 @@ export default function AiRecommendationPanel({ findingId }: Props) {
           type="button"
           onClick={() => void generate(ai !== null)}
           disabled={pending}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:opacity-60"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-surface-0 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:opacity-60"
         >
           {pending
             ? <Loader2 size={13} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />

@@ -58,7 +58,7 @@ export default function RecommendedActions({ actions }: Props) {
             <button
               type="button"
               onClick={() => navigate(pillarRoutes[action.pillar] ?? '/')}
-              className="inline-flex flex-shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-surface-700 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+              className="inline-flex flex-shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-xs font-semibold text-surface-700 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
               aria-label={`Review ${action.title}`}
             >
               Review

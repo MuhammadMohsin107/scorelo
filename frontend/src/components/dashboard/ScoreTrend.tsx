@@ -93,7 +93,7 @@ export default function ScoreTrend({ data }: Props) {
       <div className="relative flex-1 px-3 pb-3 pt-4">
         {activePoint && (
           <div
-            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 shadow-md"
+            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 shadow-md"
             style={{ left: `${(activePoint.x / width) * 100}%`, top: `${Math.max((activePoint.y / height) * 100 - 14, 2)}%` }}
             role="status"
           >
@@ -113,31 +113,31 @@ export default function ScoreTrend({ data }: Props) {
         >
           <defs>
             <linearGradient id="dashboard-trend-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#4f46e5" stopOpacity="0.18" />
-              <stop offset="1" stopColor="#4f46e5" stopOpacity="0" />
+              <stop offset="0" stopOpacity="0.18" className="[stop-color:var(--color-chart-line)]" />
+              <stop offset="1" stopOpacity="0" className="[stop-color:var(--color-chart-line)]" />
             </linearGradient>
           </defs>
 
           {gridValues.map((v) => (
             <g key={v}>
-              <line x1={pad.left} x2={width - pad.right} y1={yFor(v)} y2={yFor(v)} stroke="#f1f1f3" />
-              <text x={pad.left - 8} y={yFor(v) + 3.5} textAnchor="end" fill="#a1a1aa" fontSize="10" className="tabular-nums">
+              <line x1={pad.left} x2={width - pad.right} y1={yFor(v)} y2={yFor(v)} className="stroke-chart-grid" />
+              <text x={pad.left - 8} y={yFor(v) + 3.5} textAnchor="end" fontSize="10" className="fill-chart-axis tabular-nums">
                 {Math.round(v)}
               </text>
             </g>
           ))}
 
           {/* Target line */}
-          <line x1={pad.left} x2={width - pad.right} y1={targetY} y2={targetY} stroke="#16a34a" strokeDasharray="3 4" strokeOpacity="0.6" />
-          <text x={width - pad.right} y={targetY - 5} textAnchor="end" fill="#15803d" fontSize="10" fontWeight="600">
+          <line x1={pad.left} x2={width - pad.right} y1={targetY} y2={targetY} strokeDasharray="3 4" strokeOpacity="0.6" className="stroke-success-600" />
+          <text x={width - pad.right} y={targetY - 5} textAnchor="end" fontSize="10" fontWeight="600" className="fill-success-700">
             Excellent {SCORE_TARGET}
           </text>
 
           <path d={area} fill="url(#dashboard-trend-fill)" />
-          <path d={line} fill="none" stroke="#4f46e5" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={line} fill="none" strokeWidth="2.25" className="stroke-chart-line" strokeLinecap="round" strokeLinejoin="round" />
 
           {activePoint && (
-            <line x1={activePoint.x} x2={activePoint.x} y1={pad.top} y2={pad.top + ch} stroke="#c7d2fe" strokeDasharray="2 3" />
+            <line x1={activePoint.x} x2={activePoint.x} y1={pad.top} y2={pad.top + ch} strokeDasharray="2 3" className="stroke-brand-200" />
           )}
 
           {points.map((p, i) => {
@@ -149,17 +149,16 @@ export default function ScoreTrend({ data }: Props) {
                   cx={p.x}
                   cy={p.y}
                   r={isActive ? 5.5 : isLast ? 4.5 : 3.5}
-                  fill={isActive || isLast ? '#4f46e5' : 'white'}
-                  stroke="#4f46e5"
+                  className={`outline-none transition-[r] duration-150 stroke-chart-line focus-visible:stroke-brand-300 focus-visible:stroke-[4px] ${isActive || isLast ? 'fill-chart-line' : 'fill-surface-0'}`}
                   strokeWidth="2"
                   tabIndex={0}
                   onFocus={() => setActive(i)}
                   onBlur={() => setActive(null)}
-                  className="outline-none transition-[r] duration-150 focus-visible:stroke-[#a5b4fc] focus-visible:stroke-[4px]"
+                  
                 >
                   <title>{`${formatDate(p.date)}: ${p.score}`}</title>
                 </circle>
-                <text x={p.x} y={height - 8} textAnchor="middle" fill="#a1a1aa" fontSize="10">
+                <text x={p.x} y={height - 8} textAnchor="middle" fontSize="10" className="fill-chart-axis">
                   {formatDate(p.date)}
                 </text>
               </g>

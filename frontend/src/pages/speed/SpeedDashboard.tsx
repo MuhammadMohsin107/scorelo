@@ -135,7 +135,7 @@ export default function SpeedDashboard() {
     <div className="min-h-screen bg-surface-50">
       <div className="px-6 md:px-8 py-8 max-w-7xl mx-auto">
         {/* ── Speed Header Card ───────────────────────────────────── */}
-        <div className="relative overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-sm mb-6">
+        <div className="relative overflow-hidden rounded-2xl border border-surface-200 bg-surface-0 shadow-sm mb-6">
           {/* soft accent glows */}
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-100/70 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-success-50 blur-3xl" />
@@ -237,7 +237,7 @@ export default function SpeedDashboard() {
                 <button
                   key={area.id}
                   onClick={() => navigate(area.route)}
-                  className="group relative flex flex-col overflow-hidden rounded-xl border border-surface-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+                  className="group relative flex flex-col overflow-hidden rounded-xl border border-surface-200 bg-surface-0 p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
                 >
                   <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand-500 via-brand-400 to-success-500 opacity-0 transition-opacity group-hover:opacity-100" />
 
@@ -303,7 +303,7 @@ export default function SpeedDashboard() {
 
         {/* ── Priority Issues + Health Summary ────────────────────── */}
         <div className="grid lg:grid-cols-3 gap-6 mb-10">
-          <div className="lg:col-span-2 bg-white rounded-xl border border-surface-200 shadow-sm overflow-hidden">
+          <div className="lg:col-span-2 bg-surface-0 rounded-xl border border-surface-200 shadow-sm overflow-hidden">
             <div className="px-6 py-5 border-b border-surface-200">
               <h2 className="text-base font-semibold tracking-tight text-surface-900">Priority Issues</h2>
               <p className="text-xs text-surface-500 mt-1">Ordered by severity — start at the top.</p>
@@ -335,7 +335,7 @@ export default function SpeedDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-surface-200 shadow-sm p-6 h-fit">
+          <div className="bg-surface-0 rounded-xl border border-surface-200 shadow-sm p-6 h-fit">
             <h2 className="text-base font-semibold tracking-tight text-surface-900 mb-1">Speed Health</h2>
             <p className="text-sm text-surface-600 mb-6">
               Issue counts from the latest audit of your store.
@@ -375,7 +375,7 @@ export default function SpeedDashboard() {
             recommendation engine, so this ranks what the audit actually found rather than
             inventing a second list beside it. */}
         <div className="grid lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-surface-200 shadow-sm overflow-hidden">
+          <div className="bg-surface-0 rounded-xl border border-surface-200 shadow-sm overflow-hidden">
             <div className="px-6 py-5 border-b border-surface-200">
               <h2 className="text-base font-semibold tracking-tight text-surface-900">Quick Wins</h2>
               <p className="text-xs text-surface-500 mt-1">Highest-severity findings first.</p>
@@ -403,7 +403,7 @@ export default function SpeedDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-surface-200 shadow-sm overflow-hidden">
+          <div className="bg-surface-0 rounded-xl border border-surface-200 shadow-sm overflow-hidden">
             <div className="px-6 py-5 border-b border-surface-200">
               <h2 className="text-base font-semibold tracking-tight text-surface-900">Areas Needing Attention</h2>
               <p className="text-xs text-surface-500 mt-1">Lowest scoring measured areas.</p>

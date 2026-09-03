@@ -17,6 +17,19 @@ export const env = {
   mockAuthEnabled: process.env.NODE_ENV !== 'production' && process.env.MOCK_AUTH === 'true',
   jwtAccessSecret: required('JWT_ACCESS_SECRET'),
   jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
+  /**
+   * Whether an unverified email address blocks login.
+   *
+   * DEFAULTS TO FALSE, and only the literal string 'true' enables it. Every existing account has
+   * `email_verified_at = NULL` — nothing has ever written that column — so switching this on
+   * locks out every current customer until they verify. It therefore stays off until SMTP is
+   * configured and the whole flow has been exercised against real mail.
+   *
+   * The verification system itself runs regardless of this flag: signup still issues a code,
+   * verify and resend still work. The flag governs one thing only — whether login refuses an
+   * unverified account.
+   */
+  requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION === 'true',
   // Shopify app credentials — optional at startup (unlike the vars above) so the rest of the
   // API keeps working before a real Shopify Partner app is provisioned. Routes that need them
   // check shopifyConfigured() and fail with a clear 500 instead of crashing the whole server.

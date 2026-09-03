@@ -15,6 +15,7 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { reportsRouter } from './routes/reports.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { pageSettingsRouter } from './routes/page-settings.js';
+import { securityRouter } from './routes/security.js';
 import { errorHandler, notFound } from './middleware/error.js';
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/findings', findingsRouter);
 app.use('/api/ai-fixes', aiFixesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/page-settings', pageSettingsRouter);
+app.use('/api/security', securityRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/reports', reportsRouter);
 

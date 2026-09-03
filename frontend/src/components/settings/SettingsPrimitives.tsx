@@ -4,7 +4,7 @@ import { Button } from '../workflows/WorkflowPrimitives';
 
 /** Card shell — matches Integrations / Reports / Fix Center exactly. */
 export const settingsCard =
-  'rounded-xl border border-surface-200 bg-white shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]';
+  'rounded-xl border border-surface-200 bg-surface-0 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]';
 
 export const eyebrowClass = 'text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500';
 
@@ -71,7 +71,7 @@ export function Field({
 }
 
 const controlBase =
-  'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-surface-900 outline-none transition-colors placeholder:text-surface-400 focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-50 disabled:text-surface-500';
+  'w-full rounded-lg border bg-surface-0 px-3 py-2.5 text-sm text-surface-900 outline-none transition-colors placeholder:text-surface-400 focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-50 disabled:text-surface-500';
 
 export function TextInput({
   id,
@@ -119,7 +119,7 @@ export function TextInput({
           aria-describedby={describedBy}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="w-full bg-white px-3 py-2.5 text-sm text-surface-900 outline-none placeholder:text-surface-400"
+          className="w-full bg-surface-0 px-3 py-2.5 text-sm text-surface-900 outline-none placeholder:text-surface-400"
         />
       </div>
     );
@@ -211,7 +211,7 @@ export function ToggleRow({
       >
         <span
           aria-hidden="true"
-          className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow-sm transition-transform duration-200 motion-reduce:transition-none ${
+          className={`inline-block h-[18px] w-[18px] transform rounded-full bg-surface-0 shadow-sm transition-transform duration-200 motion-reduce:transition-none ${
             checked ? 'translate-x-[22px]' : 'translate-x-1'
           }`}
         />
@@ -260,7 +260,7 @@ export function SaveBar({
   if (!visible) return null;
   return (
     <div className="sticky bottom-4 z-20 mt-6" role="region" aria-label="Unsaved changes">
-      <div className="flex flex-col gap-3 rounded-xl border border-surface-300 bg-white/95 p-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      <div className="flex flex-col gap-3 rounded-xl border border-surface-300 bg-surface-0/95 p-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-surface-800">
           <span className="h-2 w-2 flex-shrink-0 rounded-full bg-warning-500" aria-hidden="true" />
           {message}
@@ -291,7 +291,7 @@ export function SavedToast({ visible, onDismiss }: { visible: boolean; onDismiss
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-xl border border-success-100 bg-white px-4 py-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] motion-safe:animate-scale-in"
+      className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-xl border border-success-100 bg-surface-0 px-4 py-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] motion-safe:animate-scale-in"
     >
       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success-50 text-success-700">
         <Check size={14} strokeWidth={2.6} aria-hidden="true" />
@@ -355,13 +355,16 @@ export function ConfirmDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+      {/* Deliberately NOT a surface token. A scrim's job is to darken whatever is behind it, in
+          both themes — running it through the inverting ramp would turn it into a white wash over
+          dark content, which lightens the page instead of dimming it. */}
       <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" onClick={onCancel} aria-hidden="true" />
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-description"
-        className="relative w-full max-w-md rounded-xl border border-surface-200 bg-white shadow-2xl motion-safe:animate-scale-in"
+        className="relative w-full max-w-md rounded-xl border border-surface-200 bg-surface-0 shadow-2xl motion-safe:animate-scale-in"
       >
         <div className="flex items-start gap-3 border-b border-surface-200 p-5">
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-critical-50 text-critical-700">

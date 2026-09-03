@@ -18,7 +18,7 @@ function ScoreDial({ score }: { score: number }) {
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }} role="img" aria-label={`Score ${score} out of 100`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#eeeef0" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-surface-100" />
         <circle
           cx={size / 2}
           cy={size / 2}

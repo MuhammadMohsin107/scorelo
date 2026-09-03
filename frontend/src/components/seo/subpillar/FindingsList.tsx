@@ -41,7 +41,7 @@ export default function FindingsList({ findings, onInvestigate, emptyTitle, empt
             What Scorelo found
           </h2>
         </div>
-        <span className="rounded-md border border-surface-200 bg-white px-2 py-1 text-[11px] font-semibold tabular-nums text-surface-600">
+        <span className="rounded-md border border-surface-200 bg-surface-0 px-2 py-1 text-[11px] font-semibold tabular-nums text-surface-600">
           {open.length} issue {open.length === 1 ? 'type' : 'types'}
         </span>
       </div>

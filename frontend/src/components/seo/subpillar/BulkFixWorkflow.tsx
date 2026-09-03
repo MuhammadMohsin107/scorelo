@@ -77,7 +77,7 @@ export default function BulkFixWorkflow({ rows, mode, onClose, onApply }: Props)
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="presentation">
       <button type="button" className="absolute inset-0 cursor-default bg-surface-950/25" onClick={onClose} aria-label="Close bulk fix review" />
-      <section role="dialog" aria-modal="true" aria-labelledby="bulk-fix-title" className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="bulk-fix-title" className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-surface-0 shadow-2xl sm:rounded-2xl">
         <header className="flex items-start justify-between gap-4 border-b border-surface-200 px-5 py-4 sm:px-6">
           <div>
             <p className={eyebrow}>Test mode · review before apply</p>
@@ -125,7 +125,7 @@ export default function BulkFixWorkflow({ rows, mode, onClose, onApply }: Props)
                       </div>
                       <div className="min-w-0 flex-1">
                         <label className="text-[10px] font-semibold uppercase tracking-wide text-surface-400" htmlFor={`bulk-fix-${row.id}`}>Recommended value</label>
-                        <textarea id={`bulk-fix-${row.id}`} value={value} onChange={(event) => updateDraft(row.id, event.target.value)} rows={2} className="mt-1.5 w-full resize-y rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm text-surface-900 outline-none focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100" />
+                        <textarea id={`bulk-fix-${row.id}`} value={value} onChange={(event) => updateDraft(row.id, event.target.value)} rows={2} className="mt-1.5 w-full resize-y rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm text-surface-900 outline-none focus:border-brand-400 focus:bg-surface-0 focus:ring-2 focus:ring-brand-100" />
                         <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
                           <span className={error ? 'text-warning-700' : 'text-success-700'}>{error ?? 'Ready to apply'}</span>
                           <span className="tabular-nums text-surface-400">{mode === 'title-tags' ? `${value.length}/${MAX_TITLE_LENGTH}` : `${value.length} characters`}</span>

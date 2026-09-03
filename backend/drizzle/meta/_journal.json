@@ -36,6 +36,27 @@
       "when": 1788249344297,
       "tag": "0004_gray_chamber",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1788425954490,
+      "tag": "0005_bizarre_energizer",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1788435455613,
+      "tag": "0006_futuristic_rumiko_fujikawa",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1788438196819,
+      "tag": "0007_dashing_kylun",
+      "breakpoints": true
     }
   ]
 }

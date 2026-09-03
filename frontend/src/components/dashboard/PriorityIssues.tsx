@@ -66,10 +66,10 @@ export default function PriorityIssues({ issues }: Props) {
                 className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 ${
                   isActive
                     ? 'bg-surface-900 text-white'
-                    : 'border border-surface-200 bg-white text-surface-600 hover:border-surface-300 hover:bg-surface-50'
+                    : 'border border-surface-200 bg-surface-0 text-surface-600 hover:border-surface-300 hover:bg-surface-50'
                 }`}
               >
-                {chip.key !== 'all' && <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-white/80' : severityConfig[chip.key as Severity].dot}`} aria-hidden="true" />}
+                {chip.key !== 'all' && <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-surface-0/80' : severityConfig[chip.key as Severity].dot}`} aria-hidden="true" />}
                 {chip.label}
                 <span className={`tabular-nums ${isActive ? 'text-white/70' : 'text-surface-400'}`}>{chip.count}</span>
               </button>

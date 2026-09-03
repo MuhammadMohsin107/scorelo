@@ -48,7 +48,7 @@ export default function SeoKpiCard({
         : 'bg-critical-50 text-critical-700';
 
   return (
-    <div className="group relative rounded-xl border border-surface-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-surface-300 hover:shadow-md">
+    <div className="group relative rounded-xl border border-surface-200 bg-surface-0 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-surface-300 hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium text-surface-500 leading-snug">{label}</p>
         {Icon && (

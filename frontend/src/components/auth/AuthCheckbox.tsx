@@ -46,7 +46,7 @@ export default function AuthCheckbox({ checked, onChange, label, hint, disabled 
           />
           <span
             aria-hidden="true"
-            className="flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border border-surface-300 bg-white text-white shadow-sm transition-colors
+            className="flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border border-surface-300 bg-surface-0 text-white shadow-sm transition-colors
               peer-checked:border-brand-600 peer-checked:bg-brand-600
               peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 peer-focus-visible:ring-offset-2
               peer-disabled:bg-surface-100"

@@ -6,6 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Scorelo — Optimize your store's SEO, speed, schema, and conversions with intelligent insights." />
     <title>Scorelo — Store Optimization Dashboard</title>
+    <script>
+      // Stamps the theme BEFORE the first paint. Without this a dark-mode customer sees the app
+      // render light and correct itself a frame later, on every single load — the white flash that
+      // makes a theme feel bolted on. It has to be inline and blocking for that reason; a module
+      // script would run after the browser has already painted.
+      //
+      // Deliberately duplicates two lines from ThemeContext (the storage key and the attribute
+      // name) because it cannot import from the bundle. Both are commented in that file.
+      (function () {
+        try {
+          var stored = localStorage.getItem('scorelo.theme');
+          // Only an explicit choice is stamped. 'system' and a missing value leave the attribute
+          // off, which is what hands control to the prefers-color-scheme block in index.css.
+          if (stored === 'dark' || stored === 'light') {
+            document.documentElement.setAttribute('data-theme', stored);
+          }
+        } catch (error) {
+          // Storage blocked (private window, embedded webview). The OS preference still applies.
+        }
+      })();
+    </script>
   </head>
   <body class="antialiased">
     <div id="root"></div>

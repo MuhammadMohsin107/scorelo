@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { MailCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../../layouts/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
 import AuthAlert from '../../components/auth/AuthAlert';
@@ -16,11 +15,11 @@ import { requestPasswordReset } from '../../data/auth.repository';
  * even though a more specific message would feel more helpful.
  */
 export default function ForgotPassword() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [fieldError, setFieldError] = useState('');
   const [formError, setFormError] = useState('');
   const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,7 +39,10 @@ export default function ForgotPassword() {
     setPending(true);
     try {
       await requestPasswordReset(trimmed);
-      setSent(true);
+      // Straight to code entry. The response is deliberately identical whether or not the address
+      // has an account, so advancing here reveals nothing — someone probing an address they do
+      // not own reaches a form whose codes will never arrive and never match.
+      navigate('/reset-password', { state: { email: trimmed.toLowerCase() } });
     } catch {
       // Only genuine transport/server failures land here — an unknown address is a success.
       // The message stays generic so nothing about the account is inferable from a failure.
@@ -50,42 +52,10 @@ export default function ForgotPassword() {
     }
   }
 
-  if (sent) {
-    return (
-      <AuthLayout
-        title="Check your email"
-        subtitle="If an account exists for that address, we've sent a password reset link."
-        footer={
-          <>
-            Remembered it?{' '}
-            <Link
-              to="/login"
-              className="font-semibold text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded"
-            >
-              Back to sign in
-            </Link>
-          </>
-        }
-      >
-        <div className="flex flex-col items-center rounded-xl border border-surface-200 bg-surface-50/60 p-6 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600">
-            <MailCheck size={22} />
-          </span>
-          <p className="mt-3 text-sm leading-6 text-surface-600">
-            The link expires in 30 minutes and can be used once. If it doesn't arrive, check your
-            spam folder or try again.
-          </p>
-          <button
-            type="button"
-            onClick={() => { setSent(false); setEmail(''); }}
-            className="mt-4 text-sm font-semibold text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded"
-          >
-            Use a different email
-          </button>
-        </div>
-      </AuthLayout>
-    );
-  }
+  // The old "check your email" interstitial lived here. It is gone because the flow now continues
+  // on the next screen: the customer types the emailed code there, so a dead-end confirmation page
+  // would only add a click. The unconditional wording it existed to protect moved with it — the
+  // code screen makes no claim about whether the address is registered either.
 
   return (
     <AuthLayout

@@ -22,9 +22,11 @@ import NotFound from './pages/NotFound';
 import Login from './pages/auth/Login';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
+import VerifyEmail from './pages/auth/VerifyEmail';
 import Signup from './pages/auth/Signup';
 import RequireAuth from './components/auth/RequireAuth';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 /**
  * NOTE — reload behaviour
@@ -49,6 +51,7 @@ function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
         <Routes>
@@ -57,10 +60,15 @@ export default function App() {
           <Route path="/signup" element={<RedirectIfAuthenticated><Signup /></RedirectIfAuthenticated>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          {/* Not wrapped in RedirectIfAuthenticated: while verification is enforced a signing-up
+              customer holds no session, and once it is not, someone who signed up and stayed
+              logged in must still be able to finish verifying. */}
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="*" element={<AuthenticatedApp />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

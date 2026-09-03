@@ -41,10 +41,10 @@ export default function Notifications() {
           <button type="button" onClick={markAllRead} disabled={unreadCount === 0} className="btn-secondary text-xs">Mark all as read</button>
         </div>
 
-        <section className="mt-6 overflow-hidden rounded-2xl border border-surface-200 bg-white" aria-label="All notifications">
+        <section className="mt-6 overflow-hidden rounded-2xl border border-surface-200 bg-surface-0" aria-label="All notifications">
           {notifications.map((notification) => {
             const Icon = iconForNotification(notification.type);
-            return <button key={notification.id} type="button" onClick={() => markRead(notification.id)} className={`flex w-full gap-4 border-b border-surface-100 px-5 py-5 text-left transition-colors last:border-b-0 hover:bg-surface-50 ${notification.isRead ? 'bg-white' : 'bg-brand-50/40'}`}>
+            return <button key={notification.id} type="button" onClick={() => markRead(notification.id)} className={`flex w-full gap-4 border-b border-surface-100 px-5 py-5 text-left transition-colors last:border-b-0 hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
               <Icon size={19} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
               <span className="min-w-0 flex-1"><span className={`block text-sm ${notification.isRead ? 'font-medium text-surface-700' : 'font-bold text-surface-900'}`}>{notification.title}</span><span className="mt-1 block text-sm leading-5 text-surface-500">{notification.message}</span><span className="mt-2 block text-xs text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>
               {!notification.isRead && <span className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}

@@ -36,7 +36,7 @@ export default function AuthField({ label, error, hint, type = 'text', ...inputP
           type={resolvedType}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className={`auth-input h-12 w-full rounded-xl border bg-white px-4 text-[14.5px] text-surface-900 shadow-sm outline-none transition-all duration-200 placeholder:text-surface-300
+          className={`auth-input h-12 w-full rounded-xl border bg-surface-0 px-4 text-[14.5px] text-surface-900 shadow-sm outline-none transition-all duration-200 placeholder:text-surface-300
             hover:border-surface-300 hover:shadow-[0_2px_10px_-4px_rgba(99,102,241,0.12)]
             focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_20px_-6px_rgba(79,70,229,0.22)]
             disabled:cursor-not-allowed disabled:bg-surface-50 disabled:text-surface-400 disabled:hover:border-surface-200 disabled:hover:shadow-none

@@ -64,14 +64,14 @@ export default function Dashboard() {
           <p className="mt-1 text-sm text-surface-500">A clear view of what is healthy, what changed, and what to fix next.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
             <Globe size={13} className="text-surface-400" />
             <span className="font-medium text-surface-800">{data.storeName}</span>
             <span className="text-surface-300">·</span>
             <span className="font-mono text-[11px] text-surface-500">{data.storeUrl}</span>
           </span>
           {data.lastUpdated && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
               <Clock size={13} className="text-surface-400" />
               Analyzed <span className="font-medium text-surface-800">{formatLastUpdated(data.lastUpdated)}</span>
             </span>

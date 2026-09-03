@@ -12,8 +12,9 @@ import {
   BarChart3,
   Settings,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   X,
 } from 'lucide-react';
 import { pillarList, pillarRoutes, type PillarMeta } from '../data/pillarMeta';
@@ -150,8 +151,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full flex-shrink-0 bg-[#f7f6f4] flex flex-col
-          border-r border-[#e6e2dc] relative overflow-hidden
+          fixed top-0 left-0 z-50 h-full flex-shrink-0 bg-chrome flex flex-col
+          border-r border-chrome-border relative overflow-hidden
           transition-[width,transform] duration-300 ease-in-out
           lg:translate-x-0 lg:static lg:z-auto
           ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-[250px]'}
@@ -161,16 +162,16 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
         aria-label="Main navigation"
       >
         {/* Logo Area — wordmark + tagline lockup */}
-        <div className={`flex h-[72px] flex-shrink-0 items-center justify-between border-b border-[#e6e2dc] bg-[#f7f6f4] px-4 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
+        <div className={`flex h-[72px] flex-shrink-0 items-center justify-between border-b border-chrome-border bg-chrome px-4 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
           <NavLink to="/" onClick={onClose} aria-label="Scorelo home" className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
             {/* Logo mark — also what the collapsed rail shows */}
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px] bg-[#5b4ee4] text-white shadow-sm">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px] bg-logo-mark text-white shadow-sm">
               <BarChart3 size={15} strokeWidth={2.5} aria-hidden="true" />
             </div>
             {/* Wordmark with letter-spaced tagline */}
             <span className={`flex flex-col justify-center ${isCollapsed ? 'lg:hidden' : ''}`}>
-              <span className="text-[20px] font-extrabold leading-[1] tracking-tight text-[#101828]">
-                scor<span className="text-[#5b4ee4]">e</span>lo
+              <span className="text-[20px] font-extrabold leading-[1] tracking-tight text-logo-text">
+                scor<span className="text-logo-mark">e</span>lo
               </span>
               <span className="mt-0 text-[7px] font-semibold uppercase tracking-[0.3em] text-surface-400 leading-[1.2]">
                 Store performance
@@ -178,18 +179,28 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             </span>
           </NavLink>
 
+          {/* Collapse / expand rail control.
+              Fixed 32px box rather than a bare glyph: the pointer cursor and the hover state then
+              cover the whole hit area instead of only the 16px SVG, and because only colours change
+              on hover — never size or padding — the header cannot shift under the cursor. The two
+              icons share one frame, so swapping them on toggle is also shift-free. */}
           <button
             type="button"
             onClick={onToggleCollapse}
             className={`
-              hidden items-center justify-center text-[#64748b] transition-colors duration-150 ease-in-out
-              hover:text-surface-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
+              hidden h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg
+              border border-chrome-border bg-surface-0 text-chrome-muted shadow-sm
+              transition-colors duration-150 ease-in-out
+              hover:border-surface-300 hover:bg-chrome-hover hover:text-surface-800
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1
               lg:flex
             `}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {isCollapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronLeft size={16} aria-hidden="true" />}
+            {isCollapsed
+              ? <PanelLeftOpen size={16} aria-hidden="true" />
+              : <PanelLeftClose size={16} aria-hidden="true" />}
           </button>
           <button
             onClick={onClose}
@@ -214,8 +225,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                 transition-all duration-200 border border-transparent
                 ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
                 ${isActive
-                  ? 'text-surface-900 bg-[#e9e7e4] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)]'
-                  : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'
+                  ? 'text-surface-900 bg-chrome-active shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)]'
+                  : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'
                 }
               `}
             >
@@ -248,8 +259,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                         ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
                         focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-300
                         ${isSeoSection
-                          ? 'text-surface-900 bg-[#efefee]'
-                          : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'
+                          ? 'text-surface-900 bg-chrome-hover'
+                          : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'
                         }
                       `}
                     >
@@ -304,8 +315,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                       transition-all duration-200 group
                       ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
                       ${isPillarActive
-                        ? 'text-surface-900 bg-[#efefee]'
-                        : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'
+                        ? 'text-surface-900 bg-chrome-hover'
+                        : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'
                       }
                     `}
                   >
@@ -346,7 +357,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             })}
           </div>
 
-          <div className="my-4 border-t border-[#e6e2dc]" />
+          <div className="my-4 border-t border-chrome-border" />
 
           {/* Utility Links */}
           <div className="space-y-0.5">
@@ -356,7 +367,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                 to={`/${link.id}`}
                 onClick={onClose}
                 title={link.label}
-                className={({ isActive }) => `relative flex items-center gap-3 w-full rounded-lg text-[13px] font-medium transition-all duration-200 group ${isCollapsed ? 'justify-center px-2 py-2 lg:px-2' : 'px-3 py-2'} ${isActive ? 'text-surface-900 bg-[#efefee]' : 'text-surface-600 hover:bg-[#efefee] hover:text-surface-900'}`}
+                className={({ isActive }) => `relative flex items-center gap-3 w-full rounded-lg text-[13px] font-medium transition-all duration-200 group ${isCollapsed ? 'justify-center px-2 py-2 lg:px-2' : 'px-3 py-2'} ${isActive ? 'text-surface-900 bg-chrome-hover' : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'}`}
               >
                 <span className="flex-shrink-0 text-surface-500 group-hover:text-surface-900">
                   {link.icon}

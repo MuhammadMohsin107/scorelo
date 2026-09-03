@@ -88,7 +88,7 @@ export default function InvestigationDrawer({ finding, evidence, selectedRows = 
         role="dialog"
         aria-modal="true"
         aria-labelledby="sp-drawer-title"
-        className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl motion-safe:animate-scale-in"
+        className="relative flex h-full w-full max-w-lg flex-col bg-surface-0 shadow-2xl motion-safe:animate-scale-in"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-surface-200 px-6 py-5">

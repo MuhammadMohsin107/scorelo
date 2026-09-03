@@ -82,7 +82,7 @@ function renderField(field: PageSettingField, value: PageSettingValue, onChange:
           maxLength={field.maxLength}
           placeholder={field.placeholder}
           onChange={(event) => onChange(event.target.value)}
-          className="mt-2 min-h-[96px] w-full rounded-lg border border-surface-200 bg-white px-3 py-2.5 text-sm text-surface-900 outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+          className="mt-2 min-h-[96px] w-full rounded-lg border border-surface-200 bg-surface-0 px-3 py-2.5 text-sm text-surface-900 outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
         />
         <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-surface-500">
           <span>{field.description}</span>
@@ -127,7 +127,7 @@ export default function PageSettingsPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby="page-settings-title"
-        className="relative flex h-full w-full max-w-2xl flex-col border-l border-surface-200 bg-white shadow-2xl"
+        className="relative flex h-full w-full max-w-2xl flex-col border-l border-surface-200 bg-surface-0 shadow-2xl"
       >
         <header className="flex items-start justify-between gap-4 border-b border-surface-200 px-5 py-5 sm:px-6">
           <div>

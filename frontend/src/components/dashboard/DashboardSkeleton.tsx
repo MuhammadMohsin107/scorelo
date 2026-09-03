@@ -3,7 +3,7 @@
  * Mirrors the live layout (header → hero + trend → pillar cards →
  * issues + actions) so nothing jumps when data arrives.
  */
-const card = 'rounded-2xl border border-surface-200/80 bg-white';
+const card = 'rounded-2xl border border-surface-200/80 bg-surface-0';
 
 export default function DashboardSkeleton() {
   return (

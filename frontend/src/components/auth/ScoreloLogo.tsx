@@ -7,13 +7,13 @@ interface ScoreloLogoProps {
 
 /** The Scorelo lockup — same mark, wordmark and tagline as the app sidebar. */
 export default function ScoreloLogo({ tone = 'light' }: ScoreloLogoProps) {
-  const wordmark = tone === 'dark' ? 'text-white' : 'text-[#101828]';
-  const accent = tone === 'dark' ? 'text-[#a5b4fc]' : 'text-[#5b4ee4]';
+  const wordmark = tone === 'dark' ? 'text-white' : 'text-logo-text';
+  const accent = tone === 'dark' ? 'text-brand-300' : 'text-logo-mark';
   const tagline = tone === 'dark' ? 'text-white/45' : 'text-surface-400';
 
   return (
     <span className="inline-flex items-center gap-3">
-      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px] bg-[#5b4ee4] text-white shadow-sm">
+      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px] bg-logo-mark text-white shadow-sm">
         <BarChart3 size={17} strokeWidth={2.5} aria-hidden="true" />
       </span>
       <span className="flex flex-col justify-center">

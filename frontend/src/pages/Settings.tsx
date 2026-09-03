@@ -34,6 +34,8 @@ import { initialsFor } from '../data/user.repository';
 import { ApiError } from '../lib/api';
 import { Button, ModuleHeader, StatusBadge } from '../components/workflows/WorkflowPrimitives';
 import ProfileSection from '../components/settings/ProfileSection';
+import SecuritySection from '../components/settings/SecuritySection';
+import { useTheme, type ThemePreference } from '../context/ThemeContext';
 import {
   ConfirmDialog,
   Field,
@@ -82,6 +84,10 @@ const SECTIONS: SectionMeta[] = [
   { id: 'danger', label: 'Danger zone', group: 'Platform', icon: ShieldAlert, title: 'Danger zone', description: 'Irreversible actions that affect this workspace.', keywords: 'delete disconnect remove destroy reset' },
 ];
 
+/** The select shows words; the context stores keys. Mapped in one place, both directions. */
+const themeLabel: Record<ThemePreference, 'System' | 'Light' | 'Dark'> = { system: 'System', light: 'Light', dark: 'Dark' };
+const labelToPreference: Record<'System' | 'Light' | 'Dark', ThemePreference> = { System: 'system', Light: 'light', Dark: 'dark' };
+
 const GROUP_ORDER: SectionMeta['group'][] = ['Account', 'Workspace', 'Platform'];
 
 /** Sections whose fields feed the draft the save bar writes. The rest read live data or are
@@ -93,6 +99,7 @@ const isDomain = (value: string) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(value.trim(
 
 export default function Settings() {
   const { section } = useParams<{ section?: string }>();
+  const { preference, setPreference } = useTheme();
   const navigate = useNavigate();
 
   const [saved, setSaved] = useState<SettingsState | null>(null);
@@ -232,7 +239,7 @@ export default function Settings() {
         <nav className="lg:sticky lg:top-6" aria-label="Settings sections">
           {/* Identity header: the same monogram the app header renders, so the settings nav
               is visibly anchored to the account being edited. */}
-          <div className="mb-3 hidden items-center gap-3 rounded-xl border border-surface-200 bg-white p-3 lg:flex">
+          <div className="mb-3 hidden items-center gap-3 rounded-xl border border-surface-200 bg-surface-0 p-3 lg:flex">
             <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">
               {initialsFor(draft.profile.fullName)}
             </span>
@@ -259,7 +266,7 @@ export default function Settings() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search settings…"
-              className="w-full rounded-lg border border-surface-200 bg-white py-2 pl-8 pr-8 text-sm outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-surface-200 bg-surface-0 py-2 pl-8 pr-8 text-sm outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             />
             {search && (
               <button
@@ -282,7 +289,7 @@ export default function Settings() {
                 onClick={() => navigate(`/settings/${item.id}`)}
                 aria-current={active === item.id ? 'page' : undefined}
                 className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
-                  active === item.id ? 'bg-slate-950 text-white' : 'border border-surface-200 bg-white text-surface-600'
+                  active === item.id ? 'bg-surface-950 text-surface-0' : 'border border-surface-200 bg-surface-0 text-surface-600'
                 }`}
               >
                 <item.icon size={13} aria-hidden="true" />
@@ -366,7 +373,7 @@ export default function Settings() {
               <h2 className="text-xl font-bold tracking-tight text-surface-950">{activeMeta.title}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-surface-500">{activeMeta.description}</p>
             </div>
-            <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-surface-600">
+            <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-[11px] font-bold text-surface-600">
               <activeMeta.icon size={13} aria-hidden="true" className="text-surface-400" />
               {activeMeta.group}
             </span>
@@ -631,6 +638,25 @@ export default function Settings() {
 
             {active === 'appearance' && (
               <SettingsCard title="Interface" description="Presentation preferences for this workspace.">
+                {/* Theme is stored per browser, not per account: it is a property of the screen
+                    you are looking at, not of who you are, and the same person on a laptop and a
+                    phone can reasonably want different answers. That is also why it needs no
+                    column and no migration. */}
+                <Field
+                  label="Theme"
+                  htmlFor="theme"
+                  hint="System follows your operating system and keeps following it when that changes."
+                  className="max-w-xs"
+                >
+                  <SelectInput
+                    id="theme"
+                    value={themeLabel[preference]}
+                    options={['System', 'Light', 'Dark'] as const}
+                    onChange={(value) => setPreference(labelToPreference[value])}
+                    describedBy="theme-hint"
+                  />
+                </Field>
+                <div className="mt-5 border-t border-surface-100 pt-5" />
                 <Field label="Density" htmlFor="density" hint="Compact reduces padding in tables and lists." className="max-w-xs">
                   <SelectInput
                     id="density"
@@ -649,37 +675,16 @@ export default function Settings() {
                     onChange={(next) => update('appearance', { reduceMotion: next })}
                   />
                 </div>
-                <div className="mt-4">
-                  <PreviewNotice>
-                    Scorelo currently ships a single light theme, tuned for long analysis sessions. A dark theme is not
-                    available in this build.
-                  </PreviewNotice>
-                </div>
               </SettingsCard>
             )}
 
-            {active === 'security' && (
-              <>
-                <SettingsCard title="Authentication" description="How you sign in to Scorelo.">
-                  <PreviewNotice>
-                    This build runs without an authentication backend, so password and session management are shown for
-                    reference and cannot be changed here.
-                  </PreviewNotice>
-                  <div className="mt-4">
-                    <ReadOnlyRow label="Sign-in method" value="Email and password" hint="Managed by your workspace owner" />
-                    <ReadOnlyRow label="Password" value="Last changed 30 days ago" />
-                    <ReadOnlyRow label="Two-factor authentication" value={<StatusBadge label="Not enabled" tone="warning" />} />
-                  </div>
-                </SettingsCard>
-
-                <SettingsCard title="Active sessions" description="Devices currently signed in to this account.">
-                  <div>
-                    <ReadOnlyRow label="This device" value={<StatusBadge label="Current session" tone="success" />} hint="Windows · Chrome" />
-                    <ReadOnlyRow label="Last sign-in" value="Today, 09:14 AM" hint="Karachi, Pakistan" />
-                  </div>
-                </SettingsCard>
-              </>
-            )}
+            {/* Every value here used to be a string literal — "Last changed 30 days ago",
+                "Windows · Chrome", "Today, 09:14 AM", "Karachi, Pakistan" — presented as fact
+                about the customer's own account with nothing behind it. The PreviewNotice that
+                excused them ("this build runs without an authentication backend") had also become
+                untrue. SecuritySection reads real sessions and real events from the database, and
+                shows an honest empty state when there are none. */}
+            {active === 'security' && <SecuritySection />}
 
             {active === 'billing' && <BillingSection />}
 
@@ -845,7 +850,7 @@ function BillingSection() {
 function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisconnect: () => void }) {
   return (
     <>
-      <section className="overflow-hidden rounded-xl border border-critical-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-critical-200 bg-surface-0">
         <div className="border-b border-critical-100 bg-critical-50/60 px-5 py-4 sm:px-6">
           <h3 className="text-base font-bold tracking-tight text-critical-900">Irreversible actions</h3>
           <p className="mt-1 text-sm leading-6 text-critical-700">

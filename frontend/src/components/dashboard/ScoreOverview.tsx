@@ -33,7 +33,7 @@ function ScoreRing({ score, hex, measured }: { score: number; hex: string; measu
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#f4f4f5"
+          className="stroke-surface-100"
           strokeWidth={stroke}
           strokeDasharray={measured ? undefined : '4 7'}
         />

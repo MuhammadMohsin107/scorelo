@@ -6,71 +6,87 @@ export default {
   ],
   theme: {
     extend: {
+      // ─── Theme tokens ───────────────────────────────────────────────
+      // EVERY colour resolves through a CSS variable rather than a literal. That indirection is
+      // what makes one theme system serve the whole app: `bg-surface-50` and `text-surface-900`
+      // are already written into 500+ places across 64 components, and because they now read a
+      // variable, flipping that variable in index.css switches all of them at once. No component
+      // carries a `dark:` variant, and no page has its own copy of the palette.
+      //
+      // THE SURFACE RAMP IS SEMANTIC, NOT LITERAL. 50 means "page background" and 950 means
+      // "strongest text" — which is why dark mode inverts the ramp instead of inventing a second
+      // scale. See index.css for the two sets of values.
+      //
+      // Light-mode values are unchanged from before this system existed, so the existing design is
+      // the baseline exactly as it was.
       colors: {
         brand: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5', // Primary brand accent
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50:  'var(--c-brand-50)',
+          100: 'var(--c-brand-100)',
+          200: 'var(--c-brand-200)',
+          300: 'var(--c-brand-300)',
+          400: 'var(--c-brand-400)',
+          500: 'var(--c-brand-500)',
+          600: 'var(--c-brand-600)', // Primary brand accent
+          700: 'var(--c-brand-700)',
+          800: 'var(--c-brand-800)',
+          900: 'var(--c-brand-900)',
+          950: 'var(--c-brand-950)',
         },
         surface: {
-          50:  '#fafafa', // Extremely clean, bright background
-          100: '#f4f4f5',
-          200: '#e4e4e7',
-          300: '#d4d4d8',
-          400: '#a1a1aa',
-          500: '#71717a',
-          600: '#52525b',
-          700: '#3f3f46',
-          800: '#27272a',
-          900: '#18181b',
-          950: '#09090b', // Near black text
+          // 0 is new: the raised sheet a card sits on. White in light, a lifted grey in dark —
+          // which is what `bg-white` used to hardcode and could never adapt.
+          0:   'var(--c-surface-0)',
+          50:  'var(--c-surface-50)',
+          100: 'var(--c-surface-100)',
+          200: 'var(--c-surface-200)',
+          300: 'var(--c-surface-300)',
+          400: 'var(--c-surface-400)',
+          500: 'var(--c-surface-500)',
+          600: 'var(--c-surface-600)',
+          700: 'var(--c-surface-700)',
+          800: 'var(--c-surface-800)',
+          900: 'var(--c-surface-900)',
+          950: 'var(--c-surface-950)',
         },
         success: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
+          50:  'var(--c-success-50)',
+          100: 'var(--c-success-100)',
+          500: 'var(--c-success-500)',
+          600: 'var(--c-success-600)',
+          700: 'var(--c-success-700)',
         },
         warning: {
-          50: '#fefce8',
-          100: '#fef9c3',
-          500: '#eab308',
-          600: '#ca8a04',
-          700: '#a16207',
+          50:  'var(--c-warning-50)',
+          100: 'var(--c-warning-100)',
+          500: 'var(--c-warning-500)',
+          600: 'var(--c-warning-600)',
+          700: 'var(--c-warning-700)',
         },
         critical: {
-          50: '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c',
+          50:  'var(--c-critical-50)',
+          100: 'var(--c-critical-100)',
+          200: 'var(--c-critical-200)',
+          300: 'var(--c-critical-300)',
+          400: 'var(--c-critical-400)',
+          500: 'var(--c-critical-500)',
+          600: 'var(--c-critical-600)',
+          700: 'var(--c-critical-700)',
         },
         info: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
+          50:  'var(--c-info-50)',
+          100: 'var(--c-info-100)',
+          500: 'var(--c-info-500)',
+          600: 'var(--c-info-600)',
+          700: 'var(--c-info-700)',
         },
         sidebar: {
-          DEFAULT: '#0f172a', // Deep Slate
-          hover: '#1e293b',
-          active: '#1e293b',
-          border: '#1e293b',
-          text: '#94a3b8',
-          'text-active': '#ffffff',
+          DEFAULT: 'var(--c-sidebar)',
+          hover: 'var(--c-sidebar-hover)',
+          active: 'var(--c-sidebar-active)',
+          border: 'var(--c-sidebar-border)',
+          text: 'var(--c-sidebar-text)',
+          'text-active': 'var(--c-sidebar-text-active)',
         },
       },
       fontFamily: {

@@ -91,7 +91,7 @@ export default function AuthLayout({
       </aside>
 
       {/* ── Form panel ──────────────────────────────────────────────────── */}
-      <main className="relative flex items-center justify-center overflow-y-auto bg-[#f8f9fc] px-5 py-10 sm:px-8 lg:px-14">
+      <main className="relative flex items-center justify-center overflow-y-auto bg-surface-50 px-5 py-10 sm:px-8 lg:px-14">
         {/* Subtle tinted ambient blobs for the form side */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="auth-aurora absolute -right-20 -top-16 h-72 w-72 rounded-full bg-indigo-100 opacity-70 blur-[90px]" />

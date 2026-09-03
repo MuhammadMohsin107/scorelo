@@ -121,17 +121,34 @@ export default function Signup() {
 
     setPending(true);
     try {
-      await signup({
+      const email = values.email.trim().toLowerCase();
+      const result = await signup({
         // The backend stores one `fullName`, so the two inputs are composed here rather than
         // adding columns the product does not need.
         fullName: `${values.firstName.trim()} ${values.lastName.trim()}`,
-        email: values.email.trim(),
+        email,
         password: values.password,
         rememberMe,
       });
-      navigate('/', { replace: true });
+
+      // Where to go next is the SERVER's answer, not a local guess. When verification is enforced
+      // no session was created, so landing on the dashboard would only bounce straight back out.
+      // The address travels in router state rather than the URL — it is not a secret, but it does
+      // not belong in browser history or a referrer header either.
+      if (result.needsVerification) {
+        navigate('/verify-email', {
+          replace: true,
+          state: { email, verificationSent: result.verificationSent },
+        });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (error) {
-      if (error instanceof ApiError && error.code === 'EMAIL_TAKEN') {
+      if (error instanceof ApiError && error.code === 'EMAIL_DELIVERY_UNAVAILABLE') {
+        // Nothing was created — the server refused before writing, precisely so there is no
+        // unverifiable account left behind. Say that plainly rather than blaming the details.
+        setFormError('We cannot create accounts right now because verification email is unavailable. Please try again shortly.');
+      } else if (error instanceof ApiError && error.code === 'EMAIL_TAKEN') {
         setFieldErrors({ email: 'An account with this email already exists.' });
         setFocusRequest((count) => count + 1);
       } else if (error instanceof ApiError && error.status === 400) {

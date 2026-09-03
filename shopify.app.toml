@@ -52,7 +52,7 @@ scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_pol
 # /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install would finish the
 # install without ever handing Scorelo the `code`, so handleShopifyCallback would never run and
 # no access token would ever be stored.
-use_legacy_install_flow = false
+use_legacy_install_flow = true 
 
 [auth]
 # Each entry must match redirectUri in buildInstallUrl() exactly, for the BACKEND_URL that
@@ -74,14 +74,21 @@ redirect_urls = [
 # silently changes payload shapes.
 api_version = "2026-07"
 
-  # Registered programmatically at install time by registerAppUninstalledWebhook()
-  # (backend/src/services/shopify-webhook.service.ts:37), which builds its callbackUrl from
-  # BACKEND_URL. Declared here so the CLI-managed config matches what the code registers.
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "https://scorelo-staging.tlxapps.com/api/shopify/webhooks/app-uninstalled"
+  # app/uninstalled is NOT declared here, deliberately.
+  #
+  # Shopify allows app-specific webhook subscriptions (a [[webhooks.subscriptions]] block) only
+  # with managed installation. This app uses `use_legacy_install_flow = true` above — it has to,
+  # because Scorelo needs the authorization `code` — and the legacy flow requires SHOP-specific
+  # webhooks instead: registered per shop, at runtime, through the Admin API. Declaring both makes
+  # `shopify app deploy` refuse the release outright.
+  #
+  # That is exactly what Scorelo already does: registerAppUninstalledWebhook()
+  # (backend/src/services/shopify-webhook.service.ts:35) creates the subscription during install,
+  # building its callbackUrl from BACKEND_URL. So the topic is covered — just by the code rather
+  # than by this file.
 
-  # The three mandatory GDPR endpoints. Handlers at backend/src/routes/shopify.ts:39-41, verified
+  # The three mandatory GDPR endpoints. These are app-level compliance URLs rather than webhook
+  # subscriptions, so they are unaffected by the install-flow rule above. Handlers at backend/src/routes/shopify.ts:39-41, verified
   # by per-request HMAC rather than a session. Shopify calls these from its OWN servers, so they
   # must stay on a public https origin — localhost can never receive them.
   [webhooks.privacy_compliance]

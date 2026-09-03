@@ -75,7 +75,106 @@ export const users = mysqlTable('users', {
   // Appearance (Settings → Appearance)
   density: varchar('density', { length: 32 }).notNull().default('Comfortable'),
   reduceMotion: boolean('reduce_motion').notNull().default(false),
+  /**
+   * When the password was last changed. NULL for every account that predates this column, and it
+   * stays NULL rather than being backfilled — "we do not know" is the truth for those accounts,
+   * and stamping them with a made-up date would be exactly the fabrication the Security page
+   * exists to stop showing. The UI renders "Not recorded" until a real change happens.
+   *
+   * Written by security.service.changePassword() and by a completed password reset.
+   */
+  passwordChangedAt: datetime('password_changed_at', { mode: 'date' }),
+  /**
+   * When email one-time-code 2FA was switched on. NULL means off, which is every account's
+   * default — 2FA is opt-in and nothing enables it on a customer's behalf.
+   *
+   * There is no secret stored here. This is EMAIL 2FA: the second factor is control of the
+   * verified inbox, which the account already proves through `email_verified_at`. An
+   * authenticator-app secret would be a different mechanism needing its own encrypted column.
+   */
+  twoFactorEnabledAt: datetime('two_factor_enabled_at', { mode: 'date' }),
 });
+
+// ─── user_sessions ───────────────────────────────────────────────────
+// One row per signed-in device. THIS is the authoritative refresh-credential store from Phase 2
+// onward.
+//
+// WHY A TABLE: `users.refresh_token_hash` held exactly one value, overwritten by every login, so
+// signing in anywhere silently ended the session everywhere else. A row per session is what makes
+// "these are your devices", "sign this one out" and "sign out everywhere else" expressible at all.
+//
+// The legacy columns on `users` are deliberately NOT dropped — they stay for rollback. They are no
+// longer read once this table is live, which means a refresh token issued before the cutover has
+// no session row and will be rejected. That signs existing customers out once. No row is invented
+// to avoid it: a fabricated session would claim a device and a time nobody can vouch for.
+//
+// SECURITY: token_hash is SHA-256 of the refresh token — the same construction auth.service and
+// password-reset already use, and correct here because a JWT is high-entropy, so there is nothing
+// for a slow hash to protect and lookup must stay an indexed point-read. The raw token is never
+// stored, never logged.
+//
+// ip_address and user_agent are recorded ONLY when the request actually carries them, and are NULL
+// otherwise. There is no device column and no location column: both would be guesses.
+export const userSessions = mysqlTable(
+  'user_sessions',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    userId: int('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** SHA-256 hex of the refresh token. Unique so a lookup is an indexed point-read. */
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+    /** Stamped on every successful refresh — what "last active" on the Security page means. */
+    lastUsedAt: datetime('last_used_at', { mode: 'date' }).notNull().default(now),
+    expiresAt: datetime('expires_at', { mode: 'date' }).notNull(),
+    /** Non-null == revoked, and revoked is forever. Rows are kept rather than deleted so a
+     * revocation stays visible in the customer's own security history. */
+    revokedAt: datetime('revoked_at', { mode: 'date' }),
+    /** Real client IP when the request carries one. 45 chars fits an IPv6 address. NULL when
+     * genuinely unavailable — never a placeholder. */
+    ipAddress: varchar('ip_address', { length: 45 }),
+    /** Real User-Agent header, truncated. NULL when the request sent none. */
+    userAgent: varchar('user_agent', { length: 512 }),
+  },
+  (table) => [
+    uniqueIndex('user_sessions_token_hash_idx').on(table.tokenHash),
+    index('user_sessions_user_idx').on(table.userId, table.revokedAt),
+  ],
+);
+
+// ─── security_events ─────────────────────────────────────────────────
+// An append-only record of security-relevant actions, shown to the customer on Settings → Security.
+//
+// EVERY ROW COMES FROM A REAL BACKEND ACTION. Nothing seeds this table, nothing backfills it, and
+// an account that has done nothing shows an empty history rather than an invented one.
+//
+// SECURITY: `metadata` describes WHAT HAPPENED, never the credential involved. No password, OTP,
+// refresh token, access token, reset ticket or hash is ever written here — see
+// security-event.service.ts, which is the only writer, precisely so that rule holds in one place.
+export const securityEvents = mysqlTable(
+  'security_events',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    userId: int('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 32 }).notNull(),
+    /** Real client IP when available, else NULL. */
+    ipAddress: varchar('ip_address', { length: 45 }),
+    userAgent: varchar('user_agent', { length: 512 }),
+    /** Small, non-secret context — e.g. how many sessions a revoke-others ended. */
+    metadata: json('metadata').$type<Record<string, unknown>>(),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+  },
+  (table) => [
+    index('security_events_user_created_idx').on(table.userId, table.createdAt),
+    check(
+      'security_events_type_valid',
+      sql`${table.type} IN ('login_success', 'login_failed', 'logout', 'password_changed', 'password_reset', 'email_verified', 'session_revoked', 'sessions_revoked', 'two_factor_enabled', 'two_factor_disabled')`,
+    ),
+  ],
+);
 
 // ─── password_reset_tokens ───────────────────────────────────────────
 // One row per password-reset request.
@@ -105,6 +204,62 @@ export const passwordResetTokens = mysqlTable(
   (table) => [
     uniqueIndex('password_reset_tokens_hash_idx').on(table.tokenHash),
     index('password_reset_tokens_user_idx').on(table.userId),
+  ],
+);
+
+// ─── auth_challenges ─────────────────────────────────────────────────
+// One row per short-lived credential issued to a user out of band: the email-verification code,
+// the password-reset code, and the high-entropy ticket that code exchanges into.
+//
+// ONE TABLE, THREE PURPOSES, on purpose. Each of these needs exactly the same lifecycle —
+// issued → (attempts) → consumed, or expired — and giving each its own table would triple the
+// code that enforces expiry, single-use and attempt limits, which is precisely the code that
+// must not be reimplemented slightly differently three times.
+//
+// `password_reset_tokens` is deliberately NOT replaced by this table. It still backs the legacy
+// emailed ?token= links for one release; new resets flow through here. See password-reset.service.
+//
+// SECURITY: `code_hash` is never a plaintext code. A 6-digit OTP is bcrypt-hashed (only a million
+// values exist, so the hash itself has to be slow); a 256-bit ticket is SHA-256 (nothing to slow
+// down). lib/otp.ts owns that distinction. Lookup is always by (user_id, purpose) — never by
+// hash — so bcrypt's per-row salt is not a problem.
+//
+// This table is NOT a second-factor mechanism. Proving control of an email address is not the
+// same claim as presenting a second authentication factor, and no purpose here issues a session.
+export const authChallenges = mysqlTable(
+  'auth_challenges',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    userId: int('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    purpose: varchar('purpose', { length: 32 }).notNull(),
+    /** bcrypt for OTPs, SHA-256 hex for tickets. Never a raw credential. */
+    codeHash: varchar('code_hash', { length: 255 }).notNull(),
+    expiresAt: datetime('expires_at', { mode: 'date' }).notNull(),
+    /** Incremented on every failed verification. Reaching maxAttempts kills the challenge. */
+    attempts: int('attempts').notNull().default(0),
+    maxAttempts: int('max_attempts').notNull().default(5),
+    /** Non-null == spent, and spent is forever. Set on success, on supersede, and on exhaustion. */
+    consumedAt: datetime('consumed_at', { mode: 'date' }),
+    // ─── Delivery lifecycle ───────────────────────────────────────────
+    // Without these the system cannot answer "did this code ever leave the building?", and a
+    // customer staring at an empty inbox is indistinguishable from one who mistyped an address.
+    sentAt: datetime('sent_at', { mode: 'date' }),
+    deliveryAttempts: int('delivery_attempts').notNull().default(0),
+    /** Transport error message only. Never an address, never a code. */
+    lastDeliveryError: varchar('last_delivery_error', { length: 255 }),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+  },
+  (table) => [
+    index('auth_challenges_lookup_idx').on(table.userId, table.purpose, table.consumedAt),
+    check(
+      'auth_challenges_purpose_valid',
+      // login_2fa / login_2fa_ticket are the Phase 3 pair, and they mirror the reset pair exactly:
+      // a low-entropy code proves inbox control, and it exchanges into a high-entropy ticket that
+      // is what the second step actually redeems. The code alone never completes a login.
+      sql`${table.purpose} IN ('email_verification', 'password_reset', 'password_reset_ticket', 'login_2fa', 'login_2fa_ticket')`,
+    ),
   ],
 );
 
