@@ -227,7 +227,7 @@ describe('challenge lifecycle reporting', () => {
   });
 
   it('exposes no credential field at all', () => {
-    const row = toAdminChallengeRow(base) as Record<string, unknown>;
+    const row = toAdminChallengeRow(base) as unknown as Record<string, unknown>;
     for (const key of ['codeHash', 'code_hash', 'code', 'ticket']) {
       assert.equal(key in row, false, `challenge row exposed ${key}`);
     }
