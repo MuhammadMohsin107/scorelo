@@ -164,7 +164,7 @@ export const titleTagsCheck: AuditCheck = {
       // Deterministic recommendation from the page's own text — null (omitted) when no rule
       // can produce a defensible value, e.g. duplicates. See checks/shared/recommend.ts.
       const suggestion = status === TOO_LONG || status === TOO_SHORT
-        ? suggestTitle(title, snapshot.shop.name, MIN_TITLE_LENGTH, MAX_TITLE_LENGTH)
+        ? suggestTitle(title, MAX_TITLE_LENGTH)
         : null;
 
       rows.push({
