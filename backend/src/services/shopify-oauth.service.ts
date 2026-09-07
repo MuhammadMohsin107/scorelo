@@ -295,16 +295,68 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
 
   const [existingConnection] = await db.select().from(shopifyConnections).where(eq(shopifyConnections.shopDomain, shop)).limit(1);
 
-  let storeId: number;
+  /**
+   * The connection row this install should reuse, or null when it must create a fresh one.
+   *
+   * Null after a LAPSED claim is released below — the shop then follows the same path as a shop
+   * Scorelo has never seen, which is what gives the new owner their own store row instead of
+   * inheriting someone else's.
+   */
+  let connectionToReuse: typeof shopifyConnections.$inferSelect | null = existingConnection ?? null;
+
   if (existingConnection) {
-    // The shop_domain unique index means one myshopify domain maps to exactly one store. If that
-    // store belongs to someone else, this is a different Scorelo account trying to attach a shop
-    // that is already claimed — refuse rather than silently hand over, or silently do nothing.
+    // The shop_domain unique index means one myshopify domain maps to exactly one store.
     const [owningStore] = await db.select().from(stores).where(eq(stores.id, existingConnection.storeId)).limit(1);
-    if (!owningStore || owningStore.ownerId !== statePayload.sub) {
-      throw new ApiError(409, 'This Shopify store is already connected to a different Scorelo account', 'SHOPIFY_SHOP_ALREADY_CLAIMED');
+    const ownedByCaller = Boolean(owningStore) && owningStore!.ownerId === statePayload.sub;
+
+    if (!ownedByCaller) {
+      /**
+       * ─── A live claim is a real conflict; an uninstalled one is not ──
+       *
+       * If the other account's connection is still installed, two Scorelo accounts genuinely want
+       * the same shop and handing it over silently would take a working store away from whoever
+       * set it up. That is refused, as before.
+       *
+       * But an UNINSTALLED connection is a claim that has already lapsed. The merchant removed
+       * Scorelo from that shop's admin, so the stored token is dead and the row does nothing
+       * except block the shop forever — including from the same person signing up again. Nothing
+       * cleared it: handleAppUninstalled only stamps `uninstalledAt`, and this check never read
+       * that column, so "uninstall, then reconnect from a new account" was impossible.
+       *
+       * The stale row is therefore released. What is NOT released is the previous owner's data:
+       * their `stores` row and every audit under it stay exactly where they are. They lose a
+       * Shopify connection they had already removed themselves — nothing more.
+       */
+      if (!existingConnection.uninstalledAt) {
+        throw new ApiError(409, 'This Shopify store is already connected to a different Scorelo account', 'SHOPIFY_SHOP_ALREADY_CLAIMED');
+      }
+
+      // Only the credential row goes. `stores` is the parent of this FK, so deleting a connection
+      // cannot cascade into the previous owner's store or its audits.
+      await db.delete(shopifyConnections).where(eq(shopifyConnections.id, existingConnection.id));
+
+      if (owningStore) {
+        // Their Integrations page must stop showing a connection that no longer exists, and say
+        // why in words a merchant can act on.
+        await db
+          .update(integrations)
+          .set({
+            status: 'not_connected',
+            accountDetail: null,
+            lastSyncedAt: null,
+            notice: 'This shop was reconnected from a different Scorelo account. Your previous audits are unchanged.',
+          })
+          .where(and(eq(integrations.storeId, owningStore.id), eq(integrations.provider, 'shopify')));
+      }
+
+      console.log(`[scorelo-api] shopify: released lapsed claim on ${shop} (was store ${existingConnection.storeId}, uninstalled ${existingConnection.uninstalledAt.toISOString()})`);
+      connectionToReuse = null;
     }
-    storeId = existingConnection.storeId;
+  }
+
+  let storeId: number;
+  if (connectionToReuse) {
+    storeId = connectionToReuse.storeId;
     await db
       .update(shopifyConnections)
       .set({
@@ -314,9 +366,12 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
         refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
         scope: tokens.scope,
         shopGid: identity.gid,
+        // Clears the uninstall stamp: this IS the reinstall. Keyed off connectionToReuse rather
+        // than existingConnection, because a released claim leaves the latter pointing at a row
+        // that has just been deleted.
         uninstalledAt: null,
       })
-      .where(eq(shopifyConnections.id, existingConnection.id));
+      .where(eq(shopifyConnections.id, connectionToReuse.id));
   } else {
     storeId = await resolveStoreForInstall(statePayload.sub, shop, identity.name);
     await db.insert(shopifyConnections).values({

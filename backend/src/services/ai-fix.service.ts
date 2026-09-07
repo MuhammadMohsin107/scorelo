@@ -2,9 +2,9 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { updateReturning } from '../db/returning.js';
 import { aiFixProposals, audits, findings, stores } from '../db/schema.js';
-import { aiConfigured, env } from '../config/env.js';
+import { aiConfigured, aiModelName, env } from '../config/env.js';
 import { ApiError } from '../middleware/error.js';
-import { openAiProvider } from '../lib/ai/openai.provider.js';
+import { aiProvider } from '../lib/ai/index.js';
 import type { AiProvider, FixTarget } from '../lib/ai/provider.js';
 import {
   FIELD_RULES,
@@ -38,7 +38,8 @@ import { getCurrentStoreId } from './store.service.js';
  * exist yet — so this service does not pretend to have applied anything it has not.
  */
 
-const provider: AiProvider = openAiProvider;
+// Resolved per call from AI_PROVIDER, so the vendor is a deployment choice rather than an import.
+const provider = (): AiProvider => aiProvider();
 
 /** Resources sent to the model in one request. Bounds cost and keeps the completion inside its
  * token budget; a finding affecting more than this is proposed for in batches. */
@@ -226,7 +227,7 @@ export async function planAiFixes(
 
   const storeId = (await storeIdForFinding(findingId)) ?? (await getCurrentStoreId(userId, options.storeId));
 
-  const result = await provider.planFix({
+  const result = await provider().planFix({
     findingTitle: finding.title,
     problem: finding.problem,
     field: rule.field,
@@ -472,7 +473,7 @@ export async function planAiFixesForFindings(
 export function aiFixStatus(): { enabled: boolean; model: string | null; fixableSubPillars: string[] } {
   return {
     enabled: aiConfigured(),
-    model: aiConfigured() ? env.openaiModel : null,
+    model: aiConfigured() ? aiModelName() : null,
     fixableSubPillars: Object.values(FIELD_RULES).map((rule) => rule.subPillar),
   };
 }

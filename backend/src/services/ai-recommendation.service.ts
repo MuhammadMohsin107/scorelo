@@ -2,8 +2,8 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { updateReturning } from '../db/returning.js';
 import { audits, findings, stores } from '../db/schema.js';
-import { aiConfigured, env } from '../config/env.js';
-import { openAiProvider } from '../lib/ai/openai.provider.js';
+import { aiConfigured, aiModelName, env } from '../config/env.js';
+import { aiProvider } from '../lib/ai/index.js';
 import type { AiProvider, RecommendationContext } from '../lib/ai/provider.js';
 import { getFinding } from './finding.service.js';
 
@@ -23,7 +23,8 @@ import { getFinding } from './finding.service.js';
  */
 
 /** Swappable for tests and for a future second vendor; the service knows only the interface. */
-const provider: AiProvider = openAiProvider;
+// Resolved per call from AI_PROVIDER, so the vendor is a deployment choice rather than an import.
+const provider = (): AiProvider => aiProvider();
 
 export interface AiRecommendationResult {
   findingId: number;
@@ -123,7 +124,7 @@ export async function getAiRecommendation(
     .where(eq(findings.id, finding.id))
     .limit(1);
 
-  const result = await provider.enhance(buildContext(finding, row?.name ?? null));
+  const result = await provider().enhance(buildContext(finding, row?.name ?? null));
 
   if (!result.ok) {
     // Reason is recorded for operators; the customer is told only that AI was unavailable.
@@ -145,7 +146,7 @@ export async function getAiRecommendation(
 /** Whether the server can attempt AI at all — lets the UI hide the action instead of offering
  * something guaranteed to fail. Exposes capability only, never the key. */
 export function aiRecommendationStatus(): { enabled: boolean; model: string | null } {
-  return { enabled: aiConfigured(), model: aiConfigured() ? env.openaiModel : null };
+  return { enabled: aiConfigured(), model: aiConfigured() ? aiModelName() : null };
 }
 
 /** Re-exported for the audit runner should it ever want to clear stale AI text in bulk. */

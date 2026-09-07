@@ -59,6 +59,31 @@ export const env = {
   openaiApiKey: process.env.OPENAI_API_KEY,
   /** Cost-efficient default; override per environment. Never hard-code a model at a call site. */
   openaiModel: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+  /**
+   * Which vendor serves AI requests: 'openai' (default) or 'gemini'.
+   *
+   * Defaults to openai so an existing deployment keeps working untouched. Setting AI_PROVIDER
+   * alone is not enough — the chosen provider must also have its key, which is what
+   * aiConfigured() checks.
+   */
+  aiProvider: (process.env.AI_PROVIDER ?? 'openai').trim().toLowerCase(),
+  /**
+   * Google AI Studio key for the Gemini provider (aistudio.google.com).
+   *
+   * `GEMINI_API_KEY` is accepted as an alias because that is the name Google's own examples use,
+   * and an operator who copies one of those into .env should not have to discover that Scorelo
+   * spells it differently.
+   */
+  geminiApiKey: process.env.AI_API_KEY ?? process.env.GEMINI_API_KEY,
+  /**
+   * Flash-Lite by default, and deliberately not a Gemini 3 model.
+   *
+   * Verified against a live key: gemini-flash-lite-latest returned valid structured JSON in about
+   * a second, while gemini-3.6-flash spent its whole output budget on thinking tokens and came
+   * back with a truncated body. Scorelo needs short, schema-shaped answers inside a request, which
+   * is exactly what Flash-Lite is for.
+   */
+  geminiModel: process.env.AI_MODEL ?? 'gemini-flash-lite-latest',
   /** Kill switch that works even when a key is present — set to 'false' to stop all AI calls. */
   aiRecommendationsEnabled: process.env.AI_RECOMMENDATIONS_ENABLED !== 'false',
   // ─── Storefront crawler ─────────────────────────────────────────────
@@ -91,12 +116,25 @@ export function crawlConfigured(): boolean {
   return env.crawlEnabled && env.crawlMaxPages > 0;
 }
 
+/** The key belonging to the selected provider, or undefined when it is not configured. */
+export function aiProviderKey(): string | undefined {
+  return env.aiProvider === 'gemini' ? env.geminiApiKey : env.openaiApiKey;
+}
+
+/** The model the selected provider will use. Surfaced to the UI; never the key. */
+export function aiModelName(): string {
+  return env.aiProvider === 'gemini' ? env.geminiModel : env.openaiModel;
+}
+
 /**
  * True only when AI enhancement should actually be attempted. Both a key AND the flag are
  * required, so an operator can disable spend instantly without removing credentials.
+ *
+ * The key checked is the SELECTED provider's: setting AI_PROVIDER=gemini while only an OpenAI key
+ * is present must read as "not configured" rather than quietly calling the wrong vendor.
  */
 export function aiConfigured(): boolean {
-  return Boolean(env.openaiApiKey) && env.aiRecommendationsEnabled;
+  return Boolean(aiProviderKey()) && env.aiRecommendationsEnabled;
 }
 
 export function shopifyConfigured(): boolean {
