@@ -62,16 +62,25 @@ export const toneStyles: Record<Tone, { badge: string; bar: string; dot: string;
  * `text-surface-950` headings, which are near-WHITE in dark mode: the score, the metric strip and
  * the evidence table were all invisible.
  */
-export const card = 'rounded-2xl border border-surface-200 bg-surface-0';
+export const card = 'rounded-xl border border-surface-200 bg-surface-0';
 
-/** Tinted header band that separates a card's title from its content. */
-export const cardHeader = 'border-b border-surface-200 bg-surface-50/60';
+/**
+ * Tinted header band that separates a card's title from its content.
+ *
+ * Carries its own padding now. Every consumer wrote `${cardHeader} px-6 py-4` and had to be kept
+ * in step by hand, which is how the findings card and the evidence card ended up with different
+ * header heights on the same page.
+ */
+export const cardHeader = 'border-b border-surface-200 bg-surface-50/60 px-3.5 py-2.5';
+
+/** Body padding for a card that has no header band. */
+export const cardBody = 'px-3.5 py-3';
 
 /** Small uppercase section eyebrow. */
-export const eyebrow = 'text-[10px] font-semibold uppercase tracking-[0.16em] text-surface-400';
+export const eyebrow = 'text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-400';
 
-/** Section heading inside a card. */
-export const cardTitle = 'text-[15px] font-semibold tracking-[-0.01em] text-surface-950';
+/** Section heading inside a card. One step below a page section, two below the page title. */
+export const cardTitle = 'text-[13px] font-semibold tracking-[-0.01em] text-surface-950';
 
 export const statusFromScore = (score: number) =>
   score >= 90 ? 'Excellent' : score >= 75 ? 'Good' : score >= 50 ? 'Needs Work' : 'Critical';

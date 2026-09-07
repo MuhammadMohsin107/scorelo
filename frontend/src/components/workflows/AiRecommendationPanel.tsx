@@ -63,43 +63,43 @@ export default function AiRecommendationPanel({ findingId }: Props) {
   };
 
   return (
-    <div className="mt-4 border-t border-brand-100 pt-3">
+    <div className="mt-2.5 border-t border-brand-100 pt-2.5">
       {ai && (
-        <div className="rounded-lg border border-brand-200 bg-surface-0/70 p-3">
-          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-semibold uppercase tracking-wide text-brand-700">
-            <Sparkles size={12} aria-hidden="true" />
+        <div className="rounded-md border border-brand-200 bg-surface-0/70 p-2.5">
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-700">
+            <Sparkles size={11} aria-hidden="true" />
             AI-enhanced recommendation
             <span className="ml-auto font-medium normal-case tracking-normal text-surface-500">
               {ai.confidence} confidence{model ? ` · ${model}` : ''}
             </span>
           </p>
-          <p className="mt-2 text-sm leading-6 text-surface-700">{ai.recommendation}</p>
-          <p className="mt-2 text-xs leading-5 text-surface-600">
+          <p className="mt-1.5 text-[12.5px] leading-[1.5] text-surface-700">{ai.recommendation}</p>
+          <p className="mt-1.5 text-[11.5px] leading-[1.45] text-surface-600">
             <span className="font-semibold">Why it matters: </span>{ai.whyItMatters}
           </p>
-          <p className="mt-1.5 text-xs leading-5 text-surface-600">
+          <p className="mt-1 text-[11.5px] leading-[1.45] text-surface-600">
             <span className="font-semibold">Next step: </span>{ai.suggestedAction}
           </p>
-          <p className="mt-2.5 text-[11px] text-surface-400">
+          <p className="mt-1.5 text-[10.5px] text-surface-400">
             Advisory only — Scorelo has not changed anything on your store.
           </p>
         </div>
       )}
 
-      {message && <p className="text-xs text-surface-500">{message}</p>}
+      {message && <p className="text-[11.5px] text-surface-500">{message}</p>}
 
       {available && (
         <button
           type="button"
           onClick={() => void generate(ai !== null)}
           disabled={pending}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-surface-0 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:opacity-60"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-surface-0 px-2 py-1 text-[11.5px] font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:opacity-60"
         >
           {pending
-            ? <Loader2 size={13} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            ? <Loader2 size={12} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
             : ai
-              ? <RefreshCw size={13} aria-hidden="true" />
-              : <Sparkles size={13} aria-hidden="true" />}
+              ? <RefreshCw size={12} aria-hidden="true" />
+              : <Sparkles size={12} aria-hidden="true" />}
           {pending ? 'Generating…' : ai ? 'Regenerate' : 'Improve with AI'}
         </button>
       )}

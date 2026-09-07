@@ -81,15 +81,119 @@ export default function NonSeoSubPillarPage() {
   if (state === 'loading') return <SubPillarSkeleton />;
   // "Not audited yet" is a first-run state, not a failure — the page must not imply a fault,
   // and must not fill its layout with numbers to compensate.
-  if (state === 'empty') return <div className="mx-auto max-w-3xl px-5 py-16"><div className={`${card} flex flex-col items-center p-10 text-center`}><Radar size={24} className="text-brand-600" /><h1 className="mt-4 text-lg font-semibold text-surface-900">No {config.title} audit available</h1>{implemented === false
-    ? <p className="mt-1.5 max-w-md text-sm text-surface-500">Scorelo does not measure this check yet, so running an audit will not populate this page. Support for it is still being built.</p>
-    : <><p className="mt-1.5 max-w-sm text-sm text-surface-500">Run an audit to generate real results for this check. Nothing on this page is estimated.</p><RunAuditButton onComplete={() => { void load(); }} /></>}</div></div>;
+  if (state === 'empty') return <div className="mx-auto max-w-2xl px-4 py-10"><div className={`${card} flex flex-col items-center p-6 text-center`}><Radar size={18} className="text-brand-600" /><h1 className="mt-2.5 text-[15px] font-semibold text-surface-900">No {config.title} audit available</h1>{implemented === false
+    ? <p className="mt-1 max-w-md text-[12.5px] leading-[1.5] text-surface-500">Scorelo does not measure this check yet, so running an audit will not populate this page. Support for it is still being built.</p>
+    : <><p className="mt-1 max-w-sm text-[12.5px] leading-[1.5] text-surface-500">Run an audit to generate real results for this check. Nothing on this page is estimated.</p><RunAuditButton onComplete={() => { void load(); }} /></>}</div></div>;
 
-  if (state === 'error' || !data) return <div className="mx-auto max-w-3xl px-5 py-16"><div className={`${card} flex flex-col items-center p-10 text-center`}><AlertCircle size={24} className="text-critical-600" /><h1 className="mt-4 text-lg font-semibold text-surface-900">Unable to load {config.title} analysis</h1><button type="button" onClick={() => load()} className="btn-primary mt-6"><RefreshCw size={15} />Retry</button></div></div>;
+  if (state === 'error' || !data) return <div className="mx-auto max-w-2xl px-4 py-10"><div className={`${card} flex flex-col items-center p-6 text-center`}><AlertCircle size={18} className="text-critical-600" /><h1 className="mt-2.5 text-[15px] font-semibold text-surface-900">Unable to load {config.title} analysis</h1><button type="button" onClick={() => load()} className="btn-primary mt-3"><RefreshCw size={14} />Retry</button></div></div>;
 
   const focusEvidence = (status: RowStatus | 'All') => { setStatusFilter(status); evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const backHref = backRoutes[config.pillar] ?? '/';
   const pillarLabel = pillarLabels[config.pillar] ?? config.pillarLabel;
 
-  return <div className="bg-surface-50"><div className="mx-auto max-w-7xl px-5 pb-12 pt-6 md:px-8"><nav aria-label="Breadcrumb"><ol className="flex items-center gap-1 text-xs text-surface-500"><li><Link to={backHref} className="rounded hover:text-surface-800 focus-visible:ring-2 focus-visible:ring-brand-500">{pillarLabel}</Link></li><li aria-hidden="true"><ChevronRight size={13} className="text-surface-300" /></li><li className="font-medium text-surface-800" aria-current="page">{data.title}</li></ol></nav><header className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-semibold tracking-tight text-surface-950 md:text-3xl">{data.title}</h1><p className="mt-1.5 max-w-2xl text-sm leading-6 text-surface-600">{data.description}</p></div><div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-xs text-surface-600 shadow-sm"><Clock3 size={13} className="text-surface-400" />Last analyzed <span className="font-medium text-surface-800">{data.lastAnalyzed}</span></span><button type="button" onClick={() => setSettingsOpen(true)} className="inline-flex h-[34px] items-center gap-2 rounded-lg border border-surface-200 bg-surface-0 px-3 text-xs font-semibold text-surface-700 shadow-sm transition-colors hover:border-brand-200 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"><Settings2 size={13} />Client settings</button><button type="button" onClick={() => load(true)} disabled={isRefreshing} className="inline-flex h-[34px] items-center gap-2 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-surface-0 shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-60"><RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />{isRefreshing ? 'Re-analyzing' : 'Re-analyze'}</button></div></header><div className="mt-6 grid grid-cols-12 gap-5"><div className="col-span-12 xl:col-span-7"><ScoreCard totals={data.totals} summary={data.summary} healthChip={data.healthChip} /></div><div className="col-span-12 xl:col-span-5"><HealthCard totals={data.totals} findings={data.findings} onSelectIssue={focusEvidence} /></div><div className="col-span-12"><FindingsList findings={data.findings} onInvestigate={(finding) => setInvestigation({ finding, rows: [] })} emptyTitle={`Excellent — no ${data.title} issues`} emptyBody="Nothing was flagged in the latest analysis." /></div><div ref={evidenceRef} className="col-span-12 scroll-mt-6"><EvidenceTable evidence={data.evidence} totalIssues={data.totals.issues} supportsBulkFix={data.supportsBulkFix} bulkFixMode={data.bulkFixMode} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} findings={data.findings} onInvestigate={(finding, rows) => setInvestigation({ finding, rows })} /></div><div className="col-span-12"><p className={eyebrow}>Recommendation</p><div className="mt-3 rounded-xl border border-brand-100 bg-brand-50/60 p-5"><p className="text-sm leading-6 text-surface-700">{config.metrics[0]?.description ?? `Review the ${data.title} findings and address the highest-impact items first.`}</p><button type="button" onClick={() => focusEvidence(data.findings[0]?.issueType ?? 'All')} className="btn-primary mt-4"><ArrowRight size={15} />Review evidence</button></div></div></div></div><InvestigationDrawer finding={investigation?.finding ?? null} evidence={data.evidence.rows} selectedRows={investigation?.rows ?? []} onClose={() => setInvestigation(null)} onReviewAffected={(finding) => { setInvestigation(null); focusEvidence(finding.issueType); }} /><PageSettingsPanel open={settingsOpen} definition={settingsDefinition} values={pageSettings} onClose={() => { setSettingsOpen(false); setPageSettings(savedSettingsRef.current); }} onChange={updatePageSetting} onReset={() => setPageSettings(getDefaultSubPillarSettings(routeKey))} onSave={savePageSettings} /></div>;
+  // Same compact shell as the SEO master template: page-shell frame, one header row, a 12-column
+  // grid on a 12px gutter. The two templates render the same components, so they must also agree
+  // on the space around them — a Content sub-pillar and an SEO sub-pillar are the same screen.
+  return (
+    <div className="bg-surface-50">
+      <div className="page-shell">
+        <nav aria-label="Breadcrumb">
+          <ol className="flex items-center gap-0.5 text-[11px] text-surface-500">
+            <li>
+              <Link to={backHref} className="rounded px-1 py-0.5 hover:text-surface-800 focus-visible:ring-2 focus-visible:ring-brand-500">{pillarLabel}</Link>
+            </li>
+            <li aria-hidden="true"><ChevronRight size={12} className="text-surface-300" /></li>
+            <li className="px-1 py-0.5 font-medium text-surface-800" aria-current="page">{data.title}</li>
+          </ol>
+        </nav>
+
+        <header className="page-head mt-1">
+          <div className="min-w-0">
+            <h1 className="page-title">{data.title}</h1>
+            <p className="page-subtitle">{data.description}</p>
+          </div>
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+            <span className="meta-chip">
+              <Clock3 size={12} className="text-surface-400" aria-hidden="true" />
+              Last analyzed <span className="font-medium text-surface-800">{data.lastAnalyzed}</span>
+            </span>
+            <button type="button" onClick={() => setSettingsOpen(true)} className="btn-secondary btn-xs">
+              <Settings2 size={12} aria-hidden="true" />
+              Client settings
+            </button>
+            <button type="button" onClick={() => load(true)} disabled={isRefreshing} className="btn-primary btn-xs">
+              <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} aria-hidden="true" />
+              {isRefreshing ? 'Re-analyzing' : 'Re-analyze'}
+            </button>
+          </div>
+        </header>
+
+        <div className="mt-3 grid grid-cols-12 gap-3">
+          <div className="col-span-12 xl:col-span-7">
+            <ScoreCard totals={data.totals} summary={data.summary} healthChip={data.healthChip} />
+          </div>
+          <div className="col-span-12 xl:col-span-5">
+            <HealthCard totals={data.totals} findings={data.findings} onSelectIssue={focusEvidence} />
+          </div>
+
+          <div className="col-span-12">
+            <FindingsList
+              findings={data.findings}
+              onInvestigate={(finding) => setInvestigation({ finding, rows: [] })}
+              emptyTitle={`Excellent — no ${data.title} issues`}
+              emptyBody="Nothing was flagged in the latest analysis."
+            />
+          </div>
+
+          <div ref={evidenceRef} className="col-span-12 scroll-mt-3">
+            <EvidenceTable
+              evidence={data.evidence}
+              totalIssues={data.totals.issues}
+              supportsBulkFix={data.supportsBulkFix}
+              bulkFixMode={data.bulkFixMode}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              findings={data.findings}
+              onInvestigate={(finding, rows) => setInvestigation({ finding, rows })}
+            />
+          </div>
+
+          <div className="col-span-12">
+            <p className={eyebrow}>Recommendation</p>
+            <div className="mt-1.5 flex flex-col gap-2 rounded-md border border-brand-100 bg-brand-50/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-[12.5px] leading-[1.5] text-surface-700">
+                {config.metrics[0]?.description ?? `Review the ${data.title} findings and address the highest-impact items first.`}
+              </p>
+              <button
+                type="button"
+                onClick={() => focusEvidence(data.findings[0]?.issueType ?? 'All')}
+                className="btn-primary btn-xs flex-shrink-0"
+              >
+                <ArrowRight size={12} />
+                Review evidence
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <InvestigationDrawer
+        finding={investigation?.finding ?? null}
+        evidence={data.evidence.rows}
+        selectedRows={investigation?.rows ?? []}
+        onClose={() => setInvestigation(null)}
+        onReviewAffected={(finding) => { setInvestigation(null); focusEvidence(finding.issueType); }}
+      />
+
+      <PageSettingsPanel
+        open={settingsOpen}
+        definition={settingsDefinition}
+        values={pageSettings}
+        onClose={() => { setSettingsOpen(false); setPageSettings(savedSettingsRef.current); }}
+        onChange={updatePageSetting}
+        onReset={() => setPageSettings(getDefaultSubPillarSettings(routeKey))}
+        onSave={savePageSettings}
+      />
+    </div>
+  );
 }

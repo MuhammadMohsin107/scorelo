@@ -206,7 +206,7 @@ export default function Settings() {
   if (state === 'loading' || !draft) {
     if (state === 'error') {
       return (
-        <div className="mx-auto max-w-[1440px] p-5 md:p-8">
+        <div className="page-shell">
           <div className={`${settingsCard} mx-auto flex max-w-md flex-col items-center p-10 text-center`}>
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-critical-50 text-critical-600">
               <AlertCircle size={24} />
@@ -227,7 +227,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-8 p-5 pb-16 md:p-8">
+    <div className="page-shell section-stack">
       <ModuleHeader
         eyebrow="Configuration"
         title="Settings"
@@ -900,7 +900,7 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
 // ─── Loading ──────────────────────────────────────────────────────────
 function SettingsSkeleton() {
   return (
-    <div className="mx-auto max-w-[1440px] space-y-8 p-5 pb-16 md:p-8" aria-busy="true" aria-label="Loading settings">
+    <div className="page-shell section-stack" aria-busy="true" aria-label="Loading settings">
       <div className="space-y-3 border-b border-surface-200 pb-6">
         <div className="skeleton h-3 w-28" />
         <div className="skeleton h-9 w-48" />

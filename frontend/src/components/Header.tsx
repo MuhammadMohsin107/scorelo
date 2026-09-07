@@ -100,15 +100,17 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
 
   return (
     <header ref={headerRef} className="sticky top-0 z-30 border-b border-chrome-border bg-chrome">
-      <div className="flex h-16 items-center justify-between gap-4 px-5 lg:px-8">
+      {/* 48px, down from 64. The bar carries a breadcrumb, a search field and three icon buttons —
+          none of which is taller than 32px — so the other 16px were pure inset. */}
+      <div className="flex h-12 items-center justify-between gap-3 px-3 lg:px-5">
         {/* Left: Mobile Menu + Page Context */}
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 -ml-2 text-surface-500 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors active:scale-[0.98]"
+            className="lg:hidden p-1.5 -ml-1.5 text-surface-500 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors active:scale-[0.98]"
             aria-label="Open navigation menu"
           >
-            <Menu size={20} />
+            <Menu size={18} />
           </button>
 
           <div className="min-w-0">
@@ -141,9 +143,9 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
             </label>
             <div className="relative">
               <Search
-                size={15}
+                size={14}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-400"
               />
               <input
                 ref={searchRef}
@@ -154,16 +156,16 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
                 onBlur={() => { if (!query) setSearchOpen(false); }}
                 placeholder="Search…"
                 autoComplete="off"
-                className="h-9 w-[180px] rounded-lg border border-chrome-border bg-surface-0 pl-8 pr-8 text-sm text-surface-900 outline-none transition-[width,border-color,box-shadow] duration-200 placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 md:w-[240px] md:focus:w-[300px]"
+                className="h-8 w-[160px] rounded-md border border-chrome-border bg-surface-0 pl-7 pr-7 text-[12.5px] text-surface-900 outline-none transition-[width,border-color,box-shadow] duration-200 placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 md:w-[220px] md:focus:w-[280px]"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => { setQuery(''); searchRef.current?.focus(); }}
                   aria-label="Clear search"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded p-1 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 cursor-pointer rounded p-0.5 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700"
                 >
-                  <X size={13} />
+                  <X size={12} />
                 </button>
               )}
             </div>
@@ -175,9 +177,9 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
             onClick={() => { setSearchOpen(true); window.requestAnimationFrame(() => searchRef.current?.focus()); }}
             aria-label="Search"
             aria-expanded={searchOpen}
-            className={`cursor-pointer rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 active:scale-[0.98] sm:hidden ${searchOpen ? 'hidden' : ''}`}
+            className={`cursor-pointer rounded-md p-1.5 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 active:scale-[0.98] sm:hidden ${searchOpen ? 'hidden' : ''}`}
           >
-            <Search size={19} />
+            <Search size={17} />
           </button>
 
           {/* Theme. One button cycling light → dark, reading its label from what is on screen so
@@ -187,73 +189,73 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
             onClick={toggle}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="cursor-pointer rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 active:scale-[0.98]"
+            className="cursor-pointer rounded-md p-1.5 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 active:scale-[0.98]"
           >
-            {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
 
           {/* Notifications */}
           <button
             onClick={() => toggleMenu('notifications')}
             aria-expanded={openMenu === 'notifications'}
-            className="relative p-2 text-surface-400 hover:text-surface-700 hover:bg-surface-100 rounded-lg transition-colors active:scale-[0.98]"
+            className="relative p-1.5 text-surface-400 hover:text-surface-700 hover:bg-surface-100 rounded-md transition-colors active:scale-[0.98]"
             aria-label="Notifications"
           >
-            <Bell size={19} />
-            {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-critical-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white">{unreadCount}</span>}
+            <Bell size={17} />
+            {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-critical-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white">{unreadCount}</span>}
           </button>
 
           {openMenu === 'notifications' && (
-            <div className="absolute right-0 top-12 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-surface-200 bg-surface-0 shadow-xl" role="dialog" aria-label="Notifications">
-              <div className="flex items-center justify-between border-b border-surface-200 px-4 py-3">
-                <div><h2 className="text-sm font-bold text-surface-900">Notifications</h2><p className="mt-0.5 text-xs text-surface-500">{unreadCount} unread</p></div>
-                <button type="button" onClick={markAllRead} className="text-xs font-semibold text-brand-600 hover:text-brand-700">Mark all as read</button>
+            <div className="absolute right-0 top-10 z-50 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-xl" role="dialog" aria-label="Notifications">
+              <div className="flex items-center justify-between border-b border-surface-200 px-3 py-2">
+                <div><h2 className="text-[13px] font-semibold text-surface-900">Notifications</h2><p className="text-[11px] text-surface-500">{unreadCount} unread</p></div>
+                <button type="button" onClick={markAllRead} className="text-[11px] font-semibold text-brand-600 hover:text-brand-700">Mark all as read</button>
               </div>
-              <div className="max-h-[min(420px,calc(100vh-9rem))] overflow-y-auto">
+              <div className="max-h-[min(400px,calc(100vh-7rem))] overflow-y-auto">
                 {notifications.map((notification) => {
                   const Icon = iconForNotification(notification.type);
-                  return <button type="button" key={notification.id} onClick={() => markNotificationRead(notification.id)} className={`flex w-full gap-3 border-b border-surface-100 px-4 py-3 text-left transition-colors hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
-                    <Icon size={17} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
-                    <span className="min-w-0 flex-1"><span className={`block text-xs ${notification.isRead ? 'font-medium text-surface-700' : 'font-bold text-surface-900'}`}>{notification.title}</span><span className="mt-1 block text-[11px] leading-4 text-surface-500">{notification.message}</span><span className="mt-1.5 block text-[10px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>
-                    {!notification.isRead && <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
+                  return <button type="button" key={notification.id} onClick={() => markNotificationRead(notification.id)} className={`flex w-full gap-2.5 border-b border-surface-100 px-3 py-2 text-left transition-colors hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
+                    <Icon size={15} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
+                    <span className="min-w-0 flex-1"><span className={`block text-[12px] ${notification.isRead ? 'font-medium text-surface-700' : 'font-semibold text-surface-900'}`}>{notification.title}</span><span className="mt-0.5 block text-[11px] leading-[1.35] text-surface-500">{notification.message}</span><span className="mt-1 block text-[10px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>
+                    {!notification.isRead && <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
                   </button>;
                 })}
               </div>
-              <div className="px-4 py-3 text-center"><button type="button" onClick={() => setOpenMenu(null)} className="text-xs font-semibold text-brand-600 hover:text-brand-700">View all notifications</button></div>
+              <div className="px-3 py-2 text-center"><button type="button" onClick={() => setOpenMenu(null)} className="text-[11px] font-semibold text-brand-600 hover:text-brand-700">View all notifications</button></div>
             </div>
           )}
 
           {/* Divider */}
-          <div className="h-6 w-px bg-surface-200 mx-2 hidden sm:block" />
+          <div className="h-5 w-px bg-surface-200 mx-1.5 hidden sm:block" />
 
           {/* Profile Dropdown Trigger */}
           <button
             onClick={() => toggleMenu('profile')}
             aria-expanded={openMenu === 'profile'}
-            className="flex items-center gap-2 p-1.5 pr-2 rounded-lg hover:bg-surface-100 transition-colors active:scale-[0.98]"
+            className="flex items-center gap-1.5 p-1 pr-1.5 rounded-md hover:bg-surface-100 transition-colors active:scale-[0.98]"
             aria-label="Account menu"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-100 to-brand-50 border border-brand-200 flex items-center justify-center shadow-sm">
-              <span className="text-brand-700 text-xs font-bold tracking-wide">{user ? initialsFor(user.fullName) : '··'}</span>
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-brand-100 to-brand-50 border border-brand-200 flex items-center justify-center shadow-sm">
+              <span className="text-brand-700 text-[10.5px] font-bold tracking-wide">{user ? initialsFor(user.fullName) : '··'}</span>
             </div>
-            <ChevronDown size={14} className="text-surface-400 hidden sm:block" />
+            <ChevronDown size={13} className="text-surface-400 hidden sm:block" />
           </button>
 
           {openMenu === 'profile' && (
-            <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-surface-200 bg-surface-0 shadow-xl" role="menu" aria-label="Account menu">
-              <div className="border-b border-surface-200 px-4 py-4"><p className="text-sm font-bold text-surface-900">{user?.fullName ?? 'Loading…'}</p><p className="mt-1 truncate text-xs text-surface-500">{user?.email ?? ''}</p><p className="mt-2 text-[11px] font-semibold text-surface-400">{user?.role ?? ''}</p></div>
-              <div className="p-1.5">
-                <button type="button" onClick={() => { navigate('/settings/profile'); setOpenMenu(null); }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-surface-700 hover:bg-surface-100" role="menuitem">Profile</button>
-                <button type="button" onClick={() => { navigate('/settings/workspace'); setOpenMenu(null); }} className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-surface-700 hover:bg-surface-100" role="menuitem">Workspace</button>
+            <div className="absolute right-0 top-10 z-50 w-60 overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-xl" role="menu" aria-label="Account menu">
+              <div className="border-b border-surface-200 px-3 py-2.5"><p className="text-[13px] font-semibold text-surface-900">{user?.fullName ?? 'Loading…'}</p><p className="mt-0.5 truncate text-[11px] text-surface-500">{user?.email ?? ''}</p><p className="mt-1 text-[10.5px] font-semibold uppercase tracking-wide text-surface-400">{user?.role ?? ''}</p></div>
+              <div className="p-1">
+                <button type="button" onClick={() => { navigate('/settings/profile'); setOpenMenu(null); }} className="w-full rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-surface-700 hover:bg-surface-100" role="menuitem">Profile</button>
+                <button type="button" onClick={() => { navigate('/settings/workspace'); setOpenMenu(null); }} className="w-full rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-surface-700 hover:bg-surface-100" role="menuitem">Workspace</button>
               </div>
-              <div className="border-t border-surface-200 p-1.5">
+              <div className="border-t border-surface-200 p-1">
                 <button
                   type="button"
                   onClick={async () => { setOpenMenu(null); await logout(); navigate('/login', { replace: true }); }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-critical-600 hover:bg-critical-50"
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-critical-600 hover:bg-critical-50"
                   role="menuitem"
                 >
-                  <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+                  <LogOut size={14} strokeWidth={2} aria-hidden="true" />
                   Sign out
                 </button>
               </div>

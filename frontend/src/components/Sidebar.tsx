@@ -155,25 +155,27 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           border-r border-chrome-border relative overflow-hidden
           transition-[width,transform] duration-300 ease-in-out
           lg:translate-x-0 lg:static lg:z-auto
-          ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-[250px]'}
+          ${isCollapsed ? 'lg:w-[60px]' : 'lg:w-[232px]'}
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         role="navigation"
         aria-label="Main navigation"
       >
-        {/* Logo Area — wordmark + tagline lockup */}
-        <div className={`flex h-[72px] flex-shrink-0 items-center justify-between border-b border-chrome-border bg-chrome px-4 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
-          <NavLink to="/" onClick={onClose} aria-label="Scorelo home" className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
+        {/* Logo Area — wordmark + tagline lockup.
+            48px to match the header's new height, so the two pieces of chrome line up on one
+            hairline instead of stepping. */}
+        <div className={`flex h-12 flex-shrink-0 items-center justify-between border-b border-chrome-border bg-chrome px-3 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
+          <NavLink to="/" onClick={onClose} aria-label="Scorelo home" className={`flex items-center gap-2 ${isCollapsed ? 'lg:justify-center' : ''}`}>
             {/* Logo mark — also what the collapsed rail shows */}
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px] bg-logo-mark text-white shadow-sm">
-              <BarChart3 size={15} strokeWidth={2.5} aria-hidden="true" />
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[7px] bg-logo-mark text-white shadow-sm">
+              <BarChart3 size={14} strokeWidth={2.5} aria-hidden="true" />
             </div>
             {/* Wordmark with letter-spaced tagline */}
             <span className={`flex flex-col justify-center ${isCollapsed ? 'lg:hidden' : ''}`}>
-              <span className="text-[20px] font-extrabold leading-[1] tracking-tight text-logo-text">
+              <span className="text-[17px] font-extrabold leading-[1] tracking-tight text-logo-text">
                 scor<span className="text-logo-mark">e</span>lo
               </span>
-              <span className="mt-0 text-[7px] font-semibold uppercase tracking-[0.3em] text-surface-400 leading-[1.2]">
+              <span className="mt-px text-[6.5px] font-semibold uppercase tracking-[0.28em] text-surface-400 leading-[1.2]">
                 Store performance
               </span>
             </span>
@@ -188,7 +190,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             type="button"
             onClick={onToggleCollapse}
             className={`
-              hidden h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg
+              hidden h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-md
               border border-chrome-border bg-surface-0 text-chrome-muted shadow-sm
               transition-colors duration-150 ease-in-out
               hover:border-surface-300 hover:bg-chrome-hover hover:text-surface-800
@@ -199,31 +201,34 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed
-              ? <PanelLeftOpen size={16} aria-hidden="true" />
-              : <PanelLeftClose size={16} aria-hidden="true" />}
+              ? <PanelLeftOpen size={15} aria-hidden="true" />
+              : <PanelLeftClose size={15} aria-hidden="true" />}
           </button>
           <button
             onClick={onClose}
             className="lg:hidden rounded-md p-1 text-surface-400 transition-colors hover:bg-surface-200 hover:text-surface-900"
             aria-label="Close sidebar"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto sidebar-scroll py-4 ${isCollapsed ? 'px-3 lg:px-2' : 'px-3'}`}>
+        {/* Navigation.
+            Rows are 28px rather than 40px. With SEO expanded the nav previously needed a scroll on
+            a 768px-tall laptop; it now fits, so the customer can see where they are in the tree
+            without scrolling the chrome. */}
+        <nav className={`flex-1 overflow-y-auto sidebar-scroll py-2 ${isCollapsed ? 'px-2' : 'px-2'}`}>
           {/* Dashboard Link */}
-          <div className="mb-3">
+          <div className="mb-1.5">
             <NavLink
               to="/"
               end
               onClick={onClose}
               title="Dashboard"
               className={({ isActive }) => `
-                relative flex items-center gap-3 w-full rounded-lg text-[14px] font-medium
+                relative flex items-center gap-2 w-full rounded-md text-[13px] font-medium
                 transition-all duration-200 border border-transparent
-                ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
+                ${isCollapsed ? 'justify-center px-2 py-1.5 lg:px-2' : 'px-2 py-1.5'}
                 ${isActive
                   ? 'text-surface-900 bg-chrome-active shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)]'
                   : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'
@@ -231,7 +236,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
               `}
             >
               <span className="flex-shrink-0 text-surface-500">
-                <LayoutDashboard size={18} strokeWidth={2} />
+                <LayoutDashboard size={16} strokeWidth={2} />
               </span>
               <span className={isCollapsed ? 'lg:sr-only' : ''}>Dashboard</span>
             </NavLink>
@@ -254,9 +259,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                       onClick={() => togglePillar('seo', '/seo', isSeoExpanded)}
                       title={pillar.label}
                       className={`
-                        relative flex items-center gap-3 w-full rounded-lg text-[14px] font-medium
+                        relative flex items-center gap-2 w-full rounded-md text-[13px] font-medium
                         transition-all duration-200 group
-                        ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
+                        ${isCollapsed ? 'justify-center px-2 py-1.5 lg:px-2' : 'px-2 py-1.5'}
                         focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-300
                         ${isSeoSection
                           ? 'text-surface-900 bg-chrome-hover'
@@ -269,13 +274,13 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                       </span>
                       <span className={`flex-1 text-left ${isCollapsed ? 'lg:sr-only' : ''}`}>{pillar.label}</span>
                       <span className={`text-surface-400 flex-shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                        {isSeoExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        {isSeoExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                       </span>
                     </button>
 
                     {/* SEO Sub-Pillar Routes */}
                     {isSeoExpanded && (
-                      <ul className={`mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                      <ul className={`mb-1 ml-3 space-y-px border-l border-surface-200 pl-3 ${isCollapsed ? 'lg:hidden' : ''}`}>
                         {seoSubRoutes.map((sub) => (
                           <li key={sub.id} className="relative">
                             <NavLink
@@ -283,11 +288,11 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                               onClick={onClose}
                               end={sub.path === '/seo'}
                               className={({ isActive }) => `
-                                block w-full text-left px-3 py-1.5 rounded-md text-[13px] font-medium
+                                block w-full text-left px-2 py-1 rounded text-[12px] font-medium
                                 transition-all duration-200
                                 focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-300
                                 ${isActive
-                                  ? 'text-surface-900 font-semibold before:absolute before:-left-[18px] before:top-0 before:bottom-0 before:w-[2px] before:bg-brand-600'
+                                  ? 'text-surface-900 font-semibold before:absolute before:-left-[13px] before:top-0 before:bottom-0 before:w-[2px] before:bg-brand-600'
                                   : 'text-surface-500 hover:text-surface-900'
                                 }
                               `}
@@ -311,9 +316,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                     onClick={() => togglePillar(pillar.key, route, Boolean(expandedPillars[pillar.key]))}
                     title={pillar.label}
                     className={`
-                      relative flex items-center gap-3 w-full rounded-lg text-[14px] font-medium
+                      relative flex items-center gap-2 w-full rounded-md text-[13px] font-medium
                       transition-all duration-200 group
-                      ${isCollapsed ? 'justify-center px-2 py-2.5 lg:px-2' : 'px-3 py-2.5'}
+                      ${isCollapsed ? 'justify-center px-2 py-1.5 lg:px-2' : 'px-2 py-1.5'}
                       ${isPillarActive
                         ? 'text-surface-900 bg-chrome-hover'
                         : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'
@@ -325,23 +330,23 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                     </span>
                     <span className={`flex-1 text-left ${isCollapsed ? 'lg:sr-only' : ''}`}>{pillar.label}</span>
                     <span className={`text-surface-400 flex-shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                      {expandedPillars[pillar.key] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      {expandedPillars[pillar.key] ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                     </span>
                   </button>
 
                   {/* Sub-Pillar Routes */}
                   {expandedPillars[pillar.key] && subRoutes && subRoutes.length > 0 && (
-                    <ul className={`mt-1 mb-2 ml-4 space-y-0.5 border-l-2 border-surface-200 pl-4 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                    <ul className={`mb-1 ml-3 space-y-px border-l border-surface-200 pl-3 ${isCollapsed ? 'lg:hidden' : ''}`}>
                       {subRoutes.map((sub) => (
                         <li key={sub.id} className="relative">
                           <NavLink
                             to={sub.path}
                             onClick={onClose}
                             className={({ isActive }) => `
-                              block w-full text-left px-3 py-1.5 rounded-md text-[13px] font-medium
+                              block w-full text-left px-2 py-1 rounded text-[12px] font-medium
                               transition-all duration-200
                               ${isActive
-                                ? 'text-surface-900 font-semibold before:absolute before:-left-[18px] before:top-0 before:bottom-0 before:w-[2px] before:bg-brand-600'
+                                ? 'text-surface-900 font-semibold before:absolute before:-left-[13px] before:top-0 before:bottom-0 before:w-[2px] before:bg-brand-600'
                                 : 'text-surface-500 hover:text-surface-900'
                               }
                             `}
@@ -357,17 +362,17 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             })}
           </div>
 
-          <div className="my-4 border-t border-chrome-border" />
+          <div className="my-2 border-t border-chrome-border" />
 
           {/* Utility Links */}
-          <div className="space-y-0.5">
+          <div className="space-y-px">
             {utilityLinks.map((link) => (
               <NavLink
                 key={link.id}
                 to={`/${link.id}`}
                 onClick={onClose}
                 title={link.label}
-                className={({ isActive }) => `relative flex items-center gap-3 w-full rounded-lg text-[13px] font-medium transition-all duration-200 group ${isCollapsed ? 'justify-center px-2 py-2 lg:px-2' : 'px-3 py-2'} ${isActive ? 'text-surface-900 bg-chrome-hover' : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'}`}
+                className={({ isActive }) => `relative flex items-center gap-2 w-full rounded-md text-[12.5px] font-medium transition-all duration-200 group ${isCollapsed ? 'justify-center px-2 py-1.5 lg:px-2' : 'px-2 py-1.5'} ${isActive ? 'text-surface-900 bg-chrome-hover' : 'text-surface-600 hover:bg-chrome-hover hover:text-surface-900'}`}
               >
                 <span className="flex-shrink-0 text-surface-500 group-hover:text-surface-900">
                   {link.icon}
@@ -379,16 +384,16 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
         </nav>
 
         {/* User Profile Bottom Area */}
-        <div className={`flex-shrink-0 border-t border-surface-200 ${isCollapsed ? 'p-3 lg:p-2' : 'p-3'}`}>
-          <div className={`flex cursor-pointer items-center gap-3 rounded-md py-2.5 transition-all duration-200 group hover:bg-surface-200/50 ${isCollapsed ? 'justify-center px-3 lg:px-2' : 'px-3'}`}>
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-surface-300 bg-surface-100 text-surface-900">
-              <span className="text-[11px] font-bold">{user ? initialsFor(user.fullName) : '··'}</span>
+        <div className={`flex-shrink-0 border-t border-surface-200 ${isCollapsed ? 'p-2' : 'p-2'}`}>
+          <div className={`flex cursor-pointer items-center gap-2 rounded-md py-1.5 transition-all duration-200 group hover:bg-surface-200/50 ${isCollapsed ? 'justify-center px-2' : 'px-2'}`}>
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-surface-300 bg-surface-100 text-surface-900">
+              <span className="text-[10.5px] font-bold">{user ? initialsFor(user.fullName) : '··'}</span>
             </div>
             <div className={`flex-1 min-w-0 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-              <p className="truncate text-[13px] font-bold text-surface-900">
+              <p className="truncate text-[12px] font-semibold text-surface-900">
                 {user?.fullName ?? 'Loading…'}
               </p>
-              <p className="truncate text-[11px] font-medium text-surface-500">
+              <p className="truncate text-[10.5px] font-medium text-surface-500">
                 {planInfo.name} Plan
               </p>
             </div>

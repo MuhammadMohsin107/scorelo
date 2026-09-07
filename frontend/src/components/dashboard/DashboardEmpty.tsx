@@ -44,7 +44,7 @@ export default function DashboardEmpty({ onAuditComplete }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-[1440px] p-5 pb-16 md:p-8">
+    <div className="page-shell">
       <div className="card flex min-h-[420px] flex-col items-center justify-center p-8 text-center md:p-12">
         <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
           {state === 'running' ? (

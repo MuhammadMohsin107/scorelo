@@ -1,8 +1,14 @@
-/** Compact circular score gauge shared by every pillar dashboard header. */
+/**
+ * Compact circular score gauge shared by every pillar dashboard header.
+ *
+ * 72px by default, down from 96. The pillar score is one number among the header's facts, not the
+ * page's subject — the sub-pillar cards below it are what the customer came to read — so it keeps
+ * its prominence through weight and position rather than through diameter.
+ */
 export default function PillarScoreRing({
   score,
-  size = 96,
-  stroke = 7,
+  size = 72,
+  stroke = 6,
   gradientId,
 }: {
   score: number;
@@ -40,8 +46,8 @@ export default function PillarScoreRing({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[26px] font-semibold leading-none tracking-tight text-surface-900 tabular-nums">{score}</span>
-        <span className="mt-0.5 text-[10px] font-medium text-surface-400">/ 100</span>
+        <span className="text-[20px] font-semibold leading-none tracking-tight text-surface-900 tabular-nums">{score}</span>
+        <span className="text-[9px] font-medium text-surface-400">/ 100</span>
       </div>
     </div>
   );

@@ -71,11 +71,11 @@ export default function Breadcrumbs({ compact = false }: BreadcrumbsProps) {
   });
 
   return (
-    <nav aria-label="Breadcrumb" className={compact ? 'min-w-0' : 'mx-auto w-full max-w-7xl px-5 pt-4 md:px-8'}>
-      <ol className="flex min-w-0 items-center gap-1 overflow-hidden text-xs text-surface-500">
+    <nav aria-label="Breadcrumb" className={compact ? 'min-w-0' : 'page-shell pb-0'}>
+      <ol className="flex min-w-0 items-center gap-0.5 overflow-hidden text-[11px] text-surface-500">
         {items.map((item, index) => (
-          <li key={item.href ?? item.label} className="flex min-w-0 items-center gap-1">
-            {index > 0 && <ChevronRight size={13} className="flex-shrink-0 text-surface-300" aria-hidden="true" />}
+          <li key={item.href ?? item.label} className="flex min-w-0 items-center gap-0.5">
+            {index > 0 && <ChevronRight size={12} className="flex-shrink-0 text-surface-300" aria-hidden="true" />}
             {item.href ? (
               <Link to={item.href} className="truncate rounded px-1 py-0.5 transition-colors hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                 {item.label}

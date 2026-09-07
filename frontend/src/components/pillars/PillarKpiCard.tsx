@@ -26,7 +26,13 @@ const accentTile: Record<KpiAccent, string> = {
   neutral: 'bg-surface-100 text-surface-600 ring-surface-200',
 };
 
-/** Shared KPI summary tile used across every pillar dashboard's metrics row. */
+/**
+ * Shared KPI summary tile used across every pillar dashboard's metrics row.
+ *
+ * This is the ONE KPI tile in the app. components/seo/SeoKpiCard.tsx used to be a byte-for-byte
+ * copy of it serving /seo alone, so a density change had to be made twice to stay consistent —
+ * and consistency is the entire reason a KPI row exists. /seo now renders this component.
+ */
 export default function PillarKpiCard({
   label,
   value,
@@ -49,36 +55,36 @@ export default function PillarKpiCard({
         : 'bg-critical-50 text-critical-700';
 
   return (
-    <div className="group relative rounded-xl border border-surface-200 bg-surface-0 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-surface-300 hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium text-surface-500 leading-snug">{label}</p>
+    <div className="group relative rounded-lg border border-surface-200 bg-surface-0 px-3 py-2.5 shadow-sm transition-all duration-200 hover:border-surface-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11.5px] font-medium leading-tight text-surface-500">{label}</p>
         {Icon && (
-          <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ring-1 ${accentTile[accent]}`}>
-            <Icon size={15} strokeWidth={2} />
+          <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ring-1 ${accentTile[accent]}`}>
+            <Icon size={13} strokeWidth={2} />
           </span>
         )}
       </div>
 
-      <div className="mt-3 flex items-end justify-between gap-2">
-        <span className="text-2xl font-semibold leading-none tracking-tight text-surface-900 tabular-nums">
+      <div className="mt-1.5 flex items-end justify-between gap-2">
+        <span className="text-[20px] font-semibold leading-none tracking-tight text-surface-900 tabular-nums">
           {value}
         </span>
         {cleanTrend && (
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${trendChip}`}>
-            {isFlat ? <Minus size={11} /> : isDown ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
+          <span className={`inline-flex items-center gap-1 rounded px-1.5 py-px text-[10.5px] font-semibold ${trendChip}`}>
+            {isFlat ? <Minus size={10} /> : isDown ? <TrendingDown size={10} /> : <TrendingUp size={10} />}
             {cleanTrend}
           </span>
         )}
       </div>
 
-      {subtitle && <p className="mt-2 text-[11px] text-surface-500">{subtitle}</p>}
+      {subtitle && <p className="mt-1 text-[10.5px] text-surface-500">{subtitle}</p>}
 
       {breakdown && (
-        <div className="mt-3 flex gap-2 border-t border-surface-100 pt-3">
+        <div className="mt-2 flex gap-2 border-t border-surface-100 pt-2">
           {breakdown.map((item, idx) => (
             <div key={idx} className="flex-1">
-              <p className="mb-0.5 text-[10px] text-surface-500">{item.label}</p>
-              <p className="text-sm font-semibold text-surface-900">{item.value}</p>
+              <p className="text-[10px] text-surface-500">{item.label}</p>
+              <p className="text-[12.5px] font-semibold text-surface-900">{item.value}</p>
             </div>
           ))}
         </div>

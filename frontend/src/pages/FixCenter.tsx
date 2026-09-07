@@ -85,15 +85,15 @@ export default function FixCenter() {
   const resolvedCount = findings.filter((finding) => finding.status === 'resolved').length;
 
   if (loadState === 'loading') {
-    return <div className="mx-auto max-w-[1440px] p-8 text-sm text-surface-500">Loading findings…</div>;
+    return <div className="page-shell text-[12.5px] text-surface-500">Loading findings…</div>;
   }
 
   if (loadState === 'error') {
-    return <div className="mx-auto max-w-[1440px] p-8 text-sm text-critical-600">Failed to load findings. Please try again.</div>;
+    return <div className="page-shell text-[12.5px] text-critical-600">Failed to load findings. Please try again.</div>;
   }
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-8 p-5 pb-16 md:p-8">
+    <div className="page-shell section-stack">
       <ModuleHeader
         eyebrow="Execution workspace"
         title="Fix Center"

@@ -77,56 +77,56 @@ export default function BulkFixWorkflow({ rows, mode, onClose, onApply }: Props)
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="presentation">
       <button type="button" className="absolute inset-0 cursor-default bg-surface-950/25" onClick={onClose} aria-label="Close bulk fix review" />
-      <section role="dialog" aria-modal="true" aria-labelledby="bulk-fix-title" className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-surface-0 shadow-2xl sm:rounded-2xl">
-        <header className="flex items-start justify-between gap-4 border-b border-surface-200 px-5 py-4 sm:px-6">
+      <section role="dialog" aria-modal="true" aria-labelledby="bulk-fix-title" className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-xl bg-surface-0 shadow-2xl sm:rounded-xl">
+        <header className="flex items-start justify-between gap-3 border-b border-surface-200 px-4 py-2.5">
           <div>
             <p className={eyebrow}>Test mode · review before apply</p>
-            <h2 id="bulk-fix-title" className="mt-1 text-lg font-semibold tracking-tight text-surface-950">Review {mode === 'title-tags' ? 'title tag' : 'recommended'} fixes</h2>
-            <p className="mt-1 text-xs text-surface-500">Recommendations stay isolated until you approve validated changes.</p>
+            <h2 id="bulk-fix-title" className="mt-0.5 text-[15px] font-semibold tracking-tight text-surface-950">Review {mode === 'title-tags' ? 'title tag' : 'recommended'} fixes</h2>
+            <p className="text-[11px] text-surface-500">Recommendations stay isolated until you approve validated changes.</p>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg text-surface-500 hover:bg-surface-100 hover:text-surface-900" aria-label="Close review">
-            <X size={17} />
+          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-md text-surface-500 hover:bg-surface-100 hover:text-surface-900" aria-label="Close review">
+            <X size={15} />
           </button>
         </header>
 
         {isGenerating ? (
-          <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-sm text-surface-600">
-            <Loader2 size={22} className="animate-spin text-brand-600" />
+          <div className="flex min-h-40 flex-col items-center justify-center gap-2 text-[12.5px] text-surface-600">
+            <Loader2 size={18} className="animate-spin text-brand-600" />
             Generating recommendations...
           </div>
         ) : applied.length > 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-            <CheckCircle2 size={34} className="text-success-600" />
-            <h3 className="text-lg font-semibold text-surface-950">{applied.length} test fixes applied</h3>
-            <p className="max-w-md text-sm text-surface-600">Only validated recommendations were applied to the in-memory test data.</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={handleUndo} className="btn-secondary"><RotateCcw size={15} /> Undo test fixes</button>
-              <button type="button" onClick={() => setShowHistory((value) => !value)} className="btn-ghost"><History size={15} /> Fix history</button>
-              <button type="button" onClick={onClose} className="btn-primary">Done</button>
+          <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
+            <CheckCircle2 size={24} className="text-success-600" />
+            <h3 className="text-[15px] font-semibold text-surface-950">{applied.length} test fixes applied</h3>
+            <p className="max-w-md text-[12.5px] text-surface-600">Only validated recommendations were applied to the in-memory test data.</p>
+            <div className="mt-1 flex flex-wrap justify-center gap-1.5">
+              <button type="button" onClick={handleUndo} className="btn-secondary btn-xs"><RotateCcw size={12} /> Undo test fixes</button>
+              <button type="button" onClick={() => setShowHistory((value) => !value)} className="btn-ghost btn-xs"><History size={12} /> Fix history</button>
+              <button type="button" onClick={onClose} className="btn-primary btn-xs">Done</button>
             </div>
-            {showHistory && <p className={`${card} mt-3 px-4 py-3 text-left text-xs text-surface-600`}>{applied.length} records changed in this test session.</p>}
+            {showHistory && <p className={`${card} mt-2 px-3 py-2 text-left text-[11.5px] text-surface-600`}>{applied.length} records changed in this test session.</p>}
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3 border-b border-surface-200 bg-surface-50/60 px-5 py-3 text-xs sm:px-6">
+            <div className="flex flex-wrap items-center gap-2.5 border-b border-surface-200 bg-surface-50/60 px-4 py-1.5 text-[11.5px]">
               <span className="font-semibold text-surface-800">{rows.length} selected</span>
               <span className="text-success-700">{ready.length} ready</span>
               {needsReview > 0 && <span className="text-warning-700">{needsReview} need review</span>}
             </div>
-            <div className="overflow-y-auto px-5 py-4 sm:px-6">
-              <div className="space-y-3">
+            <div className="overflow-y-auto px-4 py-2.5">
+              <div className="space-y-2">
                 {reviews.map(({ row, value, error }) => (
-                  <article key={row.id} className="rounded-xl border border-surface-200 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+                  <article key={row.id} className="rounded-md border border-surface-200 p-2.5">
+                    <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-[11px] text-surface-500">{String(row.cells.url ?? '')}</p>
-                        <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-surface-400">Current value</p>
-                        <p className="mt-1 text-sm text-surface-700">{row.current?.value || 'No current value'}</p>
+                        <p className="truncate font-mono text-[10.5px] text-surface-500">{String(row.cells.url ?? '')}</p>
+                        <p className="mt-1.5 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-surface-400">Current value</p>
+                        <p className="mt-0.5 text-[12.5px] leading-[1.45] text-surface-700">{row.current?.value || 'No current value'}</p>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <label className="text-[10px] font-semibold uppercase tracking-wide text-surface-400" htmlFor={`bulk-fix-${row.id}`}>Recommended value</label>
-                        <textarea id={`bulk-fix-${row.id}`} value={value} onChange={(event) => updateDraft(row.id, event.target.value)} rows={2} className="mt-1.5 w-full resize-y rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm text-surface-900 outline-none focus:border-brand-400 focus:bg-surface-0 focus:ring-2 focus:ring-brand-100" />
-                        <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+                        <label className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-surface-400" htmlFor={`bulk-fix-${row.id}`}>Recommended value</label>
+                        <textarea id={`bulk-fix-${row.id}`} value={value} onChange={(event) => updateDraft(row.id, event.target.value)} rows={2} className="mt-1 w-full resize-y rounded-md border border-surface-200 bg-surface-50 px-2.5 py-1.5 text-[12.5px] text-surface-900 outline-none focus:border-brand-400 focus:bg-surface-0 focus:ring-2 focus:ring-brand-100" />
+                        <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px]">
                           <span className={error ? 'text-warning-700' : 'text-success-700'}>{error ?? 'Ready to apply'}</span>
                           <span className="tabular-nums text-surface-400">{mode === 'title-tags' ? `${value.length}/${MAX_TITLE_LENGTH}` : `${value.length} characters`}</span>
                         </div>
@@ -136,9 +136,9 @@ export default function BulkFixWorkflow({ rows, mode, onClose, onApply }: Props)
                 ))}
               </div>
             </div>
-            <footer className="flex flex-col-reverse gap-2 border-t border-surface-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <div className="inline-flex items-center gap-2 text-xs text-surface-500"><ClipboardCheck size={14} /> Validation runs before apply</div>
-              <div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="btn-secondary">Cancel</button><button type="button" onClick={handleApply} disabled={ready.length === 0} className="btn-primary">Apply {ready.length} test fixes</button></div>
+            <footer className="flex flex-col-reverse gap-2 border-t border-surface-200 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="inline-flex items-center gap-1.5 text-[11.5px] text-surface-500"><ClipboardCheck size={13} /> Validation runs before apply</div>
+              <div className="flex justify-end gap-1.5"><button type="button" onClick={onClose} className="btn-secondary btn-xs">Cancel</button><button type="button" onClick={handleApply} disabled={ready.length === 0} className="btn-primary btn-xs">Apply {ready.length} test fixes</button></div>
             </footer>
           </>
         )}

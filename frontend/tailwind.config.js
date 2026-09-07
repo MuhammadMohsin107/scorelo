@@ -93,14 +93,24 @@ export default {
         sans: ['Geist Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['Geist Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
+      // ─── Compact type ramp ──────────────────────────────────────────────
+      // ONE scale, tightened for a data screen. The steps are proportional to each other, so a
+      // heading and the description under it shrink together — the previous 36px page title over
+      // 16px body was a marketing ratio, not a working one.
+      //
+      //   score 36 · metric 24 · page 22 · section 15 · body 13/14 · meta 11
+      //
+      // The named steps here are the vocabulary; the .page-title / .section-title / .card-title
+      // component classes in index.css are what pages actually reach for, since those carry the
+      // matching weight, colour and tracking as well as the size.
       fontSize: {
-        'metric': ['2.25rem', { lineHeight: '1.05', letterSpacing: '-0.02em', fontWeight: '600' }],
-        'score-lg': ['3.5rem', { lineHeight: '1.05', letterSpacing: '-0.03em', fontWeight: '600' }],
-        'page-title': ['2.25rem', { lineHeight: '1.15', letterSpacing: '-0.025em', fontWeight: '600' }],
-        'section-title': ['1.25rem', { lineHeight: '1.3', letterSpacing: '-0.015em', fontWeight: '600' }],
-        'body-lg': ['1rem', { lineHeight: '1.5', fontWeight: '400' }],
-        'body-sm': ['0.875rem', { lineHeight: '1.5', fontWeight: '400' }],
-        'meta': ['0.75rem', { lineHeight: '1.45', fontWeight: '500' }],
+        'metric': ['1.5rem', { lineHeight: '1.05', letterSpacing: '-0.02em', fontWeight: '600' }],
+        'score-lg': ['2.25rem', { lineHeight: '1.05', letterSpacing: '-0.03em', fontWeight: '600' }],
+        'page-title': ['1.375rem', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '600' }],
+        'section-title': ['0.9375rem', { lineHeight: '1.3', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'body-lg': ['0.875rem', { lineHeight: '1.45', fontWeight: '400' }],
+        'body-sm': ['0.8125rem', { lineHeight: '1.45', fontWeight: '400' }],
+        'meta': ['0.6875rem', { lineHeight: '1.4', fontWeight: '500' }],
       },
       boxShadow: {
         // Crisp, minimal shadows
@@ -109,7 +119,9 @@ export default {
         'elevated': '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.03)',
       },
       borderRadius: {
-        'card': '0.75rem', // Sharper corners for structural look
+        // 10px. A smaller radius reads as tighter at small card sizes; 12px looked soft once the
+        // cards themselves came down to ~120px tall.
+        'card': '0.625rem',
       },
       letterSpacing: {
         'wider': '0.04em',

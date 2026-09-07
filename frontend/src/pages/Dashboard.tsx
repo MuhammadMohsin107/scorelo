@@ -55,7 +55,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-6 p-5 pb-16 md:p-8">
+    <div className="page-shell section-stack">
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between motion-safe:animate-fade-in">
         <div>
@@ -89,7 +89,7 @@ export default function Dashboard() {
       </div>
 
       {/* 12-column content grid */}
-      <div className="grid grid-cols-12 gap-5 motion-safe:animate-slide-up">
+      <div className="grid grid-cols-12 gap-3 motion-safe:animate-slide-up">
         <div className="col-span-12 xl:col-span-8">
           <ScoreOverview data={data.overallScore} metrics={data.keyMetrics} trend={data.scoreTrend} />
         </div>

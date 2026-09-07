@@ -51,17 +51,17 @@ export default function Reports() {
   };
 
   if (loadState === 'loading' || !overview) {
-    return <div className="mx-auto max-w-[1440px] p-8 text-sm text-surface-500">Loading reports…</div>;
+    return <div className="page-shell text-[12.5px] text-surface-500">Loading reports…</div>;
   }
 
   if (loadState === 'error') {
-    return <div className="mx-auto max-w-[1440px] p-8 text-sm text-critical-600">Failed to load reports. Please try again.</div>;
+    return <div className="page-shell text-[12.5px] text-critical-600">Failed to load reports. Please try again.</div>;
   }
 
   const { currentScore, previousScore, trend } = overview;
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-8 p-5 pb-16 md:p-8">
+    <div className="page-shell section-stack">
       <ModuleHeader eyebrow="Performance intelligence" title="Reports" description="Understand how your store performance is changing over time." actions={<><Button variant="secondary"><CalendarDays size={15} />{period}</Button><Button variant="secondary" onClick={exportCsv}><Download size={15} />Export CSV</Button><Button><FileText size={15} />Create report</Button></>} />
 
       <section className="flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-0 p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-1.5"><span className="mr-2 text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Period</span>{periods.map((item) => <button key={item} onClick={() => setPeriod(item)} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${period === item ? 'bg-surface-950 text-surface-0' : 'text-surface-600 hover:bg-surface-100'}`}>{item}</button>)}</div><div className="flex flex-wrap gap-2"><select value={pillarFilter} onChange={(event) => setPillarFilter(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-surface-700"><option>All pillars</option>{pillars.map((pillar) => <option key={pillar.key}>{pillar.label}</option>)}</select><select value={comparison} onChange={(event) => setComparison(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-surface-700"><option>Previous period</option><option>Previous year</option></select></div></section>

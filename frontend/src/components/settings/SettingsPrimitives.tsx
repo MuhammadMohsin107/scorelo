@@ -50,18 +50,18 @@ export function Field({
 }) {
   return (
     <div className={className}>
-      <label htmlFor={htmlFor} className="block text-sm font-semibold text-surface-800">
+      <label htmlFor={htmlFor} className="block text-[12.5px] font-semibold text-surface-800">
         {label}
       </label>
-      <div className="mt-1.5">{children}</div>
+      <div className="mt-1">{children}</div>
       {error ? (
-        <p id={`${htmlFor}-error`} className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-critical-700">
+        <p id={`${htmlFor}-error`} className="mt-1 flex items-center gap-1.5 text-[11.5px] font-medium text-critical-700">
           <AlertTriangle size={12} aria-hidden="true" />
           {error}
         </p>
       ) : (
         hint && (
-          <p id={`${htmlFor}-hint`} className="mt-1.5 text-xs leading-5 text-surface-500">
+          <p id={`${htmlFor}-hint`} className="mt-1 text-[11.5px] leading-[1.45] text-surface-500">
             {hint}
           </p>
         )
@@ -70,8 +70,10 @@ export function Field({
   );
 }
 
+// 32px controls, matching the .btn-* height in index.css so an input and the button beside it are
+// the same size. They were 44px against 36px buttons, which is what made every form row feel loose.
 const controlBase =
-  'w-full rounded-lg border bg-surface-0 px-3 py-2.5 text-sm text-surface-900 outline-none transition-colors placeholder:text-surface-400 focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-50 disabled:text-surface-500';
+  'w-full rounded-md border bg-surface-0 px-2.5 py-1.5 text-[12.5px] text-surface-900 outline-none transition-colors placeholder:text-surface-400 focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-50 disabled:text-surface-500';
 
 export function TextInput({
   id,
@@ -101,13 +103,13 @@ export function TextInput({
   if (prefix) {
     return (
       <div
-        className={`flex items-stretch overflow-hidden rounded-lg border transition-colors focus-within:ring-2 ${
+        className={`flex items-stretch overflow-hidden rounded-md border transition-colors focus-within:ring-2 ${
           invalid
             ? 'border-critical-300 focus-within:border-critical-500 focus-within:ring-critical-100'
             : 'border-surface-200 focus-within:border-brand-400 focus-within:ring-brand-100'
         }`}
       >
-        <span className="flex items-center border-r border-surface-200 bg-surface-50 px-3 font-mono text-xs text-surface-500">
+        <span className="flex items-center border-r border-surface-200 bg-surface-50 px-2.5 font-mono text-[11.5px] text-surface-500">
           {prefix}
         </span>
         <input
@@ -119,7 +121,7 @@ export function TextInput({
           aria-describedby={describedBy}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="w-full bg-surface-0 px-3 py-2.5 text-sm text-surface-900 outline-none placeholder:text-surface-400"
+          className="w-full bg-surface-0 px-2.5 py-1.5 text-[12.5px] text-surface-900 outline-none placeholder:text-surface-400"
         />
       </div>
     );
@@ -190,12 +192,12 @@ export function ToggleRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-4">
+    <div className="flex items-start justify-between gap-3 py-2.5">
       <div className="min-w-0">
-        <label htmlFor={id} className={`block text-sm font-semibold ${disabled ? 'text-surface-400' : 'text-surface-800'}`}>
+        <label htmlFor={id} className={`block text-[12.5px] font-semibold ${disabled ? 'text-surface-400' : 'text-surface-800'}`}>
           {label}
         </label>
-        <p className="mt-1 max-w-xl text-xs leading-5 text-surface-500">{description}</p>
+        <p className="mt-0.5 max-w-xl text-[11.5px] leading-[1.45] text-surface-500">{description}</p>
       </div>
       <button
         id={id}

@@ -7,7 +7,7 @@ const card = 'rounded-2xl border border-surface-200/80 bg-surface-0';
 
 export default function DashboardSkeleton() {
   return (
-    <div className="mx-auto max-w-[1440px] space-y-6 p-5 pb-16 md:p-8" aria-busy="true" aria-label="Loading dashboard">
+    <div className="page-shell section-stack" aria-busy="true" aria-label="Loading dashboard">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
@@ -22,7 +22,7 @@ export default function DashboardSkeleton() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
+      <div className="grid grid-cols-12 gap-3">
         {/* Hero */}
         <div className={`${card} col-span-12 p-6 md:p-7 xl:col-span-8`}>
           <div className="flex flex-col gap-7 lg:flex-row">

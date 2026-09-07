@@ -27,9 +27,9 @@ export default function SeverityBadge({ severity, showIcon = true, className = '
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ${toneStyles[severity].badge} ${className}`}
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-px text-[10.5px] font-semibold leading-[1.5] ${toneStyles[severity].badge} ${className}`}
     >
-      {showIcon && <Icon size={11} strokeWidth={2.4} aria-hidden="true" />}
+      {showIcon && <Icon size={10} strokeWidth={2.4} aria-hidden="true" />}
       {label}
     </span>
   );
