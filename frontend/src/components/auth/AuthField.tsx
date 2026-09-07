@@ -1,5 +1,5 @@
 import { useId, useState, type InputHTMLAttributes } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, type LucideIcon } from 'lucide-react';
 
 interface AuthFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id' | 'className'> {
   label: string;
@@ -7,10 +7,24 @@ interface AuthFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id
   error?: string;
   /** Persistent helper text (e.g. password rules) shown when there is no error. */
   hint?: string;
+  /** Leading icon inside the pill. Decorative — the label carries the meaning, so it is
+   * aria-hidden and the input keeps its full accessible name without it. */
+  icon?: LucideIcon;
 }
 
-/** Labelled text input with accessible error wiring and an optional password reveal toggle. */
-export default function AuthField({ label, error, hint, type = 'text', ...inputProps }: AuthFieldProps) {
+/**
+ * Labelled pill input with accessible error wiring, an optional leading icon, and a password
+ * reveal toggle.
+ *
+ * FILLED, NOT OUTLINED. The field is a tinted well (`bg-surface-50`) on the sheet (`surface-0`):
+ * one step darker than the sheet in dark mode, a light grey well in light mode. That is how an
+ * inset field is expressed in both themes without a hard border doing the work — the border here
+ * is a faint hairline that only becomes visible as a state (hover, focus, error).
+ *
+ * Focus uses the shell's `--auth-accent` / `--auth-ring` rather than the app's brand token, so
+ * the fields match the title, links and button around them.
+ */
+export default function AuthField({ label, error, hint, icon: Icon, type = 'text', ...inputProps }: AuthFieldProps) {
   const id = useId();
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
@@ -24,27 +38,33 @@ export default function AuthField({ label, error, hint, type = 'text', ...inputP
     <div className="auth-field-group">
       <label
         htmlFor={id}
-        className="block text-[12.5px] font-semibold tracking-wide text-surface-600 uppercase transition-colors duration-200"
+        className="block text-[12px] font-semibold uppercase tracking-wide text-surface-600 transition-colors duration-200"
       >
         {label}
       </label>
 
-      <div className="relative mt-2">
+      {/* h-11 (44px) is the WCAG 2.5.5 minimum touch target, and the floor here. */}
+      <div className="relative mt-1.5">
+        {Icon && (
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-surface-400">
+            <Icon size={16} strokeWidth={2} aria-hidden="true" />
+          </span>
+        )}
+
         <input
           {...inputProps}
           id={id}
           type={resolvedType}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className={`auth-input h-12 w-full rounded-xl border bg-surface-0 px-4 text-[14.5px] text-surface-900 shadow-sm outline-none transition-all duration-200 placeholder:text-surface-300
-            hover:border-surface-300 hover:shadow-[0_2px_10px_-4px_rgba(99,102,241,0.12)]
-            focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_20px_-6px_rgba(79,70,229,0.22)]
-            disabled:cursor-not-allowed disabled:bg-surface-50 disabled:text-surface-400 disabled:hover:border-surface-200 disabled:hover:shadow-none
-            ${isPassword ? 'pr-12' : ''}
+          className={`auth-input h-11 w-full rounded-full border bg-surface-50 text-[14px] text-surface-900 outline-none transition-all duration-200 placeholder:text-surface-400
+            ${Icon ? 'pl-11' : 'pl-5'} ${isPassword ? 'pr-12' : 'pr-5'}
+            focus:bg-surface-0 focus:shadow-[0_0_0_3px_var(--auth-ring)]
+            disabled:cursor-not-allowed disabled:text-surface-400 disabled:hover:border-surface-200
             ${
               error
-                ? 'border-critical-400 focus:border-critical-500 focus:shadow-[0_0_0_3px_rgba(220,38,38,0.1),0_4px_16px_-4px_rgba(220,38,38,0.18)]'
-                : 'border-surface-200'
+                ? 'border-critical-400 focus:border-critical-500 focus:shadow-[0_0_0_3px_rgba(220,38,38,0.12)]'
+                : 'border-surface-200/80 hover:border-surface-300 focus:border-[color:var(--auth-accent)]'
             }`}
         />
 
@@ -54,7 +74,7 @@ export default function AuthField({ label, error, hint, type = 'text', ...inputP
             onClick={() => setRevealed((v) => !v)}
             aria-label={revealed ? 'Hide password' : 'Show password'}
             aria-pressed={revealed}
-            className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-surface-400 transition-all duration-200 hover:bg-surface-100 hover:text-surface-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-surface-400 transition-all duration-200 hover:bg-surface-100 hover:text-surface-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--auth-accent)]"
           >
             {revealed
               ? <EyeOff size={16} strokeWidth={2} aria-hidden="true" />
@@ -67,14 +87,14 @@ export default function AuthField({ label, error, hint, type = 'text', ...inputP
         <p
           id={errorId}
           role="alert"
-          className="auth-rise mt-2 flex items-center gap-1.5 text-[12px] font-medium text-critical-600"
+          className="auth-rise mt-1.5 flex items-center gap-1.5 pl-1 text-[12px] font-medium text-critical-600"
           style={{ animationDuration: '0.28s' }}
         >
           <span aria-hidden="true" className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-critical-500" />
           {error}
         </p>
       ) : hint ? (
-        <p id={hintId} className="mt-2 text-[12px] text-surface-400">
+        <p id={hintId} className="mt-1.5 pl-1 text-[12px] text-surface-400">
           {hint}
         </p>
       ) : null}

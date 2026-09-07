@@ -177,7 +177,7 @@ export default function SeoSubPillarPage({ analysis }: Props) {
           <button
             type="button"
             onClick={() => load()}
-            className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface-0 shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             <RefreshCw size={15} />
             Retry
@@ -215,7 +215,7 @@ export default function SeoSubPillarPage({ analysis }: Props) {
               type="button"
               onClick={() => load(true)}
               disabled={isRefreshing}
-              className="inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-60"
+              className="inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-surface-0 shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:opacity-60"
             >
               <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} aria-hidden="true" />
               {isRefreshing ? 'Re-analyzing' : 'Re-analyze'}

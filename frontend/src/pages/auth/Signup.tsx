@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Lock, Mail, User } from 'lucide-react';
 import AuthLayout from '../../layouts/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
 import AuthAlert from '../../components/auth/AuthAlert';
@@ -169,7 +170,6 @@ export default function Signup() {
     <AuthLayout
       width="wide"
       title="Create your account"
-      subtitle="Start auditing your Shopify store across SEO, content, speed, CRO and AI discovery."
       footer={
         <>
           Already have an account?{' '}
@@ -185,16 +185,17 @@ export default function Signup() {
       <form ref={formRef} onSubmit={handleSubmit} noValidate>
         {formError && <AuthAlert message={formError} />}
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Paired on tablet and up; stacked on phones so neither field becomes too narrow
               to read its own placeholder. */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <AuthField
               label="First name"
               type="text"
               name="given-name"
               autoComplete="given-name"
               placeholder="Ada"
+              icon={User}
               value={values.firstName}
               onChange={(event) => update('firstName', event.target.value)}
               error={fieldErrors.firstName}
@@ -207,6 +208,7 @@ export default function Signup() {
               name="family-name"
               autoComplete="family-name"
               placeholder="Lovelace"
+              icon={User}
               value={values.lastName}
               onChange={(event) => update('lastName', event.target.value)}
               error={fieldErrors.lastName}
@@ -222,6 +224,7 @@ export default function Signup() {
             autoComplete="email"
             inputMode="email"
             placeholder="you@company.com"
+            icon={Mail}
             value={values.email}
             onChange={(event) => update('email', event.target.value)}
             error={fieldErrors.email}
@@ -236,6 +239,7 @@ export default function Signup() {
               name="new-password"
               autoComplete="new-password"
               placeholder="Create a password"
+              icon={Lock}
               value={values.password}
               onChange={(event) => update('password', event.target.value)}
               error={fieldErrors.password}
@@ -267,6 +271,7 @@ export default function Signup() {
             name="confirm-password"
             autoComplete="new-password"
             placeholder="Re-enter your password"
+            icon={Lock}
             value={values.confirmPassword}
             onChange={(event) => update('confirmPassword', event.target.value)}
             error={fieldErrors.confirmPassword}
@@ -275,25 +280,20 @@ export default function Signup() {
           />
         </div>
 
-        <div className="mt-5">
+        <div className="mt-3.5">
           <AuthCheckbox
             checked={rememberMe}
             onChange={setRememberMe}
             disabled={pending}
             label="Remember me on this device"
-            hint="Stay signed in after closing your browser. Leave this off on shared computers."
           />
         </div>
 
-        <div className="mt-6">
+        <div className="mt-4">
           <AuthSubmitButton pending={pending} pendingLabel="Creating account…">
             Create account
           </AuthSubmitButton>
         </div>
-
-        <p className="mt-4 text-center text-[12px] leading-5 text-surface-400">
-          Scorelo requests read-only access to your store and never modifies your storefront.
-        </p>
       </form>
     </AuthLayout>
   );

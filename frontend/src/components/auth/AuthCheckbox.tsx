@@ -47,8 +47,8 @@ export default function AuthCheckbox({ checked, onChange, label, hint, disabled 
           <span
             aria-hidden="true"
             className="flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border border-surface-300 bg-surface-0 text-white shadow-sm transition-colors
-              peer-checked:border-brand-600 peer-checked:bg-brand-600
-              peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 peer-focus-visible:ring-offset-2
+              peer-checked:border-[color:var(--auth-accent)] peer-checked:bg-[color:var(--auth-accent)]
+              peer-focus-visible:ring-2 peer-focus-visible:ring-[color:var(--auth-accent)] peer-focus-visible:ring-offset-2
               peer-disabled:bg-surface-100"
           >
             <Check size={12} strokeWidth={3} className={`transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`} />
@@ -60,7 +60,7 @@ export default function AuthCheckbox({ checked, onChange, label, hint, disabled 
 
       {hint && (
         // Indented to line up with the label text: 18px box + 12px gap.
-        <p id={hintId} className="mt-1 pl-[30px] text-[12px] leading-5 text-surface-500">
+        <p id={hintId} className="mt-1 pl-[30px] text-[12px] leading-[1.45] text-surface-500">
           {hint}
         </p>
       )}

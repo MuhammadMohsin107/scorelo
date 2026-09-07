@@ -11,7 +11,22 @@ export interface PillarMeta {
   key: PillarKey;
   label: string;
   icon: string;
+  /**
+   * The pillar's accent, as a CSS variable rather than a literal.
+   *
+   * WHY NOT A HEX: this value is used as TEXT as well as a fill — the status badge on Reports
+   * colours its label with it — and the light SEO accent #4f46e5 is a dark indigo measuring
+   * about 3.2:1 on the dark ground, a WCAG AA failure for the small bold type it labels.
+   * index.css carries a lifted dark-mode value for each pillar, so this single reference is
+   * correct in both themes.
+   *
+   * VALID ONLY IN A CSS CONTEXT — a style prop, or a Tailwind arbitrary value. A canvas or WebGL
+   * consumer needs a resolved colour and would have to read it via getComputedStyle.
+   */
   color: string;
+  /** The translucent same-hue ground the accent sits on in a badge. Its own token because an
+   * alpha suffix cannot be concatenated onto a var(), which is what the old `${color}12` did. */
+  tint: string;
   subPillars: SubPillar[];
 }
 
@@ -20,7 +35,8 @@ export const pillarMeta: Record<PillarKey, PillarMeta> = {
     key: 'seo',
     label: 'SEO',
     icon: 'search',
-    color: '#4f46e5',
+    color: 'var(--c-pillar-seo)',
+    tint: 'var(--c-pillar-seo-tint)',
     // ids are the ROUTE slugs (/seo/<id>) and the values stored in findings.subPillar.
     subPillars: [
       { id: 'title-tags', label: 'Title tags' },
@@ -37,7 +53,8 @@ export const pillarMeta: Record<PillarKey, PillarMeta> = {
     key: 'content',
     label: 'Content',
     icon: 'file-text',
-    color: '#f59e0b',
+    color: 'var(--c-pillar-content)',
+    tint: 'var(--c-pillar-content-tint)',
     subPillars: [
       { id: 'product-descriptions', label: 'Product descriptions' },
       { id: 'collection-descriptions', label: 'Collection descriptions' },
@@ -51,7 +68,8 @@ export const pillarMeta: Record<PillarKey, PillarMeta> = {
     key: 'speed',
     label: 'Speed',
     icon: 'zap',
-    color: '#0ea5e9',
+    color: 'var(--c-pillar-speed)',
+    tint: 'var(--c-pillar-speed-tint)',
     subPillars: [
       { id: 'cwv', label: 'Core Web Vitals' },
       { id: 'image-weight', label: 'Image Optimization' },
@@ -63,7 +81,8 @@ export const pillarMeta: Record<PillarKey, PillarMeta> = {
     key: 'cro',
     label: 'CRO',
     icon: 'target',
-    color: '#f97316',
+    color: 'var(--c-pillar-cro)',
+    tint: 'var(--c-pillar-cro-tint)',
     subPillars: [
       { id: 'clarity', label: 'Clarity / behavior readiness' },
       { id: 'cart-recovery', label: 'Cart recovery' },
@@ -82,7 +101,8 @@ export const pillarMeta: Record<PillarKey, PillarMeta> = {
     key: 'ai-discovery',
     label: 'AI Discovery',
     icon: 'sparkles',
-    color: '#10b981',
+    color: 'var(--c-pillar-ai)',
+    tint: 'var(--c-pillar-ai-tint)',
     subPillars: [
       { id: 'agents-md', label: 'agents.md / llms.txt' },
       { id: 'agentic-attrs', label: 'Agentic commerce attributes' },

@@ -52,8 +52,17 @@ export const toneStyles: Record<Tone, { badge: string; bar: string; dot: string;
   },
 };
 
-/** Hairline-bordered surface. No drop shadow — the border does the work. */
-export const card = 'rounded-2xl border border-surface-200 bg-white';
+/**
+ * Hairline-bordered surface. No drop shadow — the border does the work.
+ *
+ * `bg-surface-0`, NOT `bg-white`. This is the raised-sheet token — white in light mode, a lifted
+ * near-black in dark — and index.css introduced it as, in its own words, "what `bg-white` used to
+ * hardcode and could never adapt". Every card on every sub-pillar page comes from this one
+ * constant, so while it said `bg-white` those pages rendered a white sheet holding
+ * `text-surface-950` headings, which are near-WHITE in dark mode: the score, the metric strip and
+ * the evidence table were all invisible.
+ */
+export const card = 'rounded-2xl border border-surface-200 bg-surface-0';
 
 /** Tinted header band that separates a card's title from its content. */
 export const cardHeader = 'border-b border-surface-200 bg-surface-50/60';
@@ -67,5 +76,21 @@ export const cardTitle = 'text-[15px] font-semibold tracking-[-0.01em] text-surf
 export const statusFromScore = (score: number) =>
   score >= 90 ? 'Excellent' : score >= 75 ? 'Good' : score >= 50 ? 'Needs Work' : 'Critical';
 
+/**
+ * Stroke colour for the score dial.
+ *
+ * These four literals were EXACTLY the light-mode values of the semantic -600 tokens
+ * (#16a34a/#4f46e5/#ca8a04/#dc2626), so this is a drop-in: light mode is pixel-identical, and
+ * dark mode now gets the lifted values the rest of the UI already uses. The dial was previously
+ * the one element on the page still painted from the light palette.
+ *
+ * `var()` is valid in an SVG `stroke` because presentation attributes ARE CSS properties.
+ */
 export const scoreHex = (score: number) =>
-  score >= 90 ? '#16a34a' : score >= 75 ? '#4f46e5' : score >= 50 ? '#ca8a04' : '#dc2626';
+  score >= 90
+    ? 'var(--c-success-600)'
+    : score >= 75
+      ? 'var(--c-brand-600)'
+      : score >= 50
+        ? 'var(--c-warning-600)'
+        : 'var(--c-critical-600)';

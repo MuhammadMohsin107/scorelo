@@ -9,7 +9,10 @@ export interface ReportPillar {
   current: number;
   previous: number;
   status: string;
+  /** The pillar's accent and its translucent badge ground, both CSS variables — see
+   * pillarMeta.ts for why these are not hex literals. */
   color: string;
+  tint: string;
 }
 
 export interface ReportTrendPoint {
@@ -55,6 +58,7 @@ export async function fetchReportOverview(): Promise<ReportOverview> {
         previous: previousByPillar.get(key) ?? score.score,
         status: scoreToStatus(score.score).statusLabel,
         color: meta.color,
+        tint: meta.tint,
       };
     });
 

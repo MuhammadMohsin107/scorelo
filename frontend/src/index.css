@@ -105,6 +105,31 @@
   --c-shadow-sm: rgba(15, 23, 42, 0.06);
   --c-shadow-md: rgba(15, 23, 42, 0.10);
   --c-shadow-lg: rgba(15, 23, 42, 0.20);
+
+  /* ── Per-pillar identity colours ───────────────────────────────────────────
+   * One accent per audit pillar, so a pillar is recognisable at a glance wherever it appears —
+   * sidebar, dashboard rows, report tables, comparison badges.
+   *
+   * TOKENISED because these are used AS TEXT, not only as fills. They were five fixed hexes in
+   * pillarMeta.ts, and SEO's #4f46e5 is a dark indigo: on a near-black ground that is roughly
+   * 3.2:1, which fails WCAG AA for the small bold type it labels. The dark values below are the
+   * -400 step of each hue — light enough to read on the dark ground, still unmistakably the same
+   * colour.
+   *
+   * The `-tint` companion is the translucent ground the same colour sits on in a badge. It exists
+   * as its own token because the alternative — concatenating an alpha suffix onto the hex, as
+   * Reports.tsx did with `${pillar.color}12` — cannot work once the value is a var(). */
+  --c-pillar-seo:     #4f46e5;
+  --c-pillar-content: #f59e0b;
+  --c-pillar-speed:   #0ea5e9;
+  --c-pillar-cro:     #f97316;
+  --c-pillar-ai:      #10b981;
+
+  --c-pillar-seo-tint:     rgba(79, 70, 229, 0.07);
+  --c-pillar-content-tint: rgba(245, 158, 11, 0.07);
+  --c-pillar-speed-tint:   rgba(14, 165, 233, 0.07);
+  --c-pillar-cro-tint:     rgba(249, 115, 22, 0.07);
+  --c-pillar-ai-tint:      rgba(16, 185, 129, 0.07);
 }
 
 /* The OS preference, applied only when the customer has not chosen for themselves. */
@@ -200,6 +225,21 @@
     --c-shadow-sm: rgba(0, 0, 0, 0.40);
     --c-shadow-md: rgba(0, 0, 0, 0.55);
     --c-shadow-lg: rgba(0, 0, 0, 0.70);
+
+    /* Pillar accents lifted to the -400 step. SEO moves the most because #4f46e5 was the one
+     * that genuinely failed as text on this ground; the other four were merely dull. Tints are
+     * raised to 12% since a 7% wash is invisible over near-black. */
+    --c-pillar-seo:     #8b87f5;
+    --c-pillar-content: #fbbf24;
+    --c-pillar-speed:   #38bdf8;
+    --c-pillar-cro:     #fb923c;
+    --c-pillar-ai:      #34d399;
+
+    --c-pillar-seo-tint:     rgba(139, 135, 245, 0.12);
+    --c-pillar-content-tint: rgba(251, 191, 36, 0.12);
+    --c-pillar-speed-tint:   rgba(56, 189, 248, 0.12);
+    --c-pillar-cro-tint:     rgba(251, 146, 60, 0.12);
+    --c-pillar-ai-tint:      rgba(52, 211, 153, 0.12);
   }
 }
 
@@ -284,6 +324,123 @@
   --c-shadow-sm: rgba(0, 0, 0, 0.40);
   --c-shadow-md: rgba(0, 0, 0, 0.55);
   --c-shadow-lg: rgba(0, 0, 0, 0.70);
+
+  /* Mirrors the media-query block above — the explicit toggle must win over a light OS. */
+  --c-pillar-seo:     #8b87f5;
+  --c-pillar-content: #fbbf24;
+  --c-pillar-speed:   #38bdf8;
+  --c-pillar-cro:     #fb923c;
+  --c-pillar-ai:      #34d399;
+
+  --c-pillar-seo-tint:     rgba(139, 135, 245, 0.12);
+  --c-pillar-content-tint: rgba(251, 191, 36, 0.12);
+  --c-pillar-speed-tint:   rgba(56, 189, 248, 0.12);
+  --c-pillar-cro-tint:     rgba(251, 146, 60, 0.12);
+  --c-pillar-ai-tint:      rgba(52, 211, 153, 0.12);
+}
+
+/* ── Auth shell palette ───────────────────────────────────────────────────────
+ * The auth pages are the one surface with a palette of their own: a coloured page holding a
+ * floating card whose left half is a brand gradient. None of that follows the app theme — the
+ * page and the panel are brand colour, not theme colour — so it lives on its own class rather
+ * than on :root, and AuthLayout, AuthField and AuthSubmitButton read only these.
+ *
+ * Blue → cyan, deliberately NOT the app's indigo: the shell was designed against a purple/pink
+ * reference and the brief was "the same design, other colours". Everything in this block is the
+ * whole palette; re-skinning the auth pages means editing here and nowhere else.
+ *
+ * The ACCENT (title, links, focus ring) does invert with the theme, because it sits on the form
+ * sheet, which does invert. The page, panel, streaks and button gradient do not. */
+.auth-shell {
+  /* ── 2026 Premium Redesign ───────────────────────────────────────────────────
+   * Deep midnight-indigo page with a vibrant violet-to-cyan brand panel.
+   * The palette was chosen to feel trustworthy (deep navy) and alive (electric
+   * violet → cyan), reflecting the score-intelligence nature of the product.
+   *
+   * All tokens live here; re-skinning the auth experience means editing this
+   * one block — nothing in the components names a hex value directly. */
+
+  /* Page: deep dark navy — gives the card maximum contrast without feeling flat. */
+  --auth-page: radial-gradient(ellipse at 30% 20%, #0d0f2e 0%, #050614 60%, #020310 100%);
+
+  /* Brand panel: a vibrant, deep indigo → violet → electric-purple aurora. */
+  --auth-panel: linear-gradient(145deg,
+    #0a0c2e 0%,
+    #1a1060 25%,
+    #2d1080 50%,
+    #4c1399 70%,
+    #6d28d9 100%);
+
+  /* Aurora blobs inside the panel. Two glowing ellipses that drift slowly. */
+  --auth-aurora-1: radial-gradient(ellipse at 20% 50%, rgba(139,92,246,0.45) 0%, transparent 65%);
+  --auth-aurora-2: radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.35) 0%, transparent 60%);
+  --auth-aurora-3: radial-gradient(ellipse at 60% 80%, rgba(16,185,129,0.25) 0%, transparent 55%);
+
+  /* Diagonal streaks: electric violet → cyan, and deep blue → mint. */
+  --auth-streak-a-from: rgba(167, 139, 250, 0.9);
+  --auth-streak-a-to:   rgba(94, 234, 212, 0.5);
+  --auth-streak-b-from: rgba(99, 102, 241, 0.75);
+  --auth-streak-b-to:   rgba(34, 211, 238, 0.4);
+
+  /* Accent: vivid violet for links, title, focus rings on the light sheet. */
+  --auth-accent:       #7c3aed;
+  --auth-accent-hover: #6d28d9;
+  --auth-ring:         rgba(124, 58, 237, 0.20);
+
+  /* Submit button: vibrant violet → indigo gradient that's unmissable. */
+  --auth-btn-from: #7c3aed;
+  --auth-btn-to:   #4f46e5;
+  --auth-btn-glow: rgba(124, 58, 237, 0.65);
+
+  /* SSO buttons: clean outlined pill style. */
+  --auth-sso-border:      rgba(226, 232, 240, 1);
+  --auth-sso-border-hover: rgba(148, 163, 184, 0.8);
+  --auth-sso-bg:          #ffffff;
+  --auth-sso-bg-hover:    #f8fafc;
+  --auth-sso-text:        #1e293b;
+  --auth-sso-shadow:      0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+
+  /* OR divider. */
+  --auth-divider: #e2e8f0;
+  --auth-divider-text: #94a3b8;
+
+  /* Panel data-node network lines (decorative hairlines). */
+  --auth-grid-line: rgba(255, 255, 255, 0.04);
+
+  /* Panel light-sweep band. */
+  --auth-sweep: rgba(255, 255, 255, 0.06);
+
+  /* Card edge glint. */
+  --auth-glint: rgba(255, 255, 255, 0.15);
+}
+
+/* ── The form sheet stays LIGHT in every theme ────────────────────────────────
+ * The card is a designed object sitting on a coloured page — its left half is a brand gradient
+ * and its right half is a white sheet, in the reference and in every theme. A dark app theme
+ * inverting only the right half produced a near-black slab welded to a bright panel: the
+ * two halves stopped reading as one card.
+ *
+ * So the sheet re-declares the surface ramp to the light values, scoped to itself. Every token
+ * consumer inside it — labels, input wells, hint text, the reveal toggle — renders exactly as it
+ * does in light mode, and nothing outside the sheet is touched. `color-scheme: light` keeps
+ * native pieces (autofill, the caret, scrollbars) in step. Light mode is byte-identical, since
+ * these ARE the light values.
+ *
+ * It also means the accent never needs a dark variant: it only ever sits on this light sheet. */
+.auth-sheet {
+  color-scheme: light;
+  --c-surface-0:   #ffffff;
+  --c-surface-50:  #fafafa;
+  --c-surface-100: #f4f4f5;
+  --c-surface-200: #e4e4e7;
+  --c-surface-300: #d4d4d8;
+  --c-surface-400: #a1a1aa;
+  --c-surface-500: #71717a;
+  --c-surface-600: #52525b;
+  --c-surface-700: #3f3f46;
+  --c-surface-800: #27272a;
+  --c-surface-900: #18181b;
+  --c-surface-950: #09090b;
 }
 
 @theme {
@@ -424,8 +581,13 @@
   }
 
   /* Professional buttons */
+  /* `text-surface-0`, NOT `text-white`. The label has to invert with its own background: brand-600
+     is a DARK indigo (#4f46e5) in light mode and a LIGHT lavender (#8b87f5) in dark, so a fixed
+     white label goes from 8.6:1 contrast to about 2.2:1 — the "Re-analyze" and "Review evidence"
+     buttons were legible in light mode and barely readable in dark. surface-0 is white in light
+     and near-black in dark, which is ~8.6:1 both ways. Light mode is therefore unchanged. */
   .btn-primary {
-    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.2)] border border-brand-700
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-[13px] font-medium text-surface-0 shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.2)] border border-brand-700
       transition-all duration-200 hover:bg-brand-500 hover:shadow-[0_2px_4px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
       active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
   }
@@ -518,7 +680,7 @@
 }
 
 @keyframes auth-rise {
-  from { opacity: 0; transform: translate3d(0, 20px, 0); }
+  from { opacity: 0; transform: translate3d(0, 24px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
@@ -529,8 +691,75 @@
 }
 
 @keyframes auth-field-focus-in {
-  from { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
-  to   { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12); }
+  from { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+  to   { box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14); }
+}
+
+/* ── Error shake ─────────────────────────────────────────────────────────────
+   A gentle horizontal shake applied to the field wrapper when a validation
+   error fires. Short enough not to distract, strong enough to be noticed. */
+@keyframes auth-field-shake {
+  0%, 100% { transform: translateX(0); }
+  16%       { transform: translateX(-5px); }
+  33%       { transform: translateX(4px); }
+  50%       { transform: translateX(-3px); }
+  66%       { transform: translateX(2px); }
+  83%       { transform: translateX(-1px); }
+}
+
+/* ── Brand-panel light sweep ─────────────────────────────────────────────────
+   A soft diagonal band that crosses the panel every 18s. */
+@keyframes auth-panel-sweep {
+  0%       { transform: translate3d(-40%, 0, 0) skewX(-14deg); opacity: 0; }
+  15%, 70% { opacity: 1; }
+  100%     { transform: translate3d(190%, 0, 0) skewX(-14deg); opacity: 0; }
+}
+
+/* ── Grid drift ──────────────────────────────────────────────────────────────
+   The hairline grid creeps one cell diagonally over 48 seconds. */
+@keyframes auth-grid-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 72px 72px; }
+}
+
+/* ── Card edge highlight ─────────────────────────────────────────────────────
+   A slow travelling glint along the card's top hairline. */
+@keyframes auth-edge-glint {
+  0%, 100% { transform: translateX(-100%); }
+  50%      { transform: translateX(100%); }
+}
+
+/* ── Streak float ────────────────────────────────────────────────────────────
+   The whole streak cluster rises and settles by 10px over 12s. */
+@keyframes auth-float {
+  0%, 100% { transform: rotate(-34deg) translate3d(0, 0, 0); }
+  50%      { transform: rotate(-34deg) translate3d(0, -10px, 0); }
+}
+
+/* ── Individual streak pulse ─────────────────────────────────────────────────
+   Each streak blurs and brightens independently on a slow staggered cycle,
+   making the cluster feel like live data-energy rather than a static graphic. */
+@keyframes auth-streak-pulse {
+  0%, 100% { opacity: var(--streak-base-opacity, 0.9); filter: blur(0px); }
+  50%       { opacity: 1;                                filter: blur(0.5px); }
+}
+
+/* ── Particle drift ──────────────────────────────────────────────────────────
+   Small floating dots in the panel drift upward and fade — inspired by the
+   "data nodes" motif in analytics dashboards. */
+@keyframes auth-particle-drift {
+  0%   { transform: translate3d(0, 0, 0);     opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.4; }
+  100% { transform: translate3d(0, -80px, 0); opacity: 0; }
+}
+
+/* ── Floating label transition ───────────────────────────────────────────────
+   When focus enters, the label slides up and shrinks into the floating position.
+   On blur it returns unless the field has a value. */
+@keyframes auth-label-float {
+  from { transform: translateY(0)   scale(1);    color: var(--c-surface-500); }
+  to   { transform: translateY(-26px) scale(0.78); color: var(--auth-accent); }
 }
 
 @layer utilities {
@@ -549,50 +778,88 @@
     animation: auth-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
-  /* ── Auth card — clean white with very subtle shadow ── */
-  .auth-card {
-    background-color: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.07);
-    box-shadow:
-      0 1px 3px rgba(16, 24, 40, 0.05),
-      0 4px 12px rgba(16, 24, 40, 0.06),
-      0 20px 60px -16px rgba(79, 70, 229, 0.10);
+  /* ── Live ambient motion ─────────────────────────────────────────────────── */
+  .auth-panel-sweep {
+    animation: auth-panel-sweep 22s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    will-change: transform, opacity;
   }
 
-  /* ── Input base — transition is the only style here so components  ──
-        can still compose their own border/ring utilities freely.     */
+  .auth-grid-drift {
+    animation: auth-grid-drift 56s linear infinite;
+  }
+
+  .auth-edge-glint {
+    animation: auth-edge-glint 11s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .auth-float {
+    transform: rotate(-34deg);
+    animation: auth-float 12s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  /* Staggered streak pulse — each streak uses its own CSS variable for base opacity. */
+  .auth-streak-pulse {
+    animation: auth-streak-pulse var(--streak-duration, 6s) ease-in-out infinite;
+    animation-delay: var(--streak-delay, 0s);
+  }
+
+  /* Particle drift — applied to each floating dot in the panel. */
+  .auth-particle {
+    animation: auth-particle-drift var(--particle-dur, 8s) ease-in-out infinite;
+    animation-delay: var(--particle-delay, 0s);
+    will-change: transform, opacity;
+  }
+
+  /* ── Auth card ────────────────────────────────────────────────────────────
+     Ultra-deep layered shadow gives the card a "floating" physical presence
+     against the dark page. The hairline ring sharpens its edge. */
+  .auth-card {
+    background-color: var(--c-surface-0);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.10),
+      0 4px 6px -2px rgba(0, 0, 0, 0.3),
+      0 24px 48px -16px rgba(0, 0, 0, 0.55),
+      0 56px 120px -32px rgba(0, 0, 0, 0.6),
+      0 0 80px -20px rgba(109, 40, 217, 0.25);
+  }
+
+  /* ── Input base ── */
   .auth-input {
     transition:
       border-color 0.18s ease,
       box-shadow 0.18s ease,
-      background-color 0.18s ease;
+      background-color 0.22s ease;
   }
 
-  /* ── Field group micro-lift on focus-within ── */
+  /* ── Field group: micro-lift on focus-within ── */
   .auth-field-group {
-    transition: transform 0.18s ease;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .auth-field-group:focus-within {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+  }
+  /* Error shake: applied via JS by adding the class on submit with errors. */
+  .auth-field-group.auth-shake {
+    animation: auth-field-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
   }
 
-  /* ── Submit button hover / active states ── */
+  /* ── Submit button hover / active ── */
   .auth-submit-btn:hover:not(:disabled) {
     box-shadow:
-      0 1px 2px rgba(16, 24, 40, 0.08),
-      0 0 0 1px rgba(79, 70, 229, 0.22),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
-      0 18px 44px -8px rgba(79, 70, 229, 0.62) !important;
-    background: linear-gradient(180deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%) !important;
-    transform: translateY(-1px);
+      0 0 0 1px rgba(124, 58, 237, 0.30),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 16px 32px -8px rgba(124, 58, 237, 0.55) !important;
+    background: linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%) !important;
+    transform: translateY(-2px) scale(1.008);
   }
   .auth-submit-btn:active:not(:disabled) {
-    transform: translateY(1px);
+    transform: translateY(1px) scale(0.995);
     box-shadow:
-      0 1px 2px rgba(16, 24, 40, 0.08),
-      0 0 0 1px rgba(79, 70, 229, 0.15),
-      inset 0 2px 4px rgba(0, 0, 0, 0.12),
-      0 4px 8px -4px rgba(79, 70, 229, 0.3) !important;
+      0 0 0 1px rgba(124, 58, 237, 0.20),
+      inset 0 2px 4px rgba(0, 0, 0, 0.18),
+      0 4px 12px -4px rgba(124, 58, 237, 0.35) !important;
   }
 
   /* ── Sheen sweep on button hover ── */
@@ -605,7 +872,7 @@
       105deg,
       transparent 25%,
       rgba(255, 255, 255, 0.18) 45%,
-      rgba(255, 255, 255, 0.28) 50%,
+      rgba(255, 255, 255, 0.32) 50%,
       rgba(255, 255, 255, 0.18) 55%,
       transparent 75%
     );
@@ -614,18 +881,95 @@
     pointer-events: none;
   }
   .auth-submit-btn:hover:not(:disabled) .auth-btn-sheen::after {
-    animation: auth-btn-sheen 0.9s ease-out forwards;
+    animation: auth-btn-sheen 0.85s ease-out forwards;
+  }
+
+  /* ── SSO Buttons ────────────────────────────────────────────────────────────
+     Clean outlined pill buttons for third-party sign-in. They share a common
+     shell; each provider's icon and label is supplied by the component. */
+  .auth-sso-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 9999px;
+    border: 1.5px solid var(--auth-sso-border);
+    background: var(--auth-sso-bg);
+    color: var(--auth-sso-text);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--auth-sso-shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .auth-sso-btn:hover:not(:disabled) {
+    background: var(--auth-sso-bg-hover);
+    border-color: var(--auth-sso-border-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .auth-sso-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: var(--auth-sso-shadow);
+  }
+  .auth-sso-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--auth-ring), var(--auth-sso-shadow);
+  }
+  .auth-sso-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ── OR Divider ── */
+  .auth-or-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .auth-or-divider::before,
+  .auth-or-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--auth-divider);
+  }
+  .auth-or-divider span {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--auth-divider-text);
   }
 
   /* ── Reduced motion overrides ── */
   @media (prefers-reduced-motion: reduce) {
     .auth-aurora,
-    .auth-aurora-slow { animation: none !important; }
-    .auth-rise        { animation: none !important; opacity: 1; transform: none; }
+    .auth-aurora-slow   { animation: none !important; }
+    .auth-rise          { animation: none !important; opacity: 1; transform: none; }
+    .auth-panel-sweep   { animation: none !important; opacity: 0; }
+    .auth-grid-drift    { animation: none !important; }
+    .auth-edge-glint    { animation: none !important; }
+    .auth-float         { animation: none !important; transform: rotate(-34deg); }
+    .auth-streak-pulse  { animation: none !important; }
+    .auth-particle      { animation: none !important; }
+    .auth-field-group.auth-shake { animation: none !important; }
     .auth-submit-btn:hover:not(:disabled) .auth-btn-sheen::after { animation: none !important; }
-    .auth-submit-btn  { transition: none !important; }
-    .auth-field-group { transition: none !important; }
+    .auth-submit-btn    { transition: none !important; }
+    .auth-field-group   { transition: none !important; }
     .auth-field-group:focus-within { transform: none; }
-    .auth-input       { transition: none !important; }
+    .auth-input         { transition: none !important; }
+    .auth-sso-btn       { transition: none !important; }
   }
 }

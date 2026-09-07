@@ -1,28 +1,58 @@
 import type { ReactNode } from 'react';
 import ScoreloLogo from '../components/auth/ScoreloLogo';
-import AuthScene from '../components/auth/AuthScene';
 
 interface AuthLayoutProps {
   title: string;
-  subtitle: string;
+  /** Optional. Omitted — or empty — renders NO element, rather than an empty <p> that still
+   * claims its top margin and a line box. */
+  subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
   width?: 'default' | 'wide';
 }
 
 /**
- * Split-screen authentication shell — Premium 2026 edition.
+ * ─── Floating-card authentication shell ──────────────────────────────────────
  *
- * LEFT — a live 3D "Performance Intelligence" scene rendered with React Three
- * Fiber: orbit rings for each audit pillar, pulsing data nodes and energy
- * streams all feeding a central store core. Five pillar badges float below
- * the headline, reinforcing Scorelo's product identity.
+ * One card, centred on a solid coloured page, split in two:
  *
- * RIGHT — frosted glass auth card over a softly tinted aurora ground.
+ *   LEFT  — a gradient brand panel: logo, a welcome, one sentence, and a cluster of diagonal
+ *           light streaks rising from the bottom-left corner.
+ *   RIGHT — the form on a clean sheet.
  *
- * RESPONSIVE: brand panel hidden below `lg`. Phone sees full-viewport form
- * plus a compact aurora/logo header — no WebGL canvas on mobile.
+ * Every colour that belongs to this shell — the page, the panel gradient, the accent used for
+ * the title, links and focus rings, the button gradient — is a `--auth-*` custom property set
+ * by `.auth-shell` in index.css, with dark-mode overrides in the same place as every other
+ * token. Nothing here names a hex, so re-skinning the auth pages is a one-block change.
+ *
+ * The right sheet uses the app's surface tokens, so it is white in light mode and the raised
+ * dark sheet in dark mode while the page and the brand panel stay as designed — they are brand
+ * colour, not theme colour.
+ *
+ * DELIBERATELY NOT HERE: pillar names, check counts, invented testimonials or customer numbers.
+ * The one sentence on the panel is true of the product as built.
+ *
+ * RESPONSIVE: below `lg` the brand panel is hidden, the logo moves above the card, and the sheet
+ * takes the full card width.
  */
+
+/** Decorative streaks. Each row is one pill: where it sits inside the rotated cluster, how big
+ * it is, and which of the two gradients it takes. Hand-placed — a formula gives an even fan,
+ * which reads as a chart; this reads as light. */
+const STREAKS: { left: number; top: number; width: number; height: number; tone: 'a' | 'b'; opacity: number }[] = [
+  { left: -30, top: 30, width: 300, height: 40, tone: 'a', opacity: 1 },
+  { left: 130, top: 88, width: 330, height: 46, tone: 'b', opacity: 0.95 },
+  { left: 20, top: 156, width: 240, height: 34, tone: 'a', opacity: 0.9 },
+  { left: 220, top: 208, width: 280, height: 42, tone: 'b', opacity: 0.85 },
+  { left: -40, top: 250, width: 190, height: 28, tone: 'a', opacity: 0.8 },
+  { left: 150, top: 300, width: 220, height: 32, tone: 'b', opacity: 0.7 },
+];
+
+const STREAK_TONES = {
+  a: 'linear-gradient(90deg, var(--auth-streak-a-from) 0%, var(--auth-streak-a-to) 100%)',
+  b: 'linear-gradient(90deg, var(--auth-streak-b-from) 0%, var(--auth-streak-b-to) 100%)',
+};
+
 export default function AuthLayout({
   title,
   subtitle,
@@ -31,111 +61,89 @@ export default function AuthLayout({
   width = 'default',
 }: AuthLayoutProps) {
   return (
-    <div className="grid h-full grid-cols-1 overflow-y-auto bg-[#04070f] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      {/* ── Brand panel ─────────────────────────────────────────────────── */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden lg:flex" style={{ background: 'linear-gradient(135deg, #04070f 0%, #080d1f 50%, #060b18 100%)' }}>
-
-        {/* Multi-layer aurora wash */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="auth-aurora absolute -left-40 -top-40 h-[38rem] w-[38rem] rounded-full opacity-[0.18] blur-[130px]" style={{ background: 'radial-gradient(circle, #4f46e5 0%, #3730a3 60%, transparent 100%)' }} />
-          <div className="auth-aurora auth-aurora-slow absolute -bottom-44 -right-28 h-[32rem] w-[32rem] rounded-full opacity-[0.14] blur-[120px]" style={{ background: 'radial-gradient(circle, #7c3aed 0%, #5b21b6 60%, transparent 100%)' }} />
-          <div className="auth-aurora absolute left-1/3 top-1/2 h-[26rem] w-[26rem] rounded-full opacity-[0.07] blur-[130px]" style={{ background: 'radial-gradient(circle, #0ea5e9 0%, #0369a1 60%, transparent 100%)', animationDelay: '-8s' }} />
-          <div className="auth-aurora auth-aurora-slow absolute -bottom-24 left-1/4 h-[22rem] w-[22rem] rounded-full opacity-[0.06] blur-[140px]" style={{ background: 'radial-gradient(circle, #4f46e5 0%, transparent 100%)', animationDelay: '-16s' }} />
-        </div>
-
-        {/* Fine noise grain — premium texture */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.035]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-            backgroundSize: '128px 128px',
-          }}
-        />
-
-        {/* Live 3D analytics scene */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="h-[680px] w-[680px] max-w-none opacity-[0.92]">
-            <AuthScene />
-          </div>
-        </div>
-
-        {/* Legibility gradient scrim — bottom-heavy so copy reads on top of 3D */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background: 'linear-gradient(to top, #04070f 0%, #04070f 12%, rgba(4,7,15,0.75) 35%, rgba(4,7,15,0.2) 60%, rgba(4,7,15,0.35) 100%)',
-          }}
-        />
-
-        {/* Top-left logo */}
-        <div className="relative px-12 pt-12">
-          <ScoreloLogo tone="dark" />
-        </div>
-
-        {/* Bottom copy block */}
-        <div className="relative px-12 pb-12">
-          {/* Headline */}
-          <div className="auth-rise" style={{ animationDelay: '0.1s' }}>
-            <h2 className="text-[44px] font-semibold leading-[1.15] tracking-[-0.03em] text-white">
-              Know exactly what's<br />holding your store back.
-            </h2>
-            <p className="mt-4 max-w-sm text-[16px] leading-[1.65] text-white/50">
-              Scorelo audits your Shopify store across five pillars, then turns
-              every finding into a prioritised, evidence-backed fix list.
-            </p>
+    <div className="auth-shell h-full overflow-y-auto" style={{ background: 'var(--auth-page)' }}>
+      <div className="flex min-h-full items-center justify-center px-4 py-8 sm:px-6 lg:px-10">
+        <div className={`w-full ${width === 'wide' ? 'max-w-[1080px]' : 'max-w-[1000px]'}`}>
+          {/* Mobile-only logo — the brand panel is hidden below lg. */}
+          <div className="mb-6 flex justify-center lg:hidden">
+            <ScoreloLogo tone="dark" />
           </div>
 
-        </div>
-      </aside>
+          {/* ── The card ─────────────────────────────────────────────────── */}
+          <div className="auth-rise auth-card grid overflow-hidden rounded-2xl lg:grid-cols-[1.06fr_1fr]">
+            {/* Brand panel */}
+            <aside
+              className="relative hidden flex-col justify-between overflow-hidden p-11 lg:flex"
+              style={{ background: 'var(--auth-panel)' }}
+            >
+              <div className="relative z-10">
+                <ScoreloLogo tone="dark" />
+              </div>
 
-      {/* ── Form panel ──────────────────────────────────────────────────── */}
-      <main className="relative flex items-center justify-center overflow-y-auto bg-surface-50 px-5 py-10 sm:px-8 lg:px-14">
-        {/* Subtle tinted ambient blobs for the form side */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="auth-aurora absolute -right-20 -top-16 h-72 w-72 rounded-full bg-indigo-100 opacity-70 blur-[90px]" />
-          <div className="auth-aurora auth-aurora-slow absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-violet-100 opacity-60 blur-[90px]" />
-          <div className="auth-aurora absolute bottom-1/3 right-1/3 h-48 w-48 rounded-full bg-sky-100 opacity-40 blur-[80px]" style={{ animationDelay: '-6s' }} />
-        </div>
+              <div className="relative z-10 max-w-sm pb-28">
+                <h2 className="text-[34px] font-semibold leading-[1.15] tracking-[-0.025em] text-white">
+                  Welcome to Scorelo
+                </h2>
+                <p className="mt-4 text-[14.5px] leading-[1.7] text-white/75">
+                  Know exactly what&apos;s holding your store back. Connect your Shopify store
+                  with read-only access — nothing is ever modified — and see what to fix first.
+                </p>
+              </div>
 
-        {/* Very faint dot grid for depth */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.018]"
-          style={{
-            backgroundImage: `radial-gradient(circle, #6366f1 1px, transparent 1px)`,
-            backgroundSize: '28px 28px',
-          }}
-        />
+              {/* Streak cluster. The wrapper is rotated as a whole so every pill shares one
+                  angle, and it floats a few pixels on a slow loop — the only motion on the page.
+                  Sized larger than the corner it lives in and clipped by the panel, so the pills
+                  run off the edges the way light does rather than ending inside the frame. */}
+              <div
+                aria-hidden="true"
+                className="auth-float pointer-events-none absolute -bottom-10 -left-16 h-[380px] w-[560px]"
+              >
+                {STREAKS.map((streak, index) => (
+                  <span
+                    key={index}
+                    className="absolute rounded-full"
+                    style={{
+                      left: streak.left,
+                      top: streak.top,
+                      width: streak.width,
+                      height: streak.height,
+                      opacity: streak.opacity,
+                      background: STREAK_TONES[streak.tone],
+                      boxShadow: '0 12px 30px -12px rgba(0,0,0,0.35)',
+                    }}
+                  />
+                ))}
+                {/* Two loose dots, as in a burst that has thrown off a little light. */}
+                <span className="absolute left-[330px] top-[150px] h-3 w-3 rounded-full bg-white/70" />
+                <span className="absolute left-[90px] top-[340px] h-2.5 w-2.5 rounded-full bg-white/55" />
+              </div>
+            </aside>
 
-        <div className={`auth-rise relative w-full ${width === 'wide' ? 'max-w-[480px]' : 'max-w-[428px]'}`}>
+            {/* Form sheet. `auth-sheet` pins it to the light surface ramp in every theme (see
+                index.css) — the card is a designed object, and its white half is part of the
+                design. `[&_a]` overrides recolour the links each page brings with it (Forgot
+                password, etc.) to this shell's accent, so pages need not know the palette. */}
+            <main className="auth-sheet bg-surface-0 px-7 py-9 sm:px-10 sm:py-11 [&_a]:text-[color:var(--auth-accent)] [&_a:hover]:text-[color:var(--auth-accent-hover)]">
+              <header className="text-center">
+                <h1 className="text-[13px] font-bold uppercase tracking-[0.22em] text-[color:var(--auth-accent)]">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="mx-auto mt-2.5 max-w-xs text-[13.5px] leading-[1.55] text-surface-500">{subtitle}</p>
+                )}
+              </header>
 
-          {/* Mobile-only logo */}
-          <div className="mb-8 flex flex-col items-center gap-4 lg:hidden">
-            <div aria-hidden="true" className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2">
-              <div className="auth-aurora h-44 w-44 rounded-full bg-brand-300 opacity-30 blur-[70px]" />
-            </div>
-            <ScoreloLogo />
-          </div>
-
-          {/* Auth card */}
-          <div className="auth-card rounded-2xl p-8 sm:p-9">
-            <header>
-              <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.025em] text-surface-950">
-                {title}
-              </h1>
-              <p className="mt-2.5 text-[14.5px] leading-[1.6] text-surface-500">{subtitle}</p>
-            </header>
-
-            <div className="mt-8">{children}</div>
+              <div className="mt-7">{children}</div>
+            </main>
           </div>
 
           {footer && (
-            <div className="mt-5 text-center text-[13px] text-surface-500">{footer}</div>
+            <div className="mt-6 text-center text-[13px] text-white/75 [&_a]:font-semibold [&_a]:text-white [&_a:hover]:text-white/85">
+              {footer}
+            </div>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

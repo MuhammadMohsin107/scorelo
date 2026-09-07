@@ -71,11 +71,11 @@ async function seed() {
   await db.execute(sql`SET FOREIGN_KEY_CHECKS = 1`);
 
   // Demo login: moshin.akhlaq@example.com / password123 — dev/demo only, never used in production.
-  const passwordHash = await bcrypt.hash('password123', 12);
+  const passwordHash = await bcrypt.hash('', 12);
 
   const user = await insertReturning(users, {
-      fullName: 'Moshin Akhlaq',
-      email: 'moshin.akhlaq@example.com',
+      fullName: '',
+      email: '',
       passwordHash,
       jobTitle: 'Ecommerce Manager',
       role: 'Administrator',

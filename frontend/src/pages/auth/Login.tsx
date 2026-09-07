@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Lock, Mail } from 'lucide-react';
 import AuthLayout from '../../layouts/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
 import AuthAlert from '../../components/auth/AuthAlert';
@@ -243,6 +244,7 @@ export default function Login() {
             name="email"
             autoComplete="email"
             placeholder="you@company.com"
+            icon={Mail}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             error={fieldErrors.email}
@@ -255,6 +257,7 @@ export default function Login() {
             type="password"
             name="password"
             autoComplete="current-password"
+            icon={Lock}
             placeholder="Enter your password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
