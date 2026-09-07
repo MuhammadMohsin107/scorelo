@@ -1,5 +1,5 @@
 import type { SubPillarFinding, SubPillarTotals } from '../../../data/seo/subpillar.model';
-import { card, cardHeader, cardTitle, eyebrow, toneStyles } from './tone';
+import { card, cardHeader, cardHeadingRow, cardTitle, eyebrow, toneStyles } from './tone';
 
 interface Props {
   totals: SubPillarTotals;
@@ -19,15 +19,15 @@ export default function HealthCard({ totals, findings, onSelectIssue }: Props) {
   return (
     <section className={`${card} flex h-full flex-col overflow-hidden`} aria-labelledby="sp-health-title">
       <div className={cardHeader}>
-        <p className={eyebrow}>Breakdown</p>
-        <h2 id="sp-health-title" className={`mt-0.5 ${cardTitle}`}>
-          Where the issues are
-        </h2>
+        <div className={cardHeadingRow}>
+          <p className={eyebrow}>Breakdown</p>
+          <h2 id="sp-health-title" className={cardTitle}>Where the issues are</h2>
+        </div>
       </div>
 
-      <div className="px-3.5 py-3">
+      <div className="px-3.5 py-2.5">
         {open.length === 0 ? (
-          <p className="py-4 text-center text-[12.5px] text-surface-500">Nothing flagged in the latest analysis.</p>
+          <p className="py-3 text-center text-[12px] text-surface-500">Nothing flagged in the latest analysis.</p>
         ) : (
           <>
             <div className="flex items-baseline justify-between gap-2">

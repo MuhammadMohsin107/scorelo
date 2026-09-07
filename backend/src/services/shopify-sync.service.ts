@@ -4,6 +4,7 @@ import { integrations, shopifyConnections, stores } from '../db/schema.js';
 import { shopifyConfigured } from '../config/env.js';
 import { ApiError } from '../middleware/error.js';
 import { getCurrentStoreId } from './store.service.js';
+import { createNotification } from './notification.service.js';
 import { resolveStoreDataProvider, StoreDataError } from '../audit-engine/store-data/index.js';
 
 /**
@@ -186,6 +187,18 @@ export async function syncShopifyStore(userId: number, storeId?: number): Promis
     const message = describeFailure(error);
     await db.update(shopifyConnections).set({ lastSyncError: message }).where(eq(shopifyConnections.id, connection.id));
     console.warn(`[scorelo-api] shopify: sync failed for ${connection.shopDomain} — ${error instanceof Error ? error.message : 'unknown error'}`);
+
+    // `message` is already merchant-safe wording chosen by describeFailure — no raw error text
+    // reaches the bell. Deduped, because a store whose token died fails every sync attempt.
+    await createNotification({
+      storeId: resolvedStoreId,
+      type: 'integration_alert',
+      title: 'Shopify sync failed',
+      message,
+      tone: 'warning',
+      dedupeMinutes: 60,
+    });
+
     throw new ApiError(502, message, 'SHOPIFY_SYNC_FAILED');
   }
 }

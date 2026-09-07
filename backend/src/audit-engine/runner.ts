@@ -5,6 +5,7 @@ import { checkRegistry } from './index.js';
 import { scoreOverall, scorePillar } from './scoring.js';
 import { resolveStoreDataProvider, StoreDataError, type StoreDataProvider, type StoreSnapshot } from './store-data/index.js';
 import { unavailableResult, type AuditCheck, type PillarKey, type SubPillarResult } from './types.js';
+import { createNotification } from '../services/notification.service.js';
 
 /** Seams for integration tests to drive the worker without a live Shopify shop.
  * Production always uses the defaults. */
@@ -215,6 +216,33 @@ export async function runAuditJob(jobId: number, deps: RunnerDeps = {}): Promise
     const auditId = await persistAudit(job.storeId, outcomes, snapshot, checks.length);
     await db.update(jobs).set({ status: 'succeeded', progress: 100, auditId, finishedAt: new Date() }).where(eq(jobs.id, jobId));
     log('audit.completed', { jobId, storeId: job.storeId, auditId, pillars: outcomes.length });
+
+    // An audit runs in the background and can take minutes; the merchant has usually navigated
+    // away by the time it lands. Counts are taken from what was just persisted, so the message
+    // states a real result rather than "an audit finished".
+    const allFindings = outcomes.flatMap((outcome) => outcome.subPillarResults.flatMap((result) => result.findings));
+    const criticalCount = allFindings.filter((finding) => finding.severity === 'critical').length;
+
+    await createNotification({
+      storeId: job.storeId,
+      type: 'analysis_complete',
+      title: 'Store analysis finished',
+      message: `Scorelo checked ${outcomes.length} ${outcomes.length === 1 ? 'pillar' : 'pillars'} and recorded ${allFindings.length} ${allFindings.length === 1 ? 'finding' : 'findings'}.`,
+      tone: 'success',
+    });
+
+    // Raised separately from the completion notice, and gated by its own preference: a merchant
+    // who wants to hear only about critical problems can turn the routine one off and still be
+    // told when something is actually wrong.
+    if (criticalCount > 0) {
+      await createNotification({
+        storeId: job.storeId,
+        type: 'critical_issue',
+        title: `${criticalCount} critical ${criticalCount === 1 ? 'issue' : 'issues'} found`,
+        message: 'The latest audit found issues marked critical. Open Fix Center to review them.',
+        tone: 'critical',
+      });
+    }
   } catch (error) {
     const message =
       error instanceof StoreDataError
@@ -224,5 +252,19 @@ export async function runAuditJob(jobId: number, deps: RunnerDeps = {}): Promise
           : 'Unknown error';
     await db.update(jobs).set({ status: 'failed', error: message, finishedAt: new Date() }).where(eq(jobs.id, jobId));
     log('audit.failed', { jobId, storeId: job.storeId, error: message });
+
+    // A failed audit is silent otherwise: the job row records it, and nothing surfaces that until
+    // somebody wonders why their scores never updated.
+    await createNotification({
+      storeId: job.storeId,
+      type: 'integration_alert',
+      title: 'Store analysis could not finish',
+      message:
+        error instanceof StoreDataError
+          ? 'Scorelo could not read your store data. Check the Shopify connection on Integrations.'
+          : 'The analysis stopped before it completed. Your previous results are unchanged.',
+      tone: 'warning',
+      dedupeMinutes: 60,
+    });
   }
 }

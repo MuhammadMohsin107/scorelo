@@ -10,6 +10,7 @@ import { signShopifyState, verifyShopifyState } from '../lib/jwt.js';
 import { ShopifyClient } from '../audit-engine/store-data/shopify-client.js';
 import { fetchShopIdentity } from '../audit-engine/store-data/shopify.queries.js';
 import { registerAppUninstalledWebhook } from './shopify-webhook.service.js';
+import { createNotification } from './notification.service.js';
 
 /**
  * ─── Access scopes ───────────────────────────────────────────────────
@@ -200,6 +201,17 @@ async function markReauthRequired(connection: ShopifyConnection) {
     .update(integrations)
     .set({ status: 'needs_attention', notice: 'Shopify authorization expired. Reconnect the store to resume audits.' })
     .where(and(eq(integrations.storeId, connection.storeId), eq(integrations.provider, 'shopify')));
+
+  // Deduped over a day: an expired token is rediscovered by every audit, sync and status check
+  // that touches Shopify, and the merchant needs to be told once — not once per attempt.
+  await createNotification({
+    storeId: connection.storeId,
+    type: 'integration_alert',
+    title: 'Shopify authorization expired',
+    message: `Scorelo can no longer read ${connection.shopDomain}. Reconnect the store to resume audits.`,
+    tone: 'critical',
+    dedupeMinutes: 24 * 60,
+  });
 }
 
 /**

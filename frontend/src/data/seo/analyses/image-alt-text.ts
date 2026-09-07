@@ -28,22 +28,34 @@ export const imageAltTextAnalysis: SubPillarAnalysis = {
   },
   findings: [],
   evidence: {
-    title: 'Affected images',
-    caption: 'Images sampled from the latest crawl with their alt-text status',
-    searchPlaceholder: 'Search file, page or alt text…',
-    searchKeys: ['file', 'page', 'alt'],
-    sampleNoun: 'crawled images',
-    facet: { label: 'Image type', allLabel: 'All image types', values: ['Product', 'Lifestyle', 'Banner', 'Diagram', 'Decorative'] },
+    // ─── Columns must match what the CHECK measures ────────────────────
+    // Every column here was previously wrong. The table asked for `file`, `page` and `alt` with a
+    // subKey of `imageType`, and offered an "Image type" facet of Lifestyle / Banner / Diagram /
+    // Decorative. The check writes none of that.
+    //
+    // It cannot: the unit it analyses is the PRODUCT, not the individual image, because the Admin
+    // API exposes a product's media as a list without page context, and nothing in Shopify labels
+    // an image "Lifestyle" or "Decorative". So the check records, per product, how many of its
+    // images are unlabelled — and every one of those four columns rendered empty on every row.
+    //
+    // The table now says what is actually known: which product, and how many of its images carry
+    // no alt text.
+    title: 'Affected products',
+    caption: 'Products sampled from the latest audit with their image alt-text coverage',
+    searchPlaceholder: 'Search product or URL…',
+    searchKeys: ['url', 'title'],
+    sampleNoun: 'analyzed products',
+    facet: { label: 'Resource type', allLabel: 'All types', values: ['Product'] },
     columns: [
-      { key: 'file', header: 'Image', variant: 'mono', subKey: 'imageType', clamp: 'max-w-[14rem]' },
-      { key: 'page', header: 'Page', variant: 'muted', clamp: 'max-w-[14rem]' },
-      { key: 'alt', header: 'Current alt text', emptyText: 'no alt attribute', clamp: 'max-w-[22rem]' },
+      { key: 'url', header: 'Product URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[20rem]' },
+      { key: 'title', header: 'Product', variant: 'muted', clamp: 'max-w-[16rem]' },
+      { key: 'length', header: 'Images without alt', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('page', 'Sort: page'), sortByCell('file', 'Sort: file name')],
+    sorts: [sortByCell('length', 'Sort: unlabelled images', 'desc'), sortByCell('title', 'Sort: product')],
   },
   relatedAreas: [
     { label: 'Schema / JSON-LD', href: '/seo/schema', hint: 'Structured data for product imagery' },

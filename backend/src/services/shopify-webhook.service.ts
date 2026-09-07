@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { integrations, shopifyConnections } from '../db/schema.js';
+import { createNotification } from './notification.service.js';
 import { env } from '../config/env.js';
 import type { ShopifyClient } from '../audit-engine/store-data/shopify-client.js';
 
@@ -75,6 +76,16 @@ export async function handleAppUninstalled(shopDomain: string) {
     .update(shopifyConnections)
     .set({ uninstalledAt: new Date(), lastWebhookAt: new Date() })
     .where(eq(shopifyConnections.id, connection.id));
+
+  // The merchant did this in Shopify's admin, not in Scorelo, so nothing on screen would ever
+  // tell them their audits have stopped. This is exactly the event the bell exists for.
+  await createNotification({
+    storeId: connection.storeId,
+    type: 'integration_alert',
+    title: 'Shopify app uninstalled',
+    message: `Scorelo was uninstalled from ${shopDomain}. Audits and fixes are paused until you reconnect the store.`,
+    tone: 'critical',
+  });
 
   // Scoped to the shopify row. Without the provider predicate this marked EVERY integration on
   // the store disconnected, so uninstalling the Shopify app also reported Search Console,

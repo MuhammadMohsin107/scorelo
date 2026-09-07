@@ -212,6 +212,16 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
                 <button type="button" onClick={markAllRead} className="text-[11px] font-semibold text-brand-600 hover:text-brand-700">Mark all as read</button>
               </div>
               <div className="max-h-[min(400px,calc(100vh-7rem))] overflow-y-auto">
+                {/* A real empty state, because an empty bell is now a real outcome. Notifications
+                    are only written by events that actually happened — a finished audit, a failed
+                    sync, an expired token, an uninstall — so a healthy new store legitimately has
+                    none, and saying so beats an unexplained blank panel. */}
+                {notifications.length === 0 && (
+                  <p className="px-3 py-6 text-center text-[11.5px] leading-[1.45] text-surface-500">
+                    Nothing to report yet.<br />
+                    <span className="text-surface-400">You'll hear about finished audits and connection problems here.</span>
+                  </p>
+                )}
                 {notifications.map((notification) => {
                   const Icon = iconForNotification(notification.type);
                   return <button type="button" key={notification.id} onClick={() => markNotificationRead(notification.id)} className={`flex w-full gap-2.5 border-b border-surface-100 px-3 py-2 text-left transition-colors hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>

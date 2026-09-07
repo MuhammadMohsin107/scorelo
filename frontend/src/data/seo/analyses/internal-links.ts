@@ -29,22 +29,25 @@ export const internalLinksAnalysis: SubPillarAnalysis = {
   findings: [],
   evidence: {
     title: 'Affected links',
-    caption: 'Internal links sampled from the latest crawl with their resolution status',
-    searchPlaceholder: 'Search source, target or anchor…',
-    searchKeys: ['source', 'target', 'anchor'],
-    sampleNoun: 'crawled links',
-    facet: { label: 'Link type', allLabel: 'All link types', values: ['In-body', 'Navigation', 'Footer', 'External', 'Orphan'] },
+    // The unit here is the PAGE, not the individual link: the check counts each crawled page's
+    // internal and external links. `source`, `target`, `anchor` and `httpStatus` were never
+    // written — no link is followed, so no HTTP status exists to report.
+    caption: 'Crawled pages with their internal linking counts',
+    searchPlaceholder: 'Search page…',
+    searchKeys: ['url', 'recommendation'],
+    sampleNoun: 'crawled pages',
+    facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'source', header: 'Source page', variant: 'mono', subKey: 'linkType', clamp: 'max-w-[16rem]' },
-      { key: 'target', header: 'Target URL', variant: 'mono', clamp: 'max-w-[16rem]' },
-      { key: 'anchor', header: 'Anchor text', variant: 'muted', clamp: 'max-w-[13rem]' },
-      { key: 'httpStatus', header: 'HTTP', align: 'center', variant: 'number' },
+      { key: 'url', header: 'Page', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[18rem]' },
+      { key: 'internalLinks', header: 'Internal', align: 'center', variant: 'number' },
+      { key: 'externalLinks', header: 'External', align: 'center', variant: 'number' },
+      { key: 'recommendation', header: 'Recommendation', variant: 'muted', clamp: 'max-w-[18rem]' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('httpStatus', 'Sort: HTTP status', 'desc'), sortByCell('target', 'Sort: target URL')],
+    sorts: [sortByCell('internalLinks', 'Sort: internal links'), sortByCell('url', 'Sort: page')],
   },
   relatedAreas: [
     { label: 'Handles & Redirects', href: '/seo/handles-redirects', hint: 'Where these 404s should redirect' },

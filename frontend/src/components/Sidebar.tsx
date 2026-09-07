@@ -54,7 +54,7 @@ const seoSubRoutes: { id: string; label: string; path: string }[] = [
 // Only routes that have a page registered in App.tsx are listed here,
 // so the sidebar never links to an empty route. Add entries as pages land.
 const contentSubRoutes: { id: string; label: string; path: string }[] = [
-  { id: 'dup-templated', label: 'Duplicate / Templated Copy', path: '/content/dup-templated' },
+  { id: 'dup-templated', label: 'Copy uniqueness', path: '/content/dup-templated' },
   { id: 'product-descriptions', label: 'Product descriptions', path: '/content/product-descriptions' },
   { id: 'collection-descriptions', label: 'Collection descriptions', path: '/content/collection-descriptions' },
   { id: 'metafields', label: 'Metafield completeness', path: '/content/metafields' },

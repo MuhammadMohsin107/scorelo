@@ -34,7 +34,7 @@ export const contentPillarCatalog: Record<string, GenericSubPillarConfig> = {
     { label: 'Complete', value: metafieldCompletenessData.complete, color: 'bg-success-500' },
     { label: 'Incomplete', value: metafieldCompletenessData.incomplete, color: 'bg-warning-500' },
   ]),
-  'content/dup-templated': base('dup-templated', 'Duplicate / Templated Copy', 'Find repetitive copy patterns that dilute product value, relevance, and buyer confidence.', duplicateTemplatedCopyData.score, 'Pages', duplicateTemplatedCopyData.pagesAnalyzed, duplicateTemplatedCopyData.unique, [
+  'content/dup-templated': base('dup-templated', 'Copy Uniqueness', 'Find repetitive copy patterns that dilute product value, relevance, and buyer confidence.', duplicateTemplatedCopyData.score, 'Pages', duplicateTemplatedCopyData.pagesAnalyzed, duplicateTemplatedCopyData.unique, [
     { label: 'Potential duplicates', value: duplicateTemplatedCopyData.potentialDuplicates, description: 'pages look substantially alike' },
     { label: 'Highly templated', value: duplicateTemplatedCopyData.highlyTemplated, description: 'pages need unique selling points' },
     { label: 'Unique pages', value: duplicateTemplatedCopyData.unique, description: 'pages have distinct copy' },

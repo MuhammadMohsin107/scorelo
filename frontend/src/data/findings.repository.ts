@@ -107,3 +107,50 @@ export function fetchAiRecommendation(findingId: string, force = false): Promise
 export function fetchAiStatus(): Promise<{ enabled: boolean; model: string | null }> {
   return api.get<{ enabled: boolean; model: string | null }>('/findings/ai-status');
 }
+
+// ─── AI fix planning ─────────────────────────────────────────────────
+// The model drafts a VALUE for an allow-listed field on resources the audit itself flagged. It
+// never reaches Shopify: every proposal is validated server-side against fix-policy.ts and parked
+// as a suggestion until a person approves it.
+
+export interface AiFixProposal {
+  id: number;
+  findingId: number;
+  resourceType: string;
+  resourceId: string;
+  field: string;
+  currentValue: string;
+  proposedValue: string;
+  /** The deterministic engine's own suggestion, when it had one. */
+  deterministicValue: string | null;
+  reason: string;
+  status: string;
+  statusDetail: string | null;
+  model: string | null;
+}
+
+export interface PlanAiFixesResult {
+  findingId: number;
+  planned: boolean;
+  proposals: AiFixProposal[];
+  /** Resources the model returned nothing usable for, each with the validation reason. */
+  skipped: Array<{ resourceType: string; resourceId: string; reason: string }>;
+  model: string | null;
+  unavailableReason?: 'disabled' | 'unavailable' | 'not_fixable' | 'nothing_to_fix';
+}
+
+/**
+ * Asks the model to draft values for specific affected resources of one finding.
+ *
+ * `resourceIds` are the evidence-row refs (`product:123`) the merchant selected. Anything outside
+ * the finding's own evidence is ignored by the backend — that is the authorization anchor, not a
+ * convenience.
+ */
+export function planAiFixes(findingId: string, resourceIds: string[]): Promise<PlanAiFixesResult> {
+  return api.post<PlanAiFixesResult>(`/findings/${findingId}/ai-fix-plan`, { resourceIds });
+}
+
+/** Whether AI fix PLANNING is possible, and which sub-pillars it covers. */
+export function fetchAiFixStatus(): Promise<{ enabled: boolean; model: string | null; fixableSubPillars: string[] }> {
+  return api.get<{ enabled: boolean; model: string | null; fixableSubPillars: string[] }>('/findings/ai-fix-status');
+}

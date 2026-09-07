@@ -3,6 +3,7 @@ import { AlertCircle, Check, ChevronRight, RefreshCw, Search, SlidersHorizontal,
 import type { FixFinding, WorkflowSeverity, WorkflowStatus } from '../data/workflows.mock';
 import { bulkUpdateFindingStatus, fetchFindings, updateFindingStatus } from '../data/findings.repository';
 import { Button, Drawer, MetricTile, ModuleHeader, SectionHeading, StatusBadge } from '../components/workflows/WorkflowPrimitives';
+import AiRecommendationPanel from '../components/workflows/AiRecommendationPanel';
 
 const severityTone: Record<WorkflowSeverity, 'critical' | 'warning' | 'info' | 'neutral'> = { critical: 'critical', high: 'warning', medium: 'info', low: 'neutral' };
 const statusTone: Record<WorkflowStatus, 'critical' | 'warning' | 'success' | 'neutral'> = { open: 'critical', reviewed: 'warning', resolved: 'success', ignored: 'neutral' };
@@ -106,9 +107,9 @@ export default function FixCenter() {
       />
 
       {actionError && (
-        <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-critical-100 bg-critical-50 px-4 py-3">
+        <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-critical-100 bg-critical-50 px-3 py-2">
           <AlertCircle size={16} className="mt-px flex-shrink-0 text-critical-600" aria-hidden="true" />
-          <p className="text-sm leading-5 text-critical-700">{actionError}</p>
+          <p className="text-[12.5px] leading-[1.4] text-critical-700">{actionError}</p>
         </div>
       )}
 
@@ -120,27 +121,96 @@ export default function FixCenter() {
         <MetricTile label="Resolved" value={resolvedCount} detail="Tracked in history" tone="success" />
       </section>
 
-      <section className="space-y-4" aria-labelledby="priority-findings-title">
+      <section className="space-y-2.5" aria-labelledby="priority-findings-title">
         <SectionHeading eyebrow="Priority queue" title="Findings to work through" description="Review evidence first, then choose the smallest supported action." action={selectedIds.length > 0 ? <Button onClick={markSelectedReviewed}><Check size={15} />Mark reviewed ({selectedIds.length})</Button> : undefined} />
-        <div className="flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-0 p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" /><span className="sr-only">Search findings</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search issue, pillar, or sub-pillar" className="w-full rounded-lg border border-surface-200 bg-surface-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-brand-400 focus:bg-surface-0 focus:ring-2 focus:ring-brand-100" /></label>
+        <div className="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-0 p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] lg:flex-row lg:items-center">
+          <label className="relative min-w-0 flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" /><span className="sr-only">Search findings</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search issue, pillar, or sub-pillar" className="w-full rounded-lg border border-surface-200 bg-surface-50 py-2.5 pl-9 pr-3 text-[12.5px] outline-none transition focus:border-brand-400 focus:bg-surface-0 focus:ring-2 focus:ring-brand-100" /></label>
           <div className="flex flex-wrap gap-2"><SlidersHorizontal size={16} className="mt-2 text-surface-400" />
-            <select value={pillar} onChange={(event) => setPillar(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-sm text-surface-700 outline-none focus:border-brand-400"><option>All pillars</option>{['SEO', 'Content', 'Speed', 'CRO', 'AI Discovery'].map((item) => <option key={item}>{item}</option>)}</select>
-            <select value={severity} onChange={(event) => setSeverity(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-sm text-surface-700 outline-none focus:border-brand-400"><option>All severity</option>{['critical', 'high', 'medium', 'low'].map((item) => <option key={item}>{item}</option>)}</select>
-            <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-sm text-surface-700 outline-none focus:border-brand-400"><option>All status</option>{['open', 'reviewed', 'resolved', 'ignored'].map((item) => <option key={item}>{item}</option>)}</select>
+            <select value={pillar} onChange={(event) => setPillar(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-[12.5px] text-surface-700 outline-none focus:border-brand-400"><option>All pillars</option>{['SEO', 'Content', 'Speed', 'CRO', 'AI Discovery'].map((item) => <option key={item}>{item}</option>)}</select>
+            <select value={severity} onChange={(event) => setSeverity(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-[12.5px] text-surface-700 outline-none focus:border-brand-400"><option>All severity</option>{['critical', 'high', 'medium', 'low'].map((item) => <option key={item}>{item}</option>)}</select>
+            <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-lg border border-surface-200 bg-surface-0 px-3 py-2 text-[12.5px] text-surface-700 outline-none focus:border-brand-400"><option>All status</option>{['open', 'reviewed', 'resolved', 'ignored'].map((item) => <option key={item}>{item}</option>)}</select>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]">
-          <div className="hidden grid-cols-[32px_minmax(220px,1.8fr)_0.8fr_0.9fr_0.7fr_0.7fr_0.8fr_86px] gap-4 border-b border-surface-200 bg-surface-50 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-surface-500 lg:grid"><span><input type="checkbox" checked={allSelected} onChange={() => setSelectedIds(allSelected ? [] : filteredFindings.map((finding) => finding.id))} aria-label="Select all findings" /></span><span>Issue</span><span>Pillar</span><span>Sub-pillar</span><span>Severity</span><span>Affected</span><span>Status</span><span /></div>
-          {filteredFindings.length === 0 ? <div className="px-6 py-14 text-center"><Sparkles size={24} className="mx-auto text-success-600" /><h3 className="mt-3 text-sm font-bold text-surface-900">No issues found</h3><p className="mt-1 text-sm text-surface-500">Try a different filter or search term.</p></div> : <div className="divide-y divide-surface-100">{filteredFindings.map((finding) => <div key={finding.id} className="grid gap-3 px-5 py-4 transition hover:bg-surface-50 lg:grid-cols-[32px_minmax(220px,1.8fr)_0.8fr_0.9fr_0.7fr_0.7fr_0.8fr_86px] lg:items-center lg:gap-4"><div><input type="checkbox" checked={selectedIds.includes(finding.id)} onChange={() => setSelectedIds((current) => current.includes(finding.id) ? current.filter((id) => id !== finding.id) : [...current, finding.id])} aria-label={`Select ${finding.title}`} /></div><div><button onClick={() => setSelectedFinding(finding)} className="text-left text-sm font-bold text-surface-900 hover:text-brand-700">{finding.title}</button><p className="mt-1 text-xs text-surface-500">{finding.impact} impact <span className="mx-1 text-surface-300">|</span> +{finding.scoreLift} potential pts</p></div><div className="text-xs font-semibold text-surface-700">{finding.pillarLabel}</div><div className="text-xs text-surface-600">{finding.subPillar}</div><div><StatusBadge label={finding.severity} tone={severityTone[finding.severity]} /></div><div className="text-xs font-semibold text-surface-700 tabular-nums">{finding.affected.toLocaleString()} {finding.affectedLabel}</div><div><StatusBadge label={statusLabel[finding.status]} tone={statusTone[finding.status]} /></div><div className="flex justify-end"><button onClick={() => setSelectedFinding(finding)} className="inline-flex items-center gap-1 text-xs font-bold text-brand-700 hover:text-brand-800">Review <ChevronRight size={14} /></button></div></div>)}</div>}
+        <div className="overflow-hidden rounded-lg border border-surface-200 bg-surface-0 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]">
+          <div className="hidden grid-cols-[32px_minmax(220px,1.8fr)_0.8fr_0.9fr_0.7fr_0.7fr_0.8fr_86px] gap-2.5 border-b border-surface-200 bg-surface-50 px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-surface-500 lg:grid"><span><input type="checkbox" checked={allSelected} onChange={() => setSelectedIds(allSelected ? [] : filteredFindings.map((finding) => finding.id))} aria-label="Select all findings" /></span><span>Issue</span><span>Pillar</span><span>Sub-pillar</span><span>Severity</span><span>Affected</span><span>Status</span><span /></div>
+          {filteredFindings.length === 0 ? (
+            <div className="px-3.5 py-10 text-center">
+              <Sparkles size={20} className="mx-auto text-success-600" />
+              <h3 className="mt-2 text-[12.5px] font-bold text-surface-900">No issues found</h3>
+              <p className="mt-1 text-[12px] text-surface-500">Try a different filter or search term.</p>
+            </div>
+          ) : (
+            /* ── One row, two shapes ────────────────────────────────────
+               From `lg` up this is a table row against the header above it. Below `lg` the header
+               is hidden, so the same eight cells were stacking into eight unlabelled lines — a
+               checkbox, a title, "SEO", "title-tags", a badge, "19 pages", another badge and a
+               link, with nothing saying which was which.
+               On small screens it is a CARD instead: title first, then the facts as labelled
+               chips that wrap. Same data, same order of importance, readable at 390px. */
+            <div className="divide-y divide-surface-100">
+              {filteredFindings.map((finding) => (
+                <div
+                  key={finding.id}
+                  className="flex gap-2.5 px-3.5 py-2.5 transition hover:bg-surface-50 lg:grid lg:grid-cols-[32px_minmax(220px,1.8fr)_0.8fr_0.9fr_0.7fr_0.7fr_0.8fr_86px] lg:items-center lg:gap-4"
+                >
+                  <div className="flex-shrink-0 pt-0.5 lg:pt-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(finding.id)}
+                      onChange={() => setSelectedIds((current) => current.includes(finding.id) ? current.filter((id) => id !== finding.id) : [...current, finding.id])}
+                      aria-label={`Select ${finding.title}`}
+                    />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <button onClick={() => setSelectedFinding(finding)} className="text-left text-[12.5px] font-bold text-surface-900 hover:text-brand-700">
+                      {finding.title}
+                    </button>
+                    <p className="mt-0.5 text-[11px] text-surface-500">
+                      {finding.impact} impact <span className="mx-1 text-surface-300">|</span> +{finding.scoreLift} potential pts
+                    </p>
+
+                    {/* Mobile only: the columns the header would have named. */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
+                      <StatusBadge label={finding.severity} tone={severityTone[finding.severity]} />
+                      <StatusBadge label={statusLabel[finding.status]} tone={statusTone[finding.status]} />
+                      <span className="text-[10.5px] text-surface-500">
+                        {finding.pillarLabel} · {finding.subPillar}
+                      </span>
+                      <span className="text-[10.5px] font-semibold text-surface-700 tabular-nums">
+                        {finding.affected.toLocaleString()} {finding.affectedLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Desktop columns. Hidden on mobile, where the chips above carry the same facts. */}
+                  <div className="hidden text-[11.5px] font-semibold text-surface-700 lg:block">{finding.pillarLabel}</div>
+                  <div className="hidden text-[11.5px] text-surface-600 lg:block">{finding.subPillar}</div>
+                  <div className="hidden lg:block"><StatusBadge label={finding.severity} tone={severityTone[finding.severity]} /></div>
+                  <div className="hidden text-[11.5px] font-semibold text-surface-700 tabular-nums lg:block">
+                    {finding.affected.toLocaleString()} {finding.affectedLabel}
+                  </div>
+                  <div className="hidden lg:block"><StatusBadge label={statusLabel[finding.status]} tone={statusTone[finding.status]} /></div>
+
+                  <div className="flex flex-shrink-0 items-start justify-end lg:items-center">
+                    <button onClick={() => setSelectedFinding(finding)} aria-label={`Review ${finding.title}`} className="inline-flex items-center gap-1 text-[11.5px] font-bold text-brand-700 hover:text-brand-800">
+                      <span className="hidden sm:inline">Review</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="rounded-xl border border-surface-200 bg-surface-0 p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-6"><SectionHeading eyebrow="History" title="Applied fixes" description="A lightweight record of actions taken in this audit workspace." /><div className="mt-5 divide-y divide-surface-100">{findings.filter((finding) => finding.status !== 'open').map((finding) => <div key={finding.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="text-sm font-bold text-surface-900">{finding.title}</p><p className="mt-1 text-xs text-surface-500">{statusLabel[finding.status]}{finding.statusChangedAt && <><span className="mx-1 text-surface-300">|</span> {new Date(finding.statusChangedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>}</p></div><span className="text-sm font-bold text-success-700">Potential +{finding.scoreLift} pts</span></div>)}</div></section>
+      <section className="rounded-lg border border-surface-200 bg-surface-0 p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-3.5"><SectionHeading eyebrow="History" title="Applied fixes" description="A lightweight record of actions taken in this audit workspace." /><div className="mt-2.5 divide-y divide-surface-100">{findings.filter((finding) => finding.status !== 'open').map((finding) => <div key={finding.id} className="flex flex-wrap items-center justify-between gap-3 py-2"><div><p className="text-[12.5px] font-bold text-surface-900">{finding.title}</p><p className="mt-1 text-[11.5px] text-surface-500">{statusLabel[finding.status]}{finding.statusChangedAt && <><span className="mx-1 text-surface-300">|</span> {new Date(finding.statusChangedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>}</p></div><span className="text-[12.5px] font-bold text-success-700">Potential +{finding.scoreLift} pts</span></div>)}</div></section>
 
       <Drawer open={Boolean(selectedFinding)} title={selectedFinding?.title ?? ''} eyebrow="Finding detail" onClose={() => setSelectedFinding(null)}>
-        {selectedFinding && <div className="space-y-6"><div className="flex flex-wrap gap-2"><StatusBadge label={selectedFinding.severity} tone={severityTone[selectedFinding.severity]} /><StatusBadge label={selectedFinding.pillarLabel} tone="neutral" /><StatusBadge label={statusLabel[selectedFinding.status]} tone={statusTone[selectedFinding.status]} /></div><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Why this matters</p><p className="mt-2 text-sm leading-6 text-surface-700">{selectedFinding.why}</p></div><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Detected evidence</p><ul className="mt-2 space-y-2">{selectedFinding.evidence.map((item) => <li key={item} className="flex gap-2 text-sm text-surface-700"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />{item}</li>)}</ul></div><div className="rounded-xl border border-brand-100 bg-brand-50 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-700">Recommended action</p><p className="mt-2 text-sm leading-6 text-brand-950">{selectedFinding.recommendation}</p></div><div className="grid grid-cols-2 gap-3"><MetricTile label="Affected" value={selectedFinding.affected.toLocaleString()} detail={selectedFinding.affectedLabel} tone="critical" /><MetricTile label="Potential lift" value={`+${selectedFinding.scoreLift}`} detail="Score points" tone="success" /></div><div className="flex flex-wrap gap-2"><Button onClick={() => updateFinding(selectedFinding.id, 'reviewed')}><Check size={15} />Mark reviewed</Button><Button variant="secondary" onClick={() => updateFinding(selectedFinding.id, 'ignored')}><X size={15} />Ignore</Button><Button variant="ghost" onClick={() => setSelectedFinding(null)}>Close</Button></div></div>}
+        {selectedFinding && <div className="space-y-2"><div className="flex flex-wrap gap-2"><StatusBadge label={selectedFinding.severity} tone={severityTone[selectedFinding.severity]} /><StatusBadge label={selectedFinding.pillarLabel} tone="neutral" /><StatusBadge label={statusLabel[selectedFinding.status]} tone={statusTone[selectedFinding.status]} /></div><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Why this matters</p><p className="mt-2 text-[12.5px] leading-[1.45] text-surface-700">{selectedFinding.why}</p></div><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Detected evidence</p><ul className="mt-2 space-y-2">{selectedFinding.evidence.map((item) => <li key={item} className="flex gap-2 text-[12.5px] text-surface-700"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />{item}</li>)}</ul></div><div className="rounded-lg border border-brand-100 bg-brand-50 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-700">Recommended action</p><p className="mt-2 text-[12.5px] leading-[1.45] text-brand-950">{selectedFinding.recommendation}</p>{/* Same AI option the sub-pillar drawer offers. Fix Center is where a merchant works through
+    findings one by one, so it is the last place the capability should be missing. */}<AiRecommendationPanel findingId={selectedFinding.id} /></div><div className="grid grid-cols-2 gap-3"><MetricTile label="Affected" value={selectedFinding.affected.toLocaleString()} detail={selectedFinding.affectedLabel} tone="critical" /><MetricTile label="Potential lift" value={`+${selectedFinding.scoreLift}`} detail="Score points" tone="success" /></div><div className="flex flex-wrap gap-2"><Button onClick={() => updateFinding(selectedFinding.id, 'reviewed')}><Check size={15} />Mark reviewed</Button><Button variant="secondary" onClick={() => updateFinding(selectedFinding.id, 'ignored')}><X size={15} />Ignore</Button><Button variant="ghost" onClick={() => setSelectedFinding(null)}>Close</Button></div></div>}
       </Drawer>
     </div>
   );

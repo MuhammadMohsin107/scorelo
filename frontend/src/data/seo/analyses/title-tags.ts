@@ -35,12 +35,14 @@ export const titleTagsAnalysis: SubPillarAnalysis = {
     title: 'Affected pages',
     caption: 'Pages sampled from the latest crawl with their title tag status',
     searchPlaceholder: 'Search URL, title or keyword…',
-    searchKeys: ['url', 'title', 'keyword'],
+    searchKeys: ['url', 'title'],
     sampleNoun: 'crawled pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
       { key: 'url', header: 'Page URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[15rem]' },
-      { key: 'title', header: 'Current title', subKey: 'keyword', emptyText: 'no title tag', clamp: 'max-w-[20rem]' },
+      // No `keyword` subKey: the check never writes one — nothing in Scorelo derives a target
+      // keyword for a page — so it only ever rendered as a blank second line under the title.
+      { key: 'title', header: 'Current title', emptyText: 'no title tag', clamp: 'max-w-[20rem]' },
       { key: 'length', header: 'Length', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },

@@ -173,33 +173,33 @@ export default function Integrations() {
         const GroupIcon = iconMap[group] ?? Database;
         const groupRecords = records.filter((record) => record.group === group);
         return (
-          <section key={group} className="space-y-4" aria-labelledby={`${group}-integrations`}>
+          <section key={group} className="space-y-2.5" aria-labelledby={`${group}-integrations`}>
             <SectionHeading eyebrow="Connection group" title={group} />
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
               {groupRecords.map((record) => (
-                <article key={record.id} className="group rounded-xl border border-surface-200 bg-surface-0 p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:border-brand-200">
+                <article key={record.id} className="group rounded-lg border border-surface-200 bg-surface-0 p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:border-brand-200">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-100 text-surface-700"><GroupIcon size={19} /></div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-100 text-surface-700"><GroupIcon size={19} /></div>
                     {record.available
                       ? <StatusBadge label={record.status} tone={statusTone[record.status]} />
                       : <StatusBadge label="Coming soon" tone="neutral" />}
                   </div>
-                  <h3 className="mt-5 text-base font-bold text-surface-950">{record.name}</h3>
-                  <p className="mt-1 min-h-10 text-sm leading-5 text-surface-500">{record.description}</p>
-                  {record.notice && <p className="mt-4 rounded-lg bg-warning-50 px-3 py-2 text-xs font-medium leading-5 text-warning-700">{record.notice}</p>}
-                  <div className="mt-5 border-t border-surface-100 pt-4">
+                  <h3 className="mt-2.5 text-[13px] font-bold text-surface-950">{record.name}</h3>
+                  <p className="mt-1 min-h-10 text-[12.5px] leading-[1.4] text-surface-500">{record.description}</p>
+                  {record.notice && <p className="mt-2.5 rounded-lg bg-warning-50 px-3 py-2 text-[11.5px] font-medium leading-[1.4] text-warning-700">{record.notice}</p>}
+                  <div className="mt-2.5 border-t border-surface-100 pt-2.5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{record.status === 'Connected' ? 'Last synced' : 'Connection'}</p>
-                    <p className="mt-1 text-sm font-semibold text-surface-800">{record.status === 'Connected' ? record.lastSynced : record.detail}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
+                    <p className="mt-1 text-[12.5px] font-semibold text-surface-800">{record.status === 'Connected' ? record.lastSynced : record.detail}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       {record.data.slice(0, 2).map((item) => <span key={item} className="rounded-md bg-surface-100 px-2 py-1 text-[11px] text-surface-600">{item}</span>)}
                     </div>
                   </div>
-                  <div className="mt-5 flex items-center gap-2">
+                  <div className="mt-2.5 flex items-center gap-2">
                     {record.available
                       ? <Button variant="secondary" onClick={() => setSelected(record)}>View details</Button>
                       // No Connect action without a connector behind it. The previous build offered
                       // one for all six providers and "connected" them by writing a status column.
-                      : <p className="text-xs leading-5 text-surface-500">Connector not available yet.</p>}
+                      : <p className="text-[11.5px] leading-[1.4] text-surface-500">Connector not available yet.</p>}
                   </div>
                 </article>
               ))}
@@ -210,32 +210,32 @@ export default function Integrations() {
 
       <Drawer open={Boolean(selected)} title={selected?.name ?? ''} eyebrow="Integration detail" onClose={() => setSelected(null)}>
         {selected && (
-          <div className="space-y-6">
+          <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
               <StatusBadge label={selected.status} tone={statusTone[selected.status]} />
               <StatusBadge label={selected.group} tone="neutral" />
             </div>
-            <div className="rounded-xl border border-surface-200 bg-surface-50 p-4">
+            <div className="rounded-lg border border-surface-200 bg-surface-50 p-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Account / store</p>
-              <p className="mt-1 text-sm font-bold text-surface-900">{selected.detail}</p>
-              <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Last sync</p>
-              <p className="mt-1 text-sm text-surface-700">{selected.lastSynced}</p>
+              <p className="mt-1 text-[12.5px] font-bold text-surface-900">{selected.detail}</p>
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Last sync</p>
+              <p className="mt-1 text-[12.5px] text-surface-700">{selected.lastSynced}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Data received</p>
-              <ul className="mt-3 space-y-2">
-                {selected.data.map((item) => <li key={item} className="flex gap-2 text-sm text-surface-700"><Check size={15} className="mt-0.5 text-success-600" />{item}</li>)}
+              <ul className="mt-2 space-y-2">
+                {selected.data.map((item) => <li key={item} className="flex gap-2 text-[12.5px] text-surface-700"><Check size={15} className="mt-0.5 text-success-600" />{item}</li>)}
               </ul>
             </div>
             {selected.id === 'shopify' && shopify?.scopes.length ? (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Permissions granted</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {shopify.scopes.map((scope) => <span key={scope} className="rounded-md bg-surface-100 px-2 py-1 font-mono text-[11px] text-surface-600">{scope}</span>)}
                 </div>
               </div>
             ) : null}
-            <p className="text-xs leading-5 text-surface-500">
+            <p className="text-[11.5px] leading-[1.4] text-surface-500">
               {selected.id === 'shopify'
                 ? 'Manage this connection from the Shopify panel above.'
                 : 'This connector is not available yet. Nothing is connected.'}
@@ -245,22 +245,22 @@ export default function Integrations() {
       </Drawer>
 
       <Drawer open={isAdding} title="Add an integration" eyebrow="Available data sources" onClose={() => setIsAdding(false)}>
-        <div className="space-y-4">
+        <div className="space-y-2.5">
           {records.filter((record) => record.available && record.status === 'Not Connected').map((record) => (
             <button
               key={record.id}
               onClick={() => { setIsAdding(false); setSelected(null); document.getElementById('shopify-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-              className="flex w-full items-center gap-3 rounded-xl border border-surface-200 p-4 text-left transition hover:border-brand-200 hover:bg-brand-50"
+              className="flex w-full items-center gap-3 rounded-lg border border-surface-200 p-3 text-left transition hover:border-brand-200 hover:bg-brand-50"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-100"><Database size={18} /></div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-surface-900">{record.name}</p>
-                <p className="mt-1 text-xs text-surface-500">{record.description}</p>
+                <p className="text-[12.5px] font-bold text-surface-900">{record.name}</p>
+                <p className="mt-1 text-[11.5px] text-surface-500">{record.description}</p>
               </div>
               <span aria-hidden="true" className="text-surface-400">&#8250;</span>
             </button>
           ))}
-          <div className="rounded-lg bg-surface-50 p-4 text-xs leading-5 text-surface-500">
+          <div className="rounded-lg bg-surface-50 p-3 text-[11.5px] leading-[1.4] text-surface-500">
             {records.some((record) => record.available && record.status === 'Not Connected')
               ? 'Only Shopify has a live connector today. The remaining providers are listed on this page and will become connectable as their connectors ship.'
               : 'Every available connector is already set up. The remaining providers will become connectable as their connectors ship.'}
@@ -269,12 +269,12 @@ export default function Integrations() {
       </Drawer>
 
       <Drawer open={confirmingDisconnect} title="Disconnect Shopify?" eyebrow="Confirm" onClose={() => setConfirmingDisconnect(false)}>
-        <div className="space-y-6">
-          <p className="text-sm leading-6 text-surface-700">
+        <div className="space-y-2">
+          <p className="text-[12.5px] leading-[1.45] text-surface-700">
             Scorelo will delete its stored Shopify credentials and stop reading data from
             <span className="font-semibold text-surface-900"> {shopify?.shopDomain}</span>. New audits cannot run until you reconnect.
           </p>
-          <p className="text-sm leading-6 text-surface-700">
+          <p className="text-[12.5px] leading-[1.45] text-surface-700">
             Your existing audit history, findings and reports are kept — disconnecting does not delete past analysis.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -292,10 +292,10 @@ export default function Integrations() {
 function BannerNotice({ banner, onDismiss }: { banner: Banner; onDismiss: () => void }) {
   const { wrap, icon: Icon } = bannerStyles[banner.tone];
   return (
-    <div className={`flex items-start gap-3 rounded-xl border p-4 ${wrap}`} role="status">
+    <div className={`flex items-start gap-3 rounded-lg border p-3 ${wrap}`} role="status">
       <Icon size={18} className="mt-0.5 shrink-0" />
-      <p className="flex-1 text-sm leading-5">{banner.message}</p>
-      <button type="button" onClick={onDismiss} className="text-xs font-semibold underline underline-offset-2">Dismiss</button>
+      <p className="flex-1 text-[12.5px] leading-[1.4]">{banner.message}</p>
+      <button type="button" onClick={onDismiss} className="text-[11.5px] font-semibold underline underline-offset-2">Dismiss</button>
     </div>
   );
 }
@@ -322,13 +322,13 @@ function ShopifyPanel({ status, busy, shopInput, shopInputError, onShopInputChan
   const summary = status.lastSyncSummary;
 
   return (
-    <section id="shopify-panel" className="scroll-mt-6 rounded-xl border border-surface-200 bg-surface-0 p-5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section id="shopify-panel" className="scroll-mt-6 rounded-lg border border-surface-200 bg-surface-0 p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] sm:p-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-2.5">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-100 text-surface-700"><Database size={21} /></div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-100 text-surface-700"><Database size={21} /></div>
           <div>
-            <h2 className="text-lg font-bold text-surface-950">Shopify</h2>
-            <p className="mt-1 max-w-xl text-sm leading-5 text-surface-500">
+            <h2 className="text-[15px] font-bold text-surface-950">Shopify</h2>
+            <p className="mt-1 max-w-xl text-[12.5px] leading-[1.4] text-surface-500">
               Connect your Shopify store to analyze SEO, content, performance, CRO and AI readiness.
             </p>
           </div>
@@ -345,13 +345,13 @@ function ShopifyPanel({ status, busy, shopInput, shopInputError, onShopInputChan
       </div>
 
       {!status.configured && (
-        <p className="mt-5 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">
+        <p className="mt-2.5 rounded-lg border border-warning-100 bg-warning-50 px-3 py-2 text-[11.5px] leading-[1.4] text-warning-800">
           Shopify is not configured on this server yet. An administrator needs to add the app credentials before stores can be connected.
         </p>
       )}
 
       {status.status === 'not_connected' ? (
-        <div className="mt-6 max-w-lg">
+        <div className="mt-2 max-w-lg">
           <label htmlFor="shop-domain" className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Your Shopify store address</label>
           <div className="mt-2 flex flex-wrap gap-2">
             <input
@@ -361,40 +361,40 @@ function ShopifyPanel({ status, busy, shopInput, shopInputError, onShopInputChan
               onKeyDown={(event) => { if (event.key === 'Enter') onConnect(); }}
               placeholder="my-store.myshopify.com"
               disabled={!status.configured || busy === 'connecting'}
-              className="h-[38px] min-w-[16rem] flex-1 rounded-lg border border-surface-200 px-3 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:bg-surface-50"
+              className="h-[38px] min-w-[16rem] flex-1 rounded-lg border border-surface-200 px-3 text-[12.5px] text-surface-900 placeholder:text-surface-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:bg-surface-50"
             />
             <Button onClick={onConnect} disabled={!status.configured || busy === 'connecting'}>
               <Link2 size={15} />{busy === 'connecting' ? 'Opening Shopify…' : 'Connect Shopify'}
             </Button>
           </div>
-          {shopInputError && <p className="mt-2 text-xs text-critical-600">{shopInputError}</p>}
+          {shopInputError && <p className="mt-2 text-[11.5px] text-critical-600">{shopInputError}</p>}
           {/* The address only tells Shopify which admin to open. Approval happens in Shopify's own
               UI, and only its signed callback creates a connection here. */}
-          <p className="mt-3 text-xs leading-5 text-surface-500">
+          <p className="mt-2 text-[11.5px] leading-[1.4] text-surface-500">
             You'll be taken to Shopify to review the permissions Scorelo requests and approve them. Nothing is connected until you do.
           </p>
         </div>
       ) : (
-        <div className="mt-6 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-3">
+        <div className="mt-2 space-y-2">
+          <div className="grid gap-2.5 sm:grid-cols-3">
             <Field label="Store" value={status.shopDomain ?? '—'} />
             <Field label="Connected since" value={status.installedAt ? new Date(status.installedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'} />
             <Field label="Last synced" value={status.lastSyncedAt ? new Date(status.lastSyncedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never synced'} />
           </div>
 
           {status.status === 'reauthorization_required' && (
-            <p className="rounded-lg border border-warning-100 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">
+            <p className="rounded-lg border border-warning-100 bg-warning-50 px-3 py-2 text-[11.5px] leading-[1.4] text-warning-800">
               Shopify authorization has expired. Reconnect your store to resume audits.
             </p>
           )}
           {status.lastSyncError && (
-            <p className="rounded-lg border border-critical-100 bg-critical-50 px-3 py-2 text-xs leading-5 text-critical-800">{status.lastSyncError}</p>
+            <p className="rounded-lg border border-critical-100 bg-critical-50 px-3 py-2 text-[11.5px] leading-[1.4] text-critical-800">{status.lastSyncError}</p>
           )}
 
           {summary ? (
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">Data read from your store</p>
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-5">
                 <Field label="Products" value={String(summary.products)} />
                 <Field label="Collections" value={String(summary.collections)} />
                 <Field label="Pages" value={String(summary.pages)} />
@@ -402,16 +402,16 @@ function ShopifyPanel({ status, busy, shopInput, shopInputError, onShopInputChan
                 <Field label="Policies" value={String(summary.policies)} />
               </div>
               {summary.truncated.length > 0 && (
-                <p className="mt-3 text-xs leading-5 text-warning-700">
+                <p className="mt-2 text-[11.5px] leading-[1.4] text-warning-700">
                   Your crawl scope limit was reached for {summary.truncated.join(', ')} — these counts are partial. Raise the page limit in Settings → Analysis to read more.
                 </p>
               )}
               {summary.unavailable.length > 0 && (
-                <p className="mt-2 text-xs leading-5 text-surface-500">Could not read: {summary.unavailable.join(', ')}.</p>
+                <p className="mt-2 text-[11.5px] leading-[1.4] text-surface-500">Could not read: {summary.unavailable.join(', ')}.</p>
               )}
             </div>
           ) : (
-            <p className="rounded-lg bg-surface-50 px-3 py-2 text-xs leading-5 text-surface-500">
+            <p className="rounded-lg bg-surface-50 px-3 py-2 text-[11.5px] leading-[1.4] text-surface-500">
               No data has been read from this store yet. Run a sync to pull your catalog and content.
             </p>
           )}
@@ -435,7 +435,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-surface-200 bg-surface-50 p-3">
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-surface-900" title={value}>{value}</p>
+      <p className="mt-1 truncate text-[12.5px] font-semibold text-surface-900" title={value}>{value}</p>
     </div>
   );
 }

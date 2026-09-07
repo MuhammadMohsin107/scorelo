@@ -131,7 +131,10 @@ export default function PageSettingsPanel({
       >
         <header className="flex items-start justify-between gap-3 border-b border-surface-200 px-4 py-3">
           <div>
-            <p className="eyebrow">Client settings</p>
+            {/* "Settings", not "Client settings": the merchant reading this panel IS the client,
+                so the qualifier only ever described the audience to ourselves. Backend and
+                database identifiers are unchanged — this is a label. */}
+            <p className="eyebrow">Settings</p>
             <h2 id="page-settings-title" className="mt-0.5 text-[15px] font-semibold text-surface-950">{definition.title}</h2>
             <p className="mt-0.5 text-[11.5px] leading-[1.45] text-surface-500">{definition.description}</p>
           </div>

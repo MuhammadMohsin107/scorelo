@@ -207,13 +207,13 @@ export default function Settings() {
     if (state === 'error') {
       return (
         <div className="page-shell">
-          <div className={`${settingsCard} mx-auto flex max-w-md flex-col items-center p-10 text-center`}>
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-critical-50 text-critical-600">
-              <AlertCircle size={24} />
+          <div className={`${settingsCard} mx-auto flex max-w-md flex-col items-center p-6 text-center`}>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-critical-50 text-critical-600">
+              <AlertCircle size={18} />
             </span>
-            <h1 className="mt-4 text-lg font-bold text-surface-950">Unable to load settings</h1>
-            <p className="mt-1.5 text-sm text-surface-500">Your saved preferences were not changed.</p>
-            <div className="mt-6">
+            <h1 className="mt-2.5 text-[15px] font-bold text-surface-950">Unable to load settings</h1>
+            <p className="mt-1.5 text-[12.5px] text-surface-500">Your saved preferences were not changed.</p>
+            <div className="mt-2">
               <Button onClick={load}>
                 <RefreshCw size={15} />
                 Retry
@@ -234,13 +234,13 @@ export default function Settings() {
         description="Manage your account, the store Scorelo analyzes, and how the platform behaves."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-3 lg:grid-cols-[224px_minmax(0,1fr)] lg:items-start">
         {/* ── Navigation ────────────────────────────────────────── */}
-        <nav className="lg:sticky lg:top-6" aria-label="Settings sections">
+        <nav className="lg:sticky lg:top-3" aria-label="Settings sections">
           {/* Identity header: the same monogram the app header renders, so the settings nav
               is visibly anchored to the account being edited. */}
-          <div className="mb-3 hidden items-center gap-3 rounded-xl border border-surface-200 bg-surface-0 p-3 lg:flex">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">
+          <div className="mb-2 hidden items-center gap-3 rounded-lg border border-surface-200 bg-surface-0 p-3 lg:flex">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[12.5px] font-bold text-white">
               {initialsFor(draft.profile.fullName)}
             </span>
             <span className="min-w-0">
@@ -251,7 +251,7 @@ export default function Settings() {
             </span>
           </div>
 
-          <div className="relative mb-3">
+          <div className="relative mb-2">
             <label htmlFor="settings-search" className="sr-only">
               Search settings
             </label>
@@ -266,7 +266,7 @@ export default function Settings() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search settings…"
-              className="w-full rounded-lg border border-surface-200 bg-surface-0 py-2 pl-8 pr-8 text-sm outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-surface-200 bg-surface-0 py-2 pl-8 pr-8 text-[12.5px] outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             />
             {search && (
               <button
@@ -288,7 +288,7 @@ export default function Settings() {
                 type="button"
                 onClick={() => navigate(`/settings/${item.id}`)}
                 aria-current={active === item.id ? 'page' : undefined}
-                className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
+                className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[11.5px] font-bold transition-colors ${
                   active === item.id ? 'bg-surface-950 text-surface-0' : 'border border-surface-200 bg-surface-0 text-surface-600'
                 }`}
               >
@@ -297,7 +297,7 @@ export default function Settings() {
               </button>
             ))}
             {visibleSections.length === 0 && (
-              <p className="px-2 py-2 text-xs text-surface-500">No settings match “{search}”.</p>
+              <p className="px-2 py-2 text-[11.5px] text-surface-500">No settings match “{search}”.</p>
             )}
           </div>
 
@@ -306,7 +306,7 @@ export default function Settings() {
               const items = visibleSections.filter((item) => item.group === group);
               if (items.length === 0) return null;
               return (
-                <div key={group} className="mb-5">
+                <div key={group} className="mb-2.5">
                   <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-surface-400">{group}</p>
                   <ul className="space-y-0.5">
                     {items.map((item) => {
@@ -317,7 +317,7 @@ export default function Settings() {
                           <Link
                             to={`/settings/${item.id}`}
                             aria-current={isActive ? 'page' : undefined}
-                            className={`group relative flex items-center gap-2.5 rounded-lg py-2 pl-3 pr-2.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                            className={`group relative flex items-center gap-2 rounded-md py-1.5 pl-2.5 pr-2 text-[12.5px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                               isActive
                                 ? isDanger
                                   ? 'bg-critical-50 text-critical-700'
@@ -337,7 +337,7 @@ export default function Settings() {
                               />
                             )}
                             <item.icon
-                              size={15}
+                              size={14}
                               aria-hidden="true"
                               className={`flex-shrink-0 transition-colors ${
                                 isActive ? '' : 'text-surface-400 group-hover:text-surface-600'
@@ -361,20 +361,20 @@ export default function Settings() {
               );
             })}
             {visibleSections.length === 0 && (
-              <p className="px-3 py-4 text-xs text-surface-500">No settings match “{search}”.</p>
+              <p className="px-3 py-2.5 text-[11.5px] text-surface-500">No settings match “{search}”.</p>
             )}
           </div>
         </nav>
 
         {/* ── Active section ────────────────────────────────────── */}
         <div className="min-w-0">
-          <header className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-surface-200 pb-4">
+          <header className="mb-2.5 flex flex-wrap items-start justify-between gap-3 border-b border-surface-200 pb-2.5">
             <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight text-surface-950">{activeMeta.title}</h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-surface-500">{activeMeta.description}</p>
+              <h2 className="section-title">{activeMeta.title}</h2>
+              <p className="section-subtitle max-w-2xl">{activeMeta.description}</p>
             </div>
-            <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-[11px] font-bold text-surface-600">
-              <activeMeta.icon size={13} aria-hidden="true" className="text-surface-400" />
+            <span className="meta-chip flex-shrink-0 font-semibold">
+              <activeMeta.icon size={12} aria-hidden="true" className="text-surface-400" />
               {activeMeta.group}
             </span>
           </header>
@@ -382,12 +382,12 @@ export default function Settings() {
           {saveError && (
             <div
               role="alert"
-              className="mb-5 flex items-start gap-2.5 rounded-lg border border-critical-200 bg-critical-50 p-3.5"
+              className="mb-2.5 flex items-start gap-2.5 rounded-lg border border-critical-200 bg-critical-50 p-3.5"
             >
               <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-critical-600" aria-hidden="true" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-critical-800">Changes were not saved</p>
-                <p className="mt-0.5 text-xs leading-5 text-critical-700">{saveError}</p>
+                <p className="text-[12.5px] font-semibold text-critical-800">Changes were not saved</p>
+                <p className="mt-0.5 text-[11.5px] leading-[1.4] text-critical-700">{saveError}</p>
               </div>
               <button
                 type="button"
@@ -400,7 +400,7 @@ export default function Settings() {
             </div>
           )}
 
-          <div className="space-y-5">
+          <div className="space-y-2">
             {active === 'profile' && (
               <ProfileSection
                 profile={draft.profile}
@@ -428,7 +428,7 @@ export default function Settings() {
                   title="Store"
                   description="The storefront Scorelo crawls. These values set the context for every pillar score."
                 >
-                  <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Store name" htmlFor="storeName" error={errors.storeName} hint="Displayed in the dashboard header.">
                       <TextInput
                         id="storeName"
@@ -508,7 +508,7 @@ export default function Settings() {
                     checked={draft.analysis.autoAnalysis}
                     onChange={(next) => update('analysis', { autoAnalysis: next })}
                   />
-                  <div className="border-t border-surface-100 pt-5">
+                  <div className="border-t border-surface-100 pt-2.5">
                     <Field
                       label="Frequency"
                       htmlFor="frequency"
@@ -532,7 +532,7 @@ export default function Settings() {
                 </SettingsCard>
 
                 <SettingsCard title="Crawl scope" description="Control how much of the store each audit covers.">
-                  <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Scope" htmlFor="crawlScope" hint="Narrower scopes finish faster but cover less.">
                       <SelectInput
                         id="crawlScope"
@@ -584,7 +584,7 @@ export default function Settings() {
                     Pillar weighting and scoring thresholds are fixed by the Scorelo audit engine so results stay
                     comparable across audits and stores. They are not configurable.
                   </PreviewNotice>
-                  <div className="mt-4">
+                  <div className="mt-2.5">
                     <ReadOnlyRow label="Pillars scored" value="SEO, Content, Speed, CRO, AI Discovery" />
                     <ReadOnlyRow label="Score range" value="0–100 per pillar" />
                     <ReadOnlyRow
@@ -656,7 +656,7 @@ export default function Settings() {
                     describedBy="theme-hint"
                   />
                 </Field>
-                <div className="mt-5 border-t border-surface-100 pt-5" />
+                <div className="mt-2.5 border-t border-surface-100 pt-2.5" />
                 <Field label="Density" htmlFor="density" hint="Compact reduces padding in tables and lists." className="max-w-xs">
                   <SelectInput
                     id="density"
@@ -765,14 +765,14 @@ function IntegrationsSection() {
         footer={
           <Link
             to="/integrations"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 transition-colors hover:text-brand-800"
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-700 transition-colors hover:text-brand-800"
           >
             <Link2 size={14} aria-hidden="true" />
             Open Integrations
           </Link>
         }
       >
-        <div className="mb-5 grid grid-cols-3 gap-3">
+        <div className="mb-2.5 grid grid-cols-3 gap-3">
           {[
             { label: 'Connected', value: connected },
             { label: 'Need attention', value: attention },
@@ -780,17 +780,17 @@ function IntegrationsSection() {
           ].map((tile) => (
             <div key={tile.label} className="rounded-lg border border-surface-200 px-3 py-2.5">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{tile.label}</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-surface-950">{tile.value}</p>
+              <p className="mt-1 text-[16px] font-bold tabular-nums text-surface-950">{tile.value}</p>
             </div>
           ))}
         </div>
 
         <ul className="divide-y divide-surface-100">
           {records.map((record) => (
-            <li key={record.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <li key={record.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-surface-900">{record.name}</p>
-                <p className="mt-0.5 text-xs text-surface-500">
+                <p className="text-[12.5px] font-semibold text-surface-900">{record.name}</p>
+                <p className="mt-0.5 text-[11.5px] text-surface-500">
                   {record.status === 'Connected' ? `Last synced ${record.lastSynced}` : record.detail}
                 </p>
               </div>
@@ -811,17 +811,17 @@ function BillingSection() {
   return (
     <>
       <SettingsCard title="Current plan" description="What this workspace is entitled to today.">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-2.5">
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="text-2xl font-bold tracking-tight text-surface-950">{planInfo.name}</h4>
+              <h4 className="text-[20px] font-bold tracking-tight text-surface-950">{planInfo.name}</h4>
               <StatusBadge label="Active" tone="success" />
             </div>
-            <p className="mt-1 text-sm text-surface-500">{planInfo.description}</p>
+            <p className="mt-1 text-[12.5px] text-surface-500">{planInfo.description}</p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold tracking-tight text-surface-950 tabular-nums">{planInfo.price}</p>
-            <p className="text-xs text-surface-500">{planInfo.cadence}</p>
+            <p className="text-[20px] font-bold tracking-tight text-surface-950 tabular-nums">{planInfo.price}</p>
+            <p className="text-[11.5px] text-surface-500">{planInfo.cadence}</p>
           </div>
         </div>
       </SettingsCard>
@@ -850,19 +850,19 @@ function BillingSection() {
 function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisconnect: () => void }) {
   return (
     <>
-      <section className="overflow-hidden rounded-xl border border-critical-200 bg-surface-0">
-        <div className="border-b border-critical-100 bg-critical-50/60 px-5 py-4 sm:px-6">
-          <h3 className="text-base font-bold tracking-tight text-critical-900">Irreversible actions</h3>
-          <p className="mt-1 text-sm leading-6 text-critical-700">
+      <section className="overflow-hidden rounded-lg border border-critical-200 bg-surface-0">
+        <div className="border-b border-critical-100 bg-critical-50/60 px-3.5 py-2.5 sm:px-3.5">
+          <h3 className="text-[13px] font-bold tracking-tight text-critical-900">Irreversible actions</h3>
+          <p className="mt-1 text-[12.5px] leading-[1.45] text-critical-700">
             These actions change what Scorelo analyzes. Each one asks for confirmation first.
           </p>
         </div>
 
         <div className="divide-y divide-surface-100">
-          <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 sm:px-3.5">
             <div className="min-w-0">
-              <p className="text-sm font-bold text-surface-900">Disconnect store</p>
-              <p className="mt-1 max-w-xl text-xs leading-5 text-surface-500">
+              <p className="text-[12.5px] font-bold text-surface-900">Disconnect store</p>
+              <p className="mt-1 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
                 Stops all scheduled analysis and clears{' '}
                 <span className="font-semibold text-surface-700">{storeName || 'this store'}</span> from your workspace
                 settings. Existing findings stay visible until the next audit.
@@ -873,10 +873,10 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 sm:px-3.5">
             <div className="min-w-0">
-              <p className="text-sm font-bold text-surface-900">Delete workspace</p>
-              <p className="mt-1 max-w-xl text-xs leading-5 text-surface-500">
+              <p className="text-[12.5px] font-bold text-surface-900">Delete workspace</p>
+              <p className="mt-1 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
                 Permanently removes the workspace, every audit and all historical scores.
               </p>
             </div>
@@ -886,7 +886,7 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
           </div>
         </div>
 
-        <div className="border-t border-surface-200 px-5 py-4 sm:px-6">
+        <div className="border-t border-surface-200 px-3.5 py-2.5 sm:px-3.5">
           <PreviewNotice>
             Workspace deletion requires owner verification through the Scorelo account service, which is not connected in
             this build — so the action is disabled rather than simulated.
@@ -901,28 +901,28 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
 function SettingsSkeleton() {
   return (
     <div className="page-shell section-stack" aria-busy="true" aria-label="Loading settings">
-      <div className="space-y-3 border-b border-surface-200 pb-6">
+      <div className="space-y-2 border-b border-surface-200 pb-3">
         <div className="skeleton h-3 w-28" />
         <div className="skeleton h-9 w-48" />
         <div className="skeleton h-4 w-96 max-w-full" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)]">
+      <div className="grid gap-3 lg:grid-cols-[248px_minmax(0,1fr)]">
         <div className="space-y-2">
           <div className="skeleton h-9 w-full rounded-lg" />
           {Array.from({ length: 8 }).map((_, index) => (
             <div key={index} className="skeleton h-9 w-full rounded-lg" />
           ))}
         </div>
-        <div className="space-y-5">
-          <div className="space-y-2 border-b border-surface-200 pb-4">
+        <div className="space-y-2">
+          <div className="space-y-2 border-b border-surface-200 pb-2.5">
             <div className="skeleton h-6 w-40" />
             <div className="skeleton h-4 w-72 max-w-full" />
           </div>
           {Array.from({ length: 2 }).map((_, index) => (
-            <div key={index} className={`${settingsCard} p-6`}>
+            <div key={index} className={`${settingsCard} p-3.5`}>
               <div className="skeleton h-5 w-44" />
               <div className="skeleton mt-2 h-4 w-72 max-w-full" />
-              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, field) => (
                   <div key={field} className="space-y-2">
                     <div className="skeleton h-4 w-24" />

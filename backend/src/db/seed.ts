@@ -22,7 +22,7 @@ import bcrypt from 'bcryptjs';
 import { sql } from 'drizzle-orm';
 import { db, pool } from './client.js';
 import { insertReturning } from './returning.js';
-import { auditScores, audits, findings, integrations, notifications, stores, users } from './schema.js';
+import { auditScores, audits, findings, integrations, stores, users } from './schema.js';
 
 interface SubPillarSeedEntry {
   pillar: string;
@@ -164,53 +164,15 @@ async function seed() {
     },
   ]);
 
-  await db.insert(notifications).values([
-    {
-      storeId: store.id,
-      type: 'analysis_complete',
-      title: 'SEO analysis completed',
-      message: 'Your latest SEO analysis has finished successfully.',
-      tone: 'success',
-      isRead: false,
-      createdAt: minutesAgo(10),
-    },
-    {
-      storeId: store.id,
-      type: 'critical_issue',
-      title: 'Critical SEO issue detected',
-      message: '8 canonical issues require attention.',
-      tone: 'critical',
-      isRead: false,
-      createdAt: hoursAgo(1),
-    },
-    {
-      storeId: store.id,
-      type: 'score_change',
-      title: 'Score improved',
-      message: 'Your overall Scorelo score increased by 3 points.',
-      tone: 'success',
-      isRead: true,
-      createdAt: hoursAgo(26),
-    },
-    {
-      storeId: store.id,
-      type: 'integration_alert',
-      title: 'Integration needs attention',
-      message: 'Google Search Console requires reconnection.',
-      tone: 'warning',
-      isRead: false,
-      createdAt: hoursAgo(30),
-    },
-    {
-      storeId: store.id,
-      type: 'weekly_summary',
-      title: 'Weekly report generated',
-      message: 'Your weekly Store Performance report is ready.',
-      tone: 'info',
-      isRead: true,
-      createdAt: hoursAgo(48),
-    },
-  ]);
+  // ─── Notifications are NOT seeded ──────────────────────────────────
+  // Five fixtures used to be inserted here — "SEO analysis completed", "8 canonical issues require
+  // attention", "Google Search Console requires reconnection". None of them described anything
+  // that had happened. They were indistinguishable from real alerts in the bell, so a merchant
+  // could read that an integration needed attention when no integration had ever been connected.
+  //
+  // Notifications now come only from events that actually occurred: an audit finishing or failing,
+  // a sync failing, an expired token, an uninstall. See services/notification.service.ts. A fresh
+  // store therefore starts with an empty bell, which is the truth.
 
   // Six weekly audits — the same score progression the dashboard/reports
   // mocks show (72 → 87) — so the trend chart has real history from day one.

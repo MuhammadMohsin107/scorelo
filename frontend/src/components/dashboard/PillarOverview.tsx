@@ -25,18 +25,18 @@ export default function PillarOverview({ pillars }: Props) {
 
   return (
     <section aria-labelledby="pillar-performance-title">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-surface-500">Pillars</p>
-          <h2 id="pillar-performance-title" className="mt-1 text-lg font-semibold tracking-tight text-surface-950">Performance by pillar</h2>
+          <h2 id="pillar-performance-title" className="mt-1 text-[15px] font-semibold tracking-tight text-surface-950">Performance by pillar</h2>
         </div>
-        <span className="inline-flex items-center gap-2 text-xs text-surface-500">
+        <span className="inline-flex items-center gap-2 text-[11.5px] text-surface-500">
           <span className="inline-block h-3 w-0.5 rounded-full bg-surface-900" aria-hidden="true" />
           Target {SCORE_TARGET} · Excellent
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
         {pillars.map((pillar) => {
           const tone = statusTone[pillar.status];
           // null score = this pillar produced no measurable result. The card still renders, and
@@ -48,7 +48,7 @@ export default function PillarOverview({ pillars }: Props) {
               key={pillar.key}
               type="button"
               onClick={() => navigate(pillarRoutes[pillar.key] ?? '/')}
-              className={`${cardClass} group flex cursor-pointer flex-col p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0`}
+              className={`${cardClass} group flex cursor-pointer flex-col p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0`}
               aria-label={
                 measured
                   ? `Open ${pillar.label}, score ${pillar.score} out of 100, ${pillar.statusLabel}`
@@ -60,16 +60,16 @@ export default function PillarOverview({ pillars }: Props) {
                   <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-surface-100 text-surface-600 transition-colors group-hover:bg-brand-50 group-hover:text-brand-700">
                     {iconMap[pillar.icon] ?? <Target size={16} />}
                   </span>
-                  <span className="truncate text-sm font-semibold text-surface-900">{pillar.label}</span>
+                  <span className="truncate text-[12.5px] font-semibold text-surface-900">{pillar.label}</span>
                 </span>
                 <ArrowUpRight size={15} className="flex-shrink-0 text-surface-300 transition-colors group-hover:text-brand-600" aria-hidden="true" />
               </div>
 
-              <div className="mt-4 flex items-baseline gap-1.5">
+              <div className="mt-2.5 flex items-baseline gap-1.5">
                 {measured ? (
                   <>
                     <span className="text-[30px] font-semibold leading-none tracking-tight text-surface-950 tabular-nums">{pillar.score}</span>
-                    <span className="text-xs font-medium text-surface-400">/100</span>
+                    <span className="text-[11.5px] font-medium text-surface-400">/100</span>
                   </>
                 ) : (
                   // An em dash, not a 0 — a pillar we could not measure must never read as a
@@ -83,14 +83,14 @@ export default function PillarOverview({ pillars }: Props) {
 
               {/* Bullet bar with target marker. Unmeasured pillars show an empty track: there is
                   no value to plot, and a zero-width bar would still imply a measured zero. */}
-              <div className="relative mt-3 h-2 w-full overflow-visible rounded-full bg-surface-100" aria-hidden="true">
+              <div className="relative mt-2 h-2 w-full overflow-visible rounded-full bg-surface-100" aria-hidden="true">
                 {measured && (
                   <div className={`h-full rounded-full ${tone.bar} transition-[width] duration-700 ease-out motion-reduce:transition-none`} style={{ width: `${pillar.score}%` }} />
                 )}
                 <span className="absolute -top-1 h-4 w-0.5 rounded-full bg-surface-900" style={{ left: `calc(${SCORE_TARGET}% - 1px)` }} />
               </div>
 
-              <div className="mt-3 flex items-center justify-between text-[11px] text-surface-500">
+              <div className="mt-2 flex items-center justify-between text-[11px] text-surface-500">
                 {measured ? (
                   <>
                     <span className="tabular-nums">
@@ -105,7 +105,7 @@ export default function PillarOverview({ pillars }: Props) {
                 )}
               </div>
 
-              <p className="mt-2 line-clamp-2 text-xs leading-5 text-surface-500">{pillar.description}</p>
+              <p className="mt-2 line-clamp-2 text-[11.5px] leading-[1.4] text-surface-500">{pillar.description}</p>
             </button>
           );
         })}

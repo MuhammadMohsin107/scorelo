@@ -24,21 +24,20 @@ export default function SubPillarSkeleton() {
       </div>
 
       <div className="mt-3 grid grid-cols-12 gap-3">
-        <div className={`${card} col-span-12 p-3.5 xl:col-span-7`}>
-          <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center sm:gap-4">
-            <div className="skeleton h-[100px] w-[100px] flex-shrink-0 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <div className="skeleton h-2.5 w-16" />
-              <div className="skeleton h-5 w-32" />
+        <div className={`${card} col-span-12 p-3 xl:col-span-7`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3.5">
+            <div className="skeleton h-[84px] w-[84px] flex-shrink-0 rounded-full" />
+            <div className="flex-1 space-y-1.5">
+              <div className="skeleton h-4 w-40" />
               <div className="skeleton h-3 w-full max-w-sm" />
-              <div className="skeleton h-2.5 w-40" />
+              <div className="skeleton h-2.5 w-36" />
             </div>
           </div>
-          <div className="mt-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="space-y-1.5">
                 <div className="skeleton h-2.5 w-16" />
-                <div className="skeleton h-5 w-12" />
+                <div className="skeleton h-4 w-12" />
               </div>
             ))}
           </div>

@@ -31,22 +31,26 @@ export const schemaAnalysis: SubPillarAnalysis = {
   findings: [],
   evidence: {
     title: 'Affected pages',
-    caption: 'Pages sampled from the latest crawl with their structured-data status',
-    searchPlaceholder: 'Search URL, type or detail…',
-    searchKeys: ['url', 'types', 'detail'],
+    // `errors` and `warnings` were never written — the check does not validate markup against
+    // schema.org, it records which JSON-LD types a page emits and how many blocks it has. Both
+    // count columns therefore showed nothing on every row. `types` and `detail` were also the
+    // wrong keys for `schemaTypes`.
+    caption: 'Crawled pages with the structured data they emit',
+    searchPlaceholder: 'Search page or schema type…',
+    searchKeys: ['url', 'schemaTypes'],
     sampleNoun: 'crawled pages',
-    facet: { label: 'Schema type', allLabel: 'All schema types', values: ['Product', 'BreadcrumbList', 'None'] },
+    facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'url', header: 'Page URL', variant: 'mono', clamp: 'max-w-[15rem]' },
-      { key: 'types', header: 'Schema types', subKey: 'detail', emptyText: 'no markup', clamp: 'max-w-[20rem]' },
-      { key: 'errors', header: 'Errors', align: 'center', variant: 'number' },
-      { key: 'warnings', header: 'Warnings', align: 'center', variant: 'number' },
+      { key: 'url', header: 'Page URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[16rem]' },
+      { key: 'schemaTypes', header: 'Schema types', emptyText: 'no markup', clamp: 'max-w-[18rem]' },
+      { key: 'blocks', header: 'Blocks', align: 'center', variant: 'number' },
+      { key: 'recommendation', header: 'Recommendation', variant: 'muted', clamp: 'max-w-[16rem]' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('errors', 'Sort: errors', 'desc'), sortByCell('url', 'Sort: URL')],
+    sorts: [sortByCell('blocks', 'Sort: blocks', 'desc'), sortByCell('url', 'Sort: URL')],
   },
   relatedAreas: [
     { label: 'Title Tags', href: '/seo/title-tags', hint: 'What the result headline says' },

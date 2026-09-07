@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ClipboardCheck, History, Loader2, RotateCcw, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, CheckCircle2, ClipboardCheck, History, Loader2, RotateCcw, Sparkles, X } from 'lucide-react';
 import type { EvidenceRow, RowStatus } from '../../../data/seo/subpillar.model';
+import { planAiFixes } from '../../../data/findings.repository';
 import { card, eyebrow } from './tone';
 
 interface AppliedUpdate {
@@ -14,9 +15,21 @@ interface AppliedUpdate {
 interface Props {
   rows: EvidenceRow[];
   mode: 'title-tags' | 'generic';
+  /**
+   * The finding each selected row belongs to, as `rowId -> findingId`.
+   *
+   * Needed because AI planning is scoped to a finding: the backend re-derives which resources that
+   * finding actually flagged and refuses anything outside that set. Rows whose finding carries a
+   * catalog slug id rather than a database id are simply not plannable, and are left to the
+   * deterministic suggestion.
+   */
+  findingIdByRowId: Record<string, string>;
   onClose: () => void;
   onApply: (updates: AppliedUpdate[]) => void;
 }
+
+/** Only a numeric id is a real database finding the planner can work from. */
+const isPersistedFinding = (id: string | undefined): id is string => Boolean(id && /^\d+$/.test(id));
 
 const MIN_TITLE_LENGTH = 30;
 const MAX_TITLE_LENGTH = 60;
@@ -32,20 +45,112 @@ function validate(row: EvidenceRow, value: string, mode: 'title-tags' | 'generic
   return null;
 }
 
-export default function BulkFixWorkflow({ rows, mode, onClose, onApply }: Props) {
+export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose, onApply }: Props) {
   const [isGenerating, setIsGenerating] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [applied, setApplied] = useState<AppliedUpdate[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  /** What AI actually managed to do, stated plainly rather than implied by a filled box. */
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
+  const [aiCount, setAiCount] = useState(0);
+  /** A redraft the merchant asked for, separate from the automatic first pass. */
+  const [isDrafting, setIsDrafting] = useState(false);
 
+  /**
+   * Asks the model to draft values for the rows given.
+   *
+   * `onlyEmpty` is what the automatic first pass uses: a row Scorelo could already derive a value
+   * for does not need a paid model call. The explicit "Draft with AI" button passes false, because
+   * a merchant pressing it is asking for the model's take on everything they selected — including
+   * the rows they were not satisfied with.
+   *
+   * Nothing is invented locally. If the call fails, the boxes stay as they were and the panel says
+   * what happened.
+   */
+  const draftWithAi = useCallback(
+    async (onlyEmpty: boolean, current: Record<string, string>) => {
+      // The planner works one finding at a time, and a selection can span several.
+      const byFinding = new Map<string, string[]>();
+      for (const row of rows) {
+        if (onlyEmpty && current[row.id]) continue;
+        const findingId = findingIdByRowId[row.id];
+        if (!isPersistedFinding(findingId)) continue;
+        byFinding.set(findingId, [...(byFinding.get(findingId) ?? []), row.id]);
+      }
+
+      if (byFinding.size === 0) {
+        return { filled: {} as Record<string, string>, model: null as string | null, reasons: ['nothing_to_plan'] };
+      }
+
+      const filled: Record<string, string> = {};
+      const reasons: string[] = [];
+      let model: string | null = null;
+
+      for (const [findingId, resourceIds] of byFinding) {
+        try {
+          const result = await planAiFixes(findingId, resourceIds);
+          model = result.model ?? model;
+          for (const proposal of result.proposals) {
+            const ref = `${proposal.resourceType}:${proposal.resourceId}`;
+            if (resourceIds.includes(ref)) filled[ref] = proposal.proposedValue;
+          }
+          if (!result.planned && result.unavailableReason) reasons.push(result.unavailableReason);
+        } catch {
+          reasons.push('unavailable');
+        }
+      }
+
+      return { filled, model, reasons };
+    },
+    [rows, findingIdByRowId],
+  );
+
+  const noticeFor = (reasons: string[]) =>
+    reasons.includes('disabled')
+      ? 'AI drafting is turned off on this server. The recommendations below need to be written by hand.'
+      : reasons.includes('nothing_to_plan')
+        ? 'These rows are not covered by AI drafting yet — write the values yourself, or edit the suggestions above.'
+        : 'AI could not draft these right now. Nothing has been filled in for you — the boxes are exactly as they were.';
+
+  /** First pass: deterministic suggestions, then AI for whatever is still blank. */
   useEffect(() => {
     if (applied.length > 0) return;
-    const timer = window.setTimeout(() => {
-      setDrafts(Object.fromEntries(rows.map((row) => [row.id, row.suggested?.value ?? ''])));
+    let active = true;
+
+    const deterministic = Object.fromEntries(rows.map((row) => [row.id, row.suggested?.value ?? '']));
+    setDrafts(deterministic);
+
+    (async () => {
+      const { filled, model, reasons } = await draftWithAi(true, deterministic);
+      if (!active) return;
+
+      const count = Object.keys(filled).length;
+      setAiCount(count);
+      setAiModel(model);
+      if (count > 0) setDrafts((existing) => ({ ...existing, ...filled }));
+      // Silent when every box already had a defensible value — there was nothing for AI to do,
+      // and a warning about it would be noise.
+      const everythingAlreadyFilled = Object.values(deterministic).every(Boolean);
+      if (count === 0 && !everythingAlreadyFilled) setAiNotice(noticeFor(reasons));
       setIsGenerating(false);
-    }, 650);
-    return () => window.clearTimeout(timer);
-  }, [applied.length, rows]);
+    })();
+
+    return () => { active = false; };
+  }, [applied.length, rows, draftWithAi]);
+
+  /** The explicit action: redraft everything selected, whatever is in the boxes now. */
+  const redraftWithAi = async () => {
+    setIsDrafting(true);
+    setAiNotice(null);
+    const { filled, model, reasons } = await draftWithAi(false, drafts);
+    const count = Object.keys(filled).length;
+    setAiCount(count);
+    setAiModel(model);
+    if (count > 0) setDrafts((existing) => ({ ...existing, ...filled }));
+    else setAiNotice(noticeFor(reasons));
+    setIsDrafting(false);
+  };
 
   const reviews = useMemo(
     () => rows.map((row) => ({ row, value: drafts[row.id] ?? '', error: validate(row, drafts[row.id] ?? '', mode) })),
@@ -92,7 +197,7 @@ export default function BulkFixWorkflow({ rows, mode, onClose, onApply }: Props)
         {isGenerating ? (
           <div className="flex min-h-40 flex-col items-center justify-center gap-2 text-[12.5px] text-surface-600">
             <Loader2 size={18} className="animate-spin text-brand-600" />
-            Generating recommendations...
+            Drafting recommendations from your store's own content…
           </div>
         ) : applied.length > 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
@@ -112,7 +217,35 @@ export default function BulkFixWorkflow({ rows, mode, onClose, onApply }: Props)
               <span className="font-semibold text-surface-800">{rows.length} selected</span>
               <span className="text-success-700">{ready.length} ready</span>
               {needsReview > 0 && <span className="text-warning-700">{needsReview} need review</span>}
+              {aiCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-brand-700">
+                  <Sparkles size={11} aria-hidden="true" />
+                  {aiCount} drafted by AI{aiModel ? ` · ${aiModel}` : ''}
+                </span>
+              )}
+              {/* The AI option, stated as an action rather than left as a background behaviour.
+                  A merchant who does not like a suggestion can ask the model to rewrite the whole
+                  selection from the resources' own content. */}
+              <button
+                type="button"
+                onClick={() => void redraftWithAi()}
+                disabled={isDrafting}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-surface-0 px-2 py-1 text-[11.5px] font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDrafting
+                  ? <Loader2 size={11} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                  : <Sparkles size={11} aria-hidden="true" />}
+                {isDrafting ? 'Drafting…' : aiCount > 0 ? 'Redraft with AI' : 'Draft with AI'}
+              </button>
             </div>
+
+            {/* Stated, not implied. An empty box with no explanation reads as a broken feature. */}
+            {aiNotice && (
+              <p className="flex items-start gap-1.5 border-b border-warning-100 bg-warning-50 px-4 py-2 text-[11.5px] leading-[1.45] text-warning-800">
+                <AlertCircle size={12} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
+                {aiNotice}
+              </p>
+            )}
             <div className="overflow-y-auto px-4 py-2.5">
               <div className="space-y-2">
                 {reviews.map(({ row, value, error }) => (

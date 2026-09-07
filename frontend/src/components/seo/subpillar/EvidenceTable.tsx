@@ -13,7 +13,7 @@ import {
 } from '../../../data/seo/subpillar.model';
 import SeverityBadge from './SeverityBadge';
 import BulkFixWorkflow from './BulkFixWorkflow';
-import { card, cardHeader, cardTitle, eyebrow } from './tone';
+import { card, cardHeader, cardHeadingRow, cardTitle, eyebrow } from './tone';
 
 interface Props {
   evidence: EvidenceConfig;
@@ -143,7 +143,7 @@ export default function EvidenceTable({
     <section className={`${card} overflow-hidden`} aria-labelledby="sp-evidence-title">
       <div className={cardHeader}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div><p className={eyebrow}>Evidence</p><h2 id="sp-evidence-title" className={`mt-0.5 ${cardTitle}`}>{evidence.title}</h2></div>
+          <div className={cardHeadingRow}><p className={eyebrow}>Evidence</p><h2 id="sp-evidence-title" className={cardTitle}>{evidence.title}</h2></div>
           <p className="text-[11px] text-surface-500">Sample of <span className="font-semibold tabular-nums text-surface-700">{workingRows.length}</span> {evidence.sampleNoun} · <span className="font-semibold tabular-nums text-surface-700">{totalIssues.toLocaleString()}</span> flagged store-wide</p>
         </div>
         {/* Search, facet, sort and the issue filters share one row from `lg` up: four controls that
@@ -170,7 +170,22 @@ export default function EvidenceTable({
       </div>
 
       {visible.length === 0 ? <div className="px-4 py-8 text-center"><p className="text-[13px] font-semibold text-surface-900">Nothing matches these filters</p><p className="mt-0.5 text-[11.5px] text-surface-500">Clear the search or pick a different issue.</p></div> : <div className="overflow-x-auto"><table className="table-compact w-full"><caption className="sr-only">{evidence.caption}</caption><thead className="border-b border-surface-200 bg-surface-0"><tr>{supportsBulkFix && <th scope="col" className="w-9"><input type="checkbox" checked={allVisibleSelected} ref={(element) => { if (element) element.indeterminate = someVisibleSelected; }} onChange={toggleVisibleSelection} aria-label="Select visible rows" className="h-3.5 w-3.5 cursor-pointer rounded border-surface-300 text-brand-600 focus:ring-brand-500" /></th>}{evidence.columns.map((column) => <th key={column.key} scope="col" className={alignClass[column.align ?? 'left']}>{column.header}</th>)}</tr></thead><tbody className="divide-y divide-surface-200">{visible.map((row) => <tr key={row.id} className="transition-colors hover:bg-surface-50">{supportsBulkFix && <td><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleRowSelection(row.id)} aria-label={`Select ${String(row.cells.url ?? row.id)}`} className="h-3.5 w-3.5 cursor-pointer rounded border-surface-300 text-brand-600 focus:ring-brand-500" /></td>}{evidence.columns.map((column) => <td key={column.key} className={alignClass[column.align ?? 'left']}>{renderCell(row, column)}</td>)}</tr>)}</tbody></table></div>}
-      {supportsBulkFix && isBulkFixOpen && <BulkFixWorkflow rows={selectedRows} mode={bulkFixMode} onClose={() => setIsBulkFixOpen(false)} onApply={applyUpdates} />}
+      {supportsBulkFix && isBulkFixOpen && (
+        <BulkFixWorkflow
+          rows={selectedRows}
+          mode={bulkFixMode}
+          // Resolved here rather than inside the workflow: this component already owns the
+          // row→finding mapping (it is what the Investigate button uses), and AI planning is
+          // scoped to a finding, so the selection has to carry which finding each row came from.
+          findingIdByRowId={Object.fromEntries(
+            selectedRows
+              .map((row) => [row.id, findingForRow(row, findings, evidence.healthyStatus)?.id])
+              .filter((entry): entry is [string, string] => Boolean(entry[1])),
+          )}
+          onClose={() => setIsBulkFixOpen(false)}
+          onApply={applyUpdates}
+        />
+      )}
     </section>
   );
 }

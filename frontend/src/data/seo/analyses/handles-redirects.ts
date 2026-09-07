@@ -29,22 +29,24 @@ export const handlesRedirectsAnalysis: SubPillarAnalysis = {
   findings: [],
   evidence: {
     title: 'Affected URLs',
-    caption: 'Redirects and handles sampled from the latest crawl',
-    searchPlaceholder: 'Search source or destination…',
-    searchKeys: ['source', 'destination'],
-    sampleNoun: 'crawled redirects',
-    facet: { label: 'URL type', allLabel: 'All URL types', values: ['Product', 'Collection', 'Blog', 'Page'] },
+    // `source`, `destination`, `type` and `httpStatus` were all unwritten — the check records a
+    // redirect as url (the path), title (its target) and length (1, or 2 when it chains). Nothing
+    // fetches the destination, so there is no HTTP status to show and the column always sat empty.
+    caption: 'Redirects read from the store in the latest audit',
+    searchPlaceholder: 'Search path or target…',
+    searchKeys: ['url', 'title'],
+    sampleNoun: 'redirects',
+    facet: { label: 'Type', allLabel: 'All types', values: ['Redirect'] },
     columns: [
-      { key: 'source', header: 'Source URL', variant: 'mono', subKey: 'linkType', clamp: 'max-w-[16rem]' },
-      { key: 'destination', header: 'Destination', variant: 'mono', emptyText: 'no redirect', clamp: 'max-w-[16rem]' },
-      { key: 'type', header: 'Type', align: 'center' },
-      { key: 'httpStatus', header: 'Status', align: 'center', variant: 'number' },
+      { key: 'url', header: 'Source path', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[18rem]' },
+      { key: 'title', header: 'Target', variant: 'mono', clamp: 'max-w-[18rem]' },
+      { key: 'length', header: 'Hops', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('source', 'Sort: source URL'), sortByCell('httpStatus', 'Sort: HTTP status', 'desc')],
+    sorts: [sortByCell('length', 'Sort: hops', 'desc'), sortByCell('url', 'Sort: source path')],
   },
   relatedAreas: [
     { label: 'Internal Links & 404s', href: '/seo/internal-links', hint: 'What still links to these URLs' },

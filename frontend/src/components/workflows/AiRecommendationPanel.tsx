@@ -29,19 +29,33 @@ export default function AiRecommendationPanel({ findingId }: Props) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  /** null = still asking the server. Distinguished from `false` so the option is not flashed as
+   * unavailable while the status request is in flight. */
+  const [statusKnown, setStatusKnown] = useState(false);
+
   useEffect(() => {
     if (!isPersisted) return;
     let active = true;
     // Clear when the drawer switches to a different finding.
     setAi(null);
     setMessage(null);
+    setStatusKnown(false);
     fetchAiStatus()
-      .then((status) => { if (active) setAvailable(status.enabled); })
-      .catch(() => { if (active) setAvailable(false); });
+      .then((status) => { if (active) { setAvailable(status.enabled); setModel(status.model); setStatusKnown(true); } })
+      .catch(() => { if (active) { setAvailable(false); setStatusKnown(true); } });
     return () => { active = false; };
   }, [findingId, isPersisted]);
 
-  if (!isPersisted || (!available && !ai)) return null;
+  /**
+   * A finding with no database row has nothing to enhance, so the option genuinely does not apply
+   * and is not shown.
+   *
+   * Everything else DOES show it. This panel used to return null whenever the server said AI was
+   * off — or whenever the status request merely failed — which meant the one place a customer
+   * could discover that Scorelo can draft copy for them was invisible exactly when something was
+   * wrong. An option they never see is an option they do not have.
+   */
+  if (!isPersisted) return null;
 
   const generate = async (force: boolean) => {
     setPending(true);
@@ -88,21 +102,36 @@ export default function AiRecommendationPanel({ findingId }: Props) {
 
       {message && <p className="text-[11.5px] text-surface-500">{message}</p>}
 
-      {available && (
+      {/* The option is always visible once the finding is eligible. When the server cannot run it,
+          the control is disabled and says why — a customer learns the capability exists and what
+          it would take to use it, instead of the feature simply not being there. */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
         <button
           type="button"
           onClick={() => void generate(ai !== null)}
-          disabled={pending}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-surface-0 px-2 py-1 text-[11.5px] font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:opacity-60"
+          disabled={pending || !available || !statusKnown}
+          title={available ? undefined : 'AI drafting is not available on this server right now.'}
+          className="inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-surface-0 px-2 py-1 text-[11.5px] font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending
             ? <Loader2 size={12} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
             : ai
               ? <RefreshCw size={12} aria-hidden="true" />
               : <Sparkles size={12} aria-hidden="true" />}
-          {pending ? 'Generating…' : ai ? 'Regenerate' : 'Improve with AI'}
+          {pending ? 'Generating…' : ai ? 'Regenerate with AI' : 'Improve with AI'}
         </button>
-      )}
+
+        {statusKnown && !available && (
+          <span className="text-[10.5px] text-surface-500">
+            Not available on this server right now — the recommendation above still applies.
+          </span>
+        )}
+        {statusKnown && available && !ai && !pending && (
+          <span className="text-[10.5px] text-surface-400">
+            Rewrites the advice above for your store{model ? ` · ${model}` : ''}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

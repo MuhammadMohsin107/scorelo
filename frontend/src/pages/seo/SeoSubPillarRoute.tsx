@@ -1,11 +1,23 @@
 import { Navigate, useParams } from 'react-router-dom';
 import { seoAnalyses } from '../../data/seo/analyses';
+import AltTextTemplateBuilder from '../../components/seo/AltTextTemplateBuilder';
 import SeoSubPillarPage from './SeoSubPillarPage';
 
 /**
  * Resolves an SEO sub-pillar slug to its analysis and renders the shared
  * master template. Unknown slugs fall back to the SEO pillar dashboard.
  */
+
+/**
+ * Sub-pillars that own a configuration surface, rendered into the template's `configurator` slot.
+ *
+ * A lookup rather than a conditional inside the shared page: the template stays identical for all
+ * eight sub-pillars, and adding a builder to another one is an entry here.
+ */
+const configurators: Record<string, React.ReactNode> = {
+  'image-alt-text': <AltTextTemplateBuilder />,
+};
+
 export default function SeoSubPillarRoute() {
   const { subPillar } = useParams<{ subPillar: string }>();
   const analysis = subPillar ? seoAnalyses[subPillar] : undefined;
@@ -13,5 +25,5 @@ export default function SeoSubPillarRoute() {
   if (!analysis) return <Navigate to="/seo" replace />;
 
   // key forces a clean remount (and reload) when moving between sub-pillars.
-  return <SeoSubPillarPage key={analysis.slug} analysis={analysis} />;
+  return <SeoSubPillarPage key={analysis.slug} analysis={analysis} configurator={configurators[analysis.slug]} />;
 }

@@ -1,7 +1,7 @@
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import type { SubPillarFinding } from '../../../data/seo/subpillar.model';
 import SeverityBadge from './SeverityBadge';
-import { card, cardHeader, cardTitle, eyebrow, toneStyles } from './tone';
+import { card, cardHeader, cardHeadingRow, cardTitle, eyebrow, toneStyles } from './tone';
 
 interface Props {
   findings: SubPillarFinding[];
@@ -20,14 +20,19 @@ export default function FindingsList({ findings, onInvestigate, emptyTitle, empt
 
   if (open.length === 0) {
     return (
-      <section className={`${card} p-5 text-center`} aria-labelledby="sp-findings-title">
-        <span className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full ${toneStyles.healthy.tile}`}>
-          <CheckCircle2 size={16} strokeWidth={2} aria-hidden="true" />
+      /* A single centred ROW, not a stacked block.
+         The "no issues" state used to be an icon, a heading and a line of body copy stacked
+         vertically inside a padded card — roughly 130px of screen to say that there is nothing
+         to look at. It is good news, so it should take the least space on the page, not a
+         quarter of the fold. */
+      <section className={`${card} flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 px-3.5 py-2.5 text-center`} aria-labelledby="sp-findings-title">
+        <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${toneStyles.healthy.tile}`}>
+          <CheckCircle2 size={12} strokeWidth={2.4} aria-hidden="true" />
         </span>
-        <h2 id="sp-findings-title" className="mt-2 text-[13px] font-semibold text-surface-900">
+        <h2 id="sp-findings-title" className="text-[12.5px] font-semibold text-surface-900">
           {emptyTitle}
         </h2>
-        <p className="mt-0.5 text-[12px] text-surface-500">{emptyBody}</p>
+        <p className="text-[11.5px] text-surface-500">{emptyBody}</p>
       </section>
     );
   }
@@ -35,11 +40,9 @@ export default function FindingsList({ findings, onInvestigate, emptyTitle, empt
   return (
     <section className={`${card} overflow-hidden`} aria-labelledby="sp-findings-title">
       <div className={`${cardHeader} flex flex-wrap items-center justify-between gap-2`}>
-        <div>
+        <div className={cardHeadingRow}>
           <p className={eyebrow}>Findings</p>
-          <h2 id="sp-findings-title" className={`mt-0.5 ${cardTitle}`}>
-            What Scorelo found
-          </h2>
+          <h2 id="sp-findings-title" className={cardTitle}>What Scorelo found</h2>
         </div>
         <span className="rounded border border-surface-200 bg-surface-0 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-surface-600">
           {open.length} issue {open.length === 1 ? 'type' : 'types'}

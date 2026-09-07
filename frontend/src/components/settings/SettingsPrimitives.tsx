@@ -4,7 +4,7 @@ import { Button } from '../workflows/WorkflowPrimitives';
 
 /** Card shell — matches Integrations / Reports / Fix Center exactly. */
 export const settingsCard =
-  'rounded-xl border border-surface-200 bg-surface-0 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]';
+  'rounded-lg border border-surface-200 bg-surface-0 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]';
 
 export const eyebrowClass = 'text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500';
 
@@ -22,12 +22,12 @@ export function SettingsCard({
 }) {
   return (
     <section className={`${settingsCard} overflow-hidden`}>
-      <div className="border-b border-surface-200 px-5 py-4 sm:px-6">
-        <h3 className="text-base font-bold tracking-tight text-surface-950">{title}</h3>
-        {description && <p className="mt-1 max-w-2xl text-sm leading-6 text-surface-500">{description}</p>}
+      <div className="border-b border-surface-200 px-3.5 py-2.5 sm:px-3.5">
+        <h3 className="text-[13px] font-bold tracking-tight text-surface-950">{title}</h3>
+        {description && <p className="mt-1 max-w-2xl text-[12.5px] leading-[1.45] text-surface-500">{description}</p>}
       </div>
-      <div className="px-5 py-5 sm:px-6">{children}</div>
-      {footer && <div className="border-t border-surface-200 bg-surface-50/60 px-5 py-3 sm:px-6">{footer}</div>}
+      <div className="px-3.5 py-2.5 sm:px-3.5">{children}</div>
+      {footer && <div className="border-t border-surface-200 bg-surface-50/60 px-3.5 py-2 sm:px-3.5">{footer}</div>}
     </section>
   );
 }
@@ -225,12 +225,12 @@ export function ToggleRow({
 /** Read-only row for values Scorelo derives rather than accepts. */
 export function ReadOnlyRow({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-100 py-3 last:border-0">
+    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-100 py-2 last:border-0">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-surface-800">{label}</p>
-        {hint && <p className="mt-0.5 text-xs text-surface-500">{hint}</p>}
+        <p className="text-[12.5px] font-semibold text-surface-800">{label}</p>
+        {hint && <p className="mt-0.5 text-[11.5px] text-surface-500">{hint}</p>}
       </div>
-      <div className="text-sm text-surface-700">{value}</div>
+      <div className="text-[12.5px] text-surface-700">{value}</div>
     </div>
   );
 }
@@ -240,7 +240,7 @@ export function PreviewNotice({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-start gap-2.5 rounded-lg border border-info-100 bg-info-50 p-3.5">
       <Info size={15} className="mt-0.5 flex-shrink-0 text-info-700" aria-hidden="true" />
-      <p className="text-xs leading-5 text-info-800">{children}</p>
+      <p className="text-[11.5px] leading-[1.4] text-info-800">{children}</p>
     </div>
   );
 }
@@ -261,9 +261,9 @@ export function SaveBar({
 }) {
   if (!visible) return null;
   return (
-    <div className="sticky bottom-4 z-20 mt-6" role="region" aria-label="Unsaved changes">
-      <div className="flex flex-col gap-3 rounded-xl border border-surface-300 bg-surface-0/95 p-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <p className="flex items-center gap-2 text-sm font-semibold text-surface-800">
+    <div className="sticky bottom-4 z-20 mt-2" role="region" aria-label="Unsaved changes">
+      <div className="flex flex-col gap-3 rounded-lg border border-surface-300 bg-surface-0/95 p-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <p className="flex items-center gap-2 text-[12.5px] font-semibold text-surface-800">
           <span className="h-2 w-2 flex-shrink-0 rounded-full bg-warning-500" aria-hidden="true" />
           {message}
         </p>
@@ -293,12 +293,12 @@ export function SavedToast({ visible, onDismiss }: { visible: boolean; onDismiss
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-xl border border-success-100 bg-surface-0 px-4 py-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] motion-safe:animate-scale-in"
+      className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-lg border border-success-100 bg-surface-0 px-3 py-2 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] motion-safe:animate-scale-in"
     >
       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success-50 text-success-700">
         <Check size={14} strokeWidth={2.6} aria-hidden="true" />
       </span>
-      <p className="text-sm font-semibold text-surface-800">Settings saved</p>
+      <p className="text-[12.5px] font-semibold text-surface-800">Settings saved</p>
       <button
         type="button"
         onClick={onDismiss}
@@ -356,7 +356,7 @@ export function ConfirmDialog({
   const matches = typedValue.trim().toUpperCase() === confirmWord.toUpperCase();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center">
       {/* Deliberately NOT a surface token. A scrim's job is to darken whatever is behind it, in
           both themes — running it through the inverting ramp would turn it into a white wash over
           dark content, which lightens the page instead of dimming it. */}
@@ -366,17 +366,17 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-description"
-        className="relative w-full max-w-md rounded-xl border border-surface-200 bg-surface-0 shadow-2xl motion-safe:animate-scale-in"
+        className="relative w-full max-w-md rounded-lg border border-surface-200 bg-surface-0 shadow-2xl motion-safe:animate-scale-in"
       >
-        <div className="flex items-start gap-3 border-b border-surface-200 p-5">
+        <div className="flex items-start gap-3 border-b border-surface-200 p-3">
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-critical-50 text-critical-700">
             <AlertTriangle size={17} aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="confirm-title" className="text-base font-bold text-surface-950">
+            <h2 id="confirm-title" className="text-[13px] font-bold text-surface-950">
               {title}
             </h2>
-            <p id="confirm-description" className="mt-1 text-sm leading-6 text-surface-600">
+            <p id="confirm-description" className="mt-1 text-[12.5px] leading-[1.45] text-surface-600">
               {description}
             </p>
           </div>
@@ -391,19 +391,19 @@ export function ConfirmDialog({
           </button>
         </div>
 
-        <div className="p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-surface-500">What happens</p>
+        <div className="p-3">
+          <p className="text-[11.5px] font-bold uppercase tracking-wide text-surface-500">What happens</p>
           <ul className="mt-2 space-y-1.5">
             {impact.map((item) => (
-              <li key={item} className="flex items-start gap-2 text-sm text-surface-700">
+              <li key={item} className="flex items-start gap-2 text-[12.5px] text-surface-700">
                 <span className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-surface-400" aria-hidden="true" />
                 {item}
               </li>
             ))}
           </ul>
 
-          <div className="mt-4">
-            <label htmlFor="confirm-input" className="block text-sm font-semibold text-surface-800">
+          <div className="mt-2.5">
+            <label htmlFor="confirm-input" className="block text-[12.5px] font-semibold text-surface-800">
               Type <span className="font-mono text-critical-700">{confirmWord}</span> to confirm
             </label>
             <input
@@ -411,12 +411,12 @@ export function ConfirmDialog({
               value={typedValue}
               onChange={(event) => onTypedValueChange(event.target.value)}
               autoComplete="off"
-              className="mt-1.5 w-full rounded-lg border border-surface-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-critical-400 focus:ring-2 focus:ring-critical-100"
+              className="mt-1.5 w-full rounded-lg border border-surface-200 px-3 py-2.5 text-[12.5px] outline-none transition-colors focus:border-critical-400 focus:ring-2 focus:ring-critical-100"
             />
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-surface-200 bg-surface-50/60 p-4">
+        <div className="flex justify-end gap-2 border-t border-surface-200 bg-surface-50/60 p-3">
           <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>

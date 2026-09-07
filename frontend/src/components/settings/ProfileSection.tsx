@@ -1,6 +1,6 @@
 import { AtSign, BadgeCheck, Briefcase, CalendarDays, ShieldCheck, Store, UserRound } from 'lucide-react';
 import type { SettingsState } from '../../data/settings.mock';
-import { Field, PreviewNotice, SettingsCard, TextInput, settingsCard } from './SettingsPrimitives';
+import { Field, SettingsCard, TextInput, settingsCard } from './SettingsPrimitives';
 
 /** Two letters from the name being typed, so the avatar tracks the field live. */
 function initialsOf(fullName: string): string {
@@ -25,13 +25,13 @@ function monthAndYear(isoDate: string): string | null {
 /** Small label/value pair used across the identity card's meta strip. */
 function MetaPill({ icon: Icon, label, value }: { icon: typeof UserRound; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-surface-200 bg-surface-0 px-3 py-2">
-      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-600">
-        <Icon size={14} aria-hidden="true" />
+    <div className="flex items-center gap-2 rounded-md border border-surface-200 bg-surface-0 px-2.5 py-1.5">
+      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-surface-100 text-surface-600">
+        <Icon size={12} aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-surface-400">{label}</span>
-        <span className="mt-0.5 block truncate text-[13px] font-semibold text-surface-800">{value}</span>
+        <span className="block text-[9.5px] font-bold uppercase tracking-[0.11em] text-surface-400">{label}</span>
+        <span className="block truncate text-[12px] font-semibold text-surface-800">{value}</span>
       </span>
     </div>
   );
@@ -51,60 +51,56 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
 
   return (
     <>
-      {/* ── Identity card ───────────────────────────────────────────── */}
-      <section className={`${settingsCard} overflow-hidden`}>
-        {/* The band is decorative only — it gives the avatar something to sit against and
-            anchors the section visually without inventing any content. Kept deliberately shallow:
-            it is a backdrop for the name, not a hero, and a taller one pushed the identity row so
-            far down the card that the name read as an afterthought. */}
-        <div className="h-16 bg-gradient-to-br from-brand-600 via-brand-600 to-brand-800" aria-hidden="true">
-          <div className="h-full w-full bg-[radial-gradient(circle_at_18%_120%,rgba(255,255,255,0.28),transparent_58%)]" />
+      {/* ── Identity card ───────────────────────────────────────────────
+          NO DECORATIVE BAND. There used to be a 64px gradient header with the avatar pulled up
+          -36px to straddle it. The name was aligned to the BOTTOM of a 72px avatar, so it landed
+          exactly on the band's lower edge — dark type printed half on purple and half on white,
+          which is why the name was unreadable.
+          Nudging the offsets would have left the same trap one long name away, so the band is
+          gone: this is now a plain flex row where the avatar and the name share one ground and
+          cannot overlap anything at any width. The band carried no information, so nothing was
+          lost with it — and the card is ~90px shorter. */}
+      <section className={`${settingsCard} px-3.5 py-3`}>
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[15px] font-bold tracking-tight text-white"
+              aria-hidden="true"
+            >
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <h3 className="truncate text-[16px] font-bold leading-tight tracking-tight text-surface-950">
+                {displayName}
+              </h3>
+              <p className="truncate text-[11.5px] text-surface-500">
+                {profile.jobTitle.trim() || 'No job title set'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded border border-brand-100 bg-brand-50 px-1.5 py-0.5 text-[10.5px] font-bold text-brand-700">
+              <ShieldCheck size={11} aria-hidden="true" />
+              {profile.role}
+            </span>
+            {/* Shown only when the address genuinely is confirmed. Scorelo has no email
+                verification flow yet — `users.email_verified_at` is never written — so an
+                "unverified" counterpart would be a permanent warning about something the
+                customer has no way to resolve. */}
+            {profile.emailVerified && (
+              <span className="inline-flex items-center gap-1 rounded border border-success-100 bg-success-50 px-1.5 py-0.5 text-[10.5px] font-bold text-success-700">
+                <BadgeCheck size={11} aria-hidden="true" />
+                Email verified
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-          {/* The pull-up is half the avatar's height, so it always overlaps the band by exactly
-              half regardless of breakpoint — no separate mobile value to keep in step. */}
-          <div className="-mt-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-end gap-4">
-              <span
-                className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-bold tracking-tight text-white shadow-[0_10px_24px_-12px_rgba(67,56,202,0.75)] ring-4 ring-white"
-                aria-hidden="true"
-              >
-                {initials}
-              </span>
-              <div className="min-w-0 pb-0.5">
-                <h3 className="truncate text-[22px] font-bold leading-tight tracking-tight text-surface-950">
-                  {displayName}
-                </h3>
-                <p className="mt-0.5 truncate text-sm text-surface-500">
-                  {profile.jobTitle.trim() || 'No job title set'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pb-0.5">
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1.5 text-[11px] font-bold text-brand-700">
-                <ShieldCheck size={13} aria-hidden="true" />
-                {profile.role}
-              </span>
-              {/* Shown only when the address genuinely is confirmed. Scorelo has no email
-                  verification flow yet — `users.email_verified_at` is never written — so an
-                  "unverified" counterpart would be a permanent warning about something the
-                  customer has no way to resolve. */}
-              {profile.emailVerified && (
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-success-100 bg-success-50 px-2.5 py-1.5 text-[11px] font-bold text-success-700">
-                  <BadgeCheck size={13} aria-hidden="true" />
-                  Email verified
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            <MetaPill icon={AtSign} label="Email" value={profile.email || '—'} />
-            {memberSince && <MetaPill icon={CalendarDays} label="Member since" value={memberSince} />}
-            <MetaPill icon={Store} label="Workspace" value={workspace.workspaceName || '—'} />
-          </div>
+        <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <MetaPill icon={AtSign} label="Email" value={profile.email || '—'} />
+          {memberSince && <MetaPill icon={CalendarDays} label="Member since" value={memberSince} />}
+          <MetaPill icon={Store} label="Workspace" value={workspace.workspaceName || '—'} />
         </div>
       </section>
 
@@ -113,7 +109,7 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
         title="Personal information"
         description="Shown across your Scorelo workspace and used as the address for account email."
       >
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-2.5 sm:grid-cols-2">
           <Field label="Full name" htmlFor="fullName" error={errors.fullName} hint="Used across your Scorelo workspace.">
             <TextInput
               id="fullName"
@@ -155,44 +151,22 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
           {/* Role is assigned server-side, so it is presented as a value rather than as a
               disabled input that looks like it could be typed into. */}
           <div>
-            <p className="block text-sm font-semibold text-surface-800">Role</p>
-            <div className="mt-1.5 flex items-center gap-2.5 rounded-lg border border-surface-200 bg-surface-50 px-3 py-2.5">
-              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-surface-0 text-brand-600 ring-1 ring-surface-200">
-                <Briefcase size={13} aria-hidden="true" />
+            <p className="block text-[12.5px] font-semibold text-surface-800">Role</p>
+            <div className="mt-1 flex items-center gap-2 rounded-md border border-surface-200 bg-surface-50 px-2.5 py-1.5">
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-surface-0 text-brand-600 ring-1 ring-surface-200">
+                <Briefcase size={12} aria-hidden="true" />
               </span>
-              <span className="text-sm font-semibold text-surface-700">{profile.role}</span>
+              <span className="text-[12.5px] font-semibold text-surface-700">{profile.role}</span>
             </div>
-            <p className="mt-1.5 text-xs leading-5 text-surface-500">Roles are assigned by the workspace owner.</p>
+            <p className="mt-1 text-[11.5px] leading-[1.45] text-surface-500">Roles are assigned by the workspace owner.</p>
           </div>
         </div>
       </SettingsCard>
 
-      {/* ── Avatar ──────────────────────────────────────────────────── */}
-      <SettingsCard title="Avatar" description="How you appear in the header and on shared reports.">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-3">
-            {/* The same monogram at the three sizes the app actually renders it. */}
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-base font-bold text-white">
-              {initials}
-            </span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[13px] font-bold text-white">
-              {initials}
-            </span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-brand-500 to-brand-700 text-[11px] font-bold text-white">
-              {initials}
-            </span>
-          </div>
-          <p className="text-xs leading-5 text-surface-500">
-            Your avatar is a monogram generated from your name — it updates as soon as you save.
-          </p>
-        </div>
-        <div className="mt-4">
-          <PreviewNotice>
-            Image uploads need a file storage service, which is not connected in this build, so the monogram is
-            the only avatar Scorelo renders.
-          </PreviewNotice>
-        </div>
-      </SettingsCard>
+      {/* The Avatar card was removed. It showed the same monogram at three sizes plus a notice
+          explaining that image upload is not built — a whole card of viewport spent telling the
+          customer about something they cannot do. The monogram is already visible in the identity
+          row above and in the header, and it still updates live from the name field. */}
     </>
   );
 }

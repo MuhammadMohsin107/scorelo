@@ -59,7 +59,7 @@ function ScoreRing({ score, hex, measured }: { score: number; hex: string; measu
             <span className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-400">out of 100</span>
           </>
         ) : (
-          <span className="px-4 text-center text-[13px] font-semibold leading-snug text-surface-400">Not measured</span>
+          <span className="px-3 text-center text-[13px] font-semibold leading-snug text-surface-400">Not measured</span>
         )}
       </div>
     </div>
@@ -85,15 +85,15 @@ export default function ScoreOverview({ data, metrics }: Props) {
       <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-brand-100/50 blur-3xl" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-300/60 to-transparent" aria-hidden="true" />
 
-      <div className="relative p-6 md:p-7">
-        <div className="flex flex-col gap-7 lg:flex-row lg:items-start">
+      <div className="relative p-3.5 md:p-7">
+        <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
           {/* Score + narrative */}
-          <div className="flex min-w-0 flex-1 flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
             <ScoreRing score={data.score} hex={tone.hex} measured={data.measured} />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-surface-500">Overall health</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-                <h2 id="overall-health-title" className="text-2xl font-semibold tracking-tight text-surface-950">
+                <h2 id="overall-health-title" className="text-[20px] font-semibold tracking-tight text-surface-950">
                   {data.statusLabel}
                 </h2>
                 {/* A trend needs two comparable scores. With nothing measured there is no
@@ -106,16 +106,16 @@ export default function ScoreOverview({ data, metrics }: Props) {
                   </span>
                 )}
               </div>
-              <p className="mt-2.5 max-w-xl text-sm leading-6 text-surface-600">{data.description}</p>
+              <p className="mt-2.5 max-w-xl text-[12.5px] leading-[1.45] text-surface-600">{data.description}</p>
               {/* A score computed from part of the catalogue must say so next to the number,
                   not only inside a sub-pillar summary the merchant may never open. */}
               {data.coverageNote && (
-                <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-warning-50 px-2 py-1 text-xs font-medium text-warning-700 ring-1 ring-inset ring-warning-100">
+                <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-warning-50 px-2 py-1 text-[11.5px] font-medium text-warning-700 ring-1 ring-inset ring-warning-100">
                   <Info size={13} strokeWidth={2.2} />
                   Partial scan — {data.coverageNote}
                 </p>
               )}
-              <p className="mt-3 text-xs text-surface-500">
+              <p className="mt-2 text-[11.5px] text-surface-500">
                 {data.measured
                   ? 'Scored across the pillars Scorelo can currently measure.'
                   : 'Scorelo scores SEO, Content, Speed, CRO and AI Discovery once an audit has run.'}

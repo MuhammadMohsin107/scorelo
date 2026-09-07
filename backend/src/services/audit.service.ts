@@ -3,6 +3,7 @@ import { db } from '../db/client.js';
 import { auditScores, audits, findings } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { getCurrentStoreId } from './store.service.js';
+import { fixabilityFor, getFixContext } from './fixability.service.js';
 import type { AuditListQuery, LatestAuditQuery } from '../schemas/audit.schema.js';
 
 export async function listAudits(userId: number, { page, limit }: AuditListQuery, storeId?: number) {
@@ -79,6 +80,9 @@ export async function getSubPillarAnalysis(userId: number, pillar: string, subPi
     .where(and(eq(findings.auditId, audit.id), eq(findings.pillar, pillar), eq(findings.subPillar, subPillar)));
 
   const details = (scoreRow.details ?? {}) as SubPillarScoreDetails;
+  // One read for the whole page, not one per finding: the answer depends on the store's granted
+  // scopes and the server's AI configuration, neither of which varies between findings.
+  const fixContext = await getFixContext(resolvedStoreId);
 
   return {
     slug: subPillar,
@@ -117,6 +121,10 @@ export async function getSubPillarAnalysis(userId: number, pillar: string, subPi
         whatIsWrong: finding.problem ?? '',
         whyItMatters: finding.why,
         recommendation: finding.recommendation,
+        // What Scorelo can DO about this finding — auto / ai / needs_access / manual, with a
+        // merchant-readable reason. Sent with the finding so the UI can advertise the capability
+        // up front instead of hiding it behind a button nobody knows to look for.
+        fix: fixabilityFor(finding, fixContext),
         // The rows THIS finding flagged, as recorded by the check that raised it. Without this the
         // UI can only re-derive a finding's evidence by matching issue type against the sub-pillar
         // sample, which returns the same handful of rows for every finding sharing that type.

@@ -20,6 +20,31 @@ export async function hasStoreDataSource(storeId: number): Promise<boolean> {
 }
 
 /**
+ * An authenticated Shopify client for a store, or a StoreDataError explaining why not.
+ *
+ * Extracted from resolveStoreDataProvider rather than copied: this is the one place that turns a
+ * stored connection into a usable token, so a second caller (the alt-text preview, which needs a
+ * handful of products rather than a whole snapshot) cannot end up with its own subtly different
+ * token-refresh path. The token is decrypted here, used for this request, and never returned.
+ */
+export async function resolveShopifyClient(storeId: number): Promise<ShopifyClient> {
+  const [connection] = await db
+    .select()
+    .from(shopifyConnections)
+    .where(and(eq(shopifyConnections.storeId, storeId), isNull(shopifyConnections.uninstalledAt)))
+    .limit(1);
+
+  if (!connection) {
+    throw new StoreDataError('NOT_CONNECTED', 'No connected Shopify store — connect a store before running an audit', false);
+  }
+
+  // Expiring offline tokens live one hour, so this renews first when the stored token is at or
+  // near expiry — otherwise a long audit would start with a token that dies mid-run.
+  const accessToken = await getValidAccessToken(connection);
+  return new ShopifyClient({ shopDomain: connection.shopDomain, accessToken });
+}
+
+/**
  * Resolves the data provider for a store. Today only Shopify exists; adding another platform
  * means adding one provider here, not touching any check (master prompt C6).
  */
@@ -38,10 +63,7 @@ export async function resolveStoreDataProvider(storeId: number): Promise<StoreDa
   }
 
   // Decrypted only here, held only for this run's lifetime, never logged or returned by any API.
-  // Expiring offline tokens live one hour, so this renews first when the stored token is at or
-  // near expiry — otherwise a long audit would start with a token that dies mid-run.
-  const accessToken = await getValidAccessToken(connection);
-  const client = new ShopifyClient({ shopDomain: connection.shopDomain, accessToken });
+  const client = await resolveShopifyClient(storeId);
 
   return new ShopifyStoreDataProvider(client, storeId, connection.shopDomain, store.pageLimit);
 }

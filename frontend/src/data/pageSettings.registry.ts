@@ -199,7 +199,7 @@ export const subPillarSettingsRegistry: Record<string, PageSettingsDefinition> =
   schema: schemaPageSettingsDefinition,
   'title-tags': {
     title: 'Title tag settings',
-    description: 'Client-controlled title behavior for supported page types and templates.',
+    description: 'Title behavior for supported page types and templates.',
     sections: [
       { id: 'templates', title: 'Title templates', description: 'Use the template that matches your business language.', fields: [
         { key: 'titleTemplate', label: 'Title template', type: 'text', source: 'Merchant config', placeholder: '{product_title} | {brand}', description: 'Default format used for eligible titles.' },
@@ -213,7 +213,7 @@ export const subPillarSettingsRegistry: Record<string, PageSettingsDefinition> =
   },
   'meta-descriptions': {
     title: 'Meta description settings',
-    description: 'Client-configurable description templates and validation defaults.',
+    description: 'Description templates and validation defaults.',
     sections: [
       { id: 'descriptions', title: 'Description templates', description: 'Define the default copy structure for supported pages.', fields: [
         { key: 'metaTemplate', label: 'Description template', type: 'textarea', source: 'Merchant config', placeholder: '{product_title} with fast shipping, easy returns, and trusted support.', maxLength: 180, description: 'Used when no custom merchant copy is available.' },
@@ -224,14 +224,25 @@ export const subPillarSettingsRegistry: Record<string, PageSettingsDefinition> =
       ] },
     ],
   },
+  /**
+   * Alt text is configured by the Alt-Text Template Builder on the page itself, which stores a real
+   * template against the store and previews it against the store's own catalogue.
+   *
+   * The two controls that used to live here — an "Alt text rule" select and an "Auto-suggest"
+   * toggle — were removed rather than left beside it: nothing read either value, so they were
+   * settings a merchant could change with no effect, and now they would also contradict a builder
+   * that genuinely works.
+   */
   'image-alt-text': {
     title: 'Image alt text settings',
-    description: 'Control alt text defaults and manual editing for store imagery.',
+    description: 'Alt text is configured on this page, in the Alt-Text Template Builder.',
     sections: [
-      { id: 'alt-rules', title: 'Alt text behavior', description: 'How Scorelo writes or suggests alt text.', fields: [
-        { key: 'altTextRule', label: 'Alt text rule', type: 'select', source: 'Merchant config', options: ['Product-first', 'Descriptive', 'Brand-first'], description: 'Default rule for generated alt text.' },
-        { key: 'altTextAuto', label: 'Auto-suggest', type: 'toggle', source: 'Generated', description: 'Suggest alt text for supported images before apply.' },
-      ] },
+      {
+        id: 'alt-rules',
+        title: 'Alt text behavior',
+        description: 'Use the Alt-Text Template Builder above to set the template, character limit, formatting and skip rules for products and articles.',
+        fields: [],
+      },
     ],
   },
   canonicals: {

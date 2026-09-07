@@ -580,12 +580,16 @@
     @apply flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between;
   }
 
+  /* 17/18px. The page already announces itself in the sidebar, the breadcrumb and the browser
+   * tab, so the title's job here is to anchor the page, not to be read first. Dropping it from
+   * 20/22 gives back a line of vertical space on every screen, and the hierarchy still holds
+   * because the supporting line under it is 12px and semi-muted. */
   .page-title {
-    @apply text-[20px] font-semibold leading-[1.2] tracking-[-0.02em] text-surface-950 md:text-[22px];
+    @apply text-[17px] font-semibold leading-[1.2] tracking-[-0.02em] text-surface-950 md:text-[18px];
   }
 
   .page-subtitle {
-    @apply mt-1 max-w-2xl text-[12.5px] leading-[1.45] text-surface-500;
+    @apply mt-0.5 max-w-2xl text-[12px] leading-[1.4] text-surface-500;
   }
 
   /* Vertical rhythm between the major blocks of a page. */
@@ -598,16 +602,16 @@
   }
 
   .section-title {
-    @apply text-[15px] font-semibold tracking-[-0.01em] text-surface-900;
+    @apply text-[14px] font-semibold tracking-[-0.01em] text-surface-900;
   }
 
   .section-subtitle {
-    @apply mt-0.5 text-[12px] leading-[1.4] text-surface-500;
+    @apply mt-0.5 text-[11.5px] leading-[1.4] text-surface-500;
   }
 
   /* Heading inside a card — one step below a section, two below the page. */
   .card-title {
-    @apply text-[13px] font-semibold tracking-[-0.01em] text-surface-950;
+    @apply text-[12.5px] font-semibold tracking-[-0.01em] text-surface-950;
   }
 
   .eyebrow {
@@ -618,9 +622,15 @@
     @apply text-[11px] leading-[1.4] text-surface-500;
   }
 
-  /* Small bordered fact ("Last analyzed · 2h ago"). Was a 2.5/1.5 padded pill on every header. */
+  /* Small bordered fact ("Last analyzed · 2h ago"). Was a 2.5/1.5 padded pill on every header.
+   *
+   * `min-w-0` and `max-w-full` are load-bearing, not decoration. These chips carry the store's
+   * own domain, and a flex item does not shrink below its content width without min-width:0 — so
+   * a long myshopify domain widened the chip past the viewport and put a horizontal scrollbar on
+   * the whole page at 390px. The truncate on the value inside only takes effect once the chip is
+   * allowed to be narrower than its text. */
   .meta-chip {
-    @apply inline-flex items-center gap-1.5 rounded-md border border-surface-200 bg-surface-0 px-2 py-1 text-[11px] text-surface-600;
+    @apply inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-surface-200 bg-surface-0 px-2 py-1 text-[11px] text-surface-600;
   }
 
   /* Card grids. Denser columns at each breakpoint than the old 1/2/3 ladder, so a 1440px viewport

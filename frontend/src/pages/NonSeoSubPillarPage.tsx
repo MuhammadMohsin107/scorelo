@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, ChevronRight, Clock3, Radar, RefreshCw, Settings2 } from 'lucide-react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { AlertCircle, ArrowRight, Clock3, Radar, RefreshCw, Settings2 } from 'lucide-react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { type EvidenceRow, type RowStatus, type SubPillarAnalysis, type SubPillarFinding } from '../data/seo/subpillar.model';
 import { fetchSubPillarAnalysis, isNotAuditedYet } from '../data/seo/subpillar.repository';
 import { buildAnalysis } from '../data/genericAnalysis';
@@ -19,8 +19,9 @@ import { isSubPillarImplemented } from '../data/audits.capabilities';
 import { getDefaultSubPillarSettings, getSubPillarSettingsDefinition, type PageSettingValue } from '../data/pageSettings.registry';
 import { fetchSubPillarSettings, saveSubPillarSettings } from '../data/pageSettings.repository';
 
+/** Where an unrecognised slug is sent. The pillar LABELS that used to sit beside this were only
+ * needed by the in-page breadcrumb, which the header now owns on its own. */
 const backRoutes: Record<string, string> = { content: '/content', speed: '/speed', cro: '/cro', 'ai-discovery': '/ai-discovery' };
-const pillarLabels: Record<string, string> = { content: 'Content', speed: 'Speed', cro: 'CRO', 'ai-discovery': 'AI Discovery' };
 
 export default function NonSeoSubPillarPage() {
   const location = useLocation();
@@ -88,8 +89,6 @@ export default function NonSeoSubPillarPage() {
   if (state === 'error' || !data) return <div className="mx-auto max-w-2xl px-4 py-10"><div className={`${card} flex flex-col items-center p-6 text-center`}><AlertCircle size={18} className="text-critical-600" /><h1 className="mt-2.5 text-[15px] font-semibold text-surface-900">Unable to load {config.title} analysis</h1><button type="button" onClick={() => load()} className="btn-primary mt-3"><RefreshCw size={14} />Retry</button></div></div>;
 
   const focusEvidence = (status: RowStatus | 'All') => { setStatusFilter(status); evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  const backHref = backRoutes[config.pillar] ?? '/';
-  const pillarLabel = pillarLabels[config.pillar] ?? config.pillarLabel;
 
   // Same compact shell as the SEO master template: page-shell frame, one header row, a 12-column
   // grid on a 12px gutter. The two templates render the same components, so they must also agree
@@ -97,17 +96,11 @@ export default function NonSeoSubPillarPage() {
   return (
     <div className="bg-surface-50">
       <div className="page-shell">
-        <nav aria-label="Breadcrumb">
-          <ol className="flex items-center gap-0.5 text-[11px] text-surface-500">
-            <li>
-              <Link to={backHref} className="rounded px-1 py-0.5 hover:text-surface-800 focus-visible:ring-2 focus-visible:ring-brand-500">{pillarLabel}</Link>
-            </li>
-            <li aria-hidden="true"><ChevronRight size={12} className="text-surface-300" /></li>
-            <li className="px-1 py-0.5 font-medium text-surface-800" aria-current="page">{data.title}</li>
-          </ol>
-        </nav>
-
-        <header className="page-head mt-1">
+        {/* NO in-page breadcrumb. The header already renders one for every route, so this second
+            trail printed the same path twice — "Content › Duplicate / Templated Copy" directly
+            under "Dashboard › Content › Duplicate / Templated Copy". The SEO template never had
+            one, which is why only these pages showed it. */}
+        <header className="page-head">
           <div className="min-w-0">
             <h1 className="page-title">{data.title}</h1>
             <p className="page-subtitle">{data.description}</p>
@@ -119,7 +112,7 @@ export default function NonSeoSubPillarPage() {
             </span>
             <button type="button" onClick={() => setSettingsOpen(true)} className="btn-secondary btn-xs">
               <Settings2 size={12} aria-hidden="true" />
-              Client settings
+              Settings
             </button>
             <button type="button" onClick={() => load(true)} disabled={isRefreshing} className="btn-primary btn-xs">
               <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} aria-hidden="true" />

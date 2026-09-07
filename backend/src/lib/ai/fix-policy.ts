@@ -24,7 +24,19 @@
 export const FIXABLE_RESOURCE_TYPES = ['product', 'collection', 'page', 'article'] as const;
 export type FixableResourceType = (typeof FIXABLE_RESOURCE_TYPES)[number];
 
-export type FixableField = 'seo.title' | 'seo.description';
+export type FixableField = 'seo.title' | 'seo.description' | 'image.alt';
+
+/**
+ * Which engine produces the value for a field.
+ *
+ * 'template' means a deterministic generator can do it on its own (image alt text is built from
+ * the merchant's own template plus the product's own fields, so a model adds cost and variance
+ * without adding correctness). 'ai' means the value needs judgement no rule can encode.
+ *
+ * This is a property of the FIELD, not a runtime choice: it decides whether a fix can be offered
+ * at all when no model is configured.
+ */
+export type FixGenerator = 'ai' | 'template';
 
 export interface FieldRule {
   field: FixableField;
@@ -36,6 +48,15 @@ export interface FieldRule {
   resourceTypes: readonly FixableResourceType[];
   /** What the model is told to produce. Kept beside the bounds so they cannot drift apart. */
   guidance: string;
+  generator: FixGenerator;
+  /**
+   * The Shopify access scope required to WRITE this field.
+   *
+   * Recorded per field rather than assumed globally: a connection authorized before write access
+   * existed carries only read scopes, and offering it an Apply button would produce a 403 the
+   * merchant cannot act on. The stored `shopify_connections.scope` string is the truth.
+   */
+  writeScope: string;
 }
 
 /**
@@ -52,6 +73,8 @@ export const FIELD_RULES: Record<FixableField, FieldRule> = {
     maxLength: 60,
     resourceTypes: FIXABLE_RESOURCE_TYPES,
     guidance: 'A search-result title of 30-60 characters built from the resource\'s own words. Lead with the specific product or page name.',
+    generator: 'ai',
+    writeScope: 'write_products',
   },
   'seo.description': {
     field: 'seo.description',
@@ -61,12 +84,126 @@ export const FIELD_RULES: Record<FixableField, FieldRule> = {
     maxLength: 160,
     resourceTypes: FIXABLE_RESOURCE_TYPES,
     guidance: 'A search-result description of 70-160 characters that summarises this specific page in plain sentences.',
+    generator: 'ai',
+    writeScope: 'write_products',
+  },
+  /**
+   * Image alt text. 512 is Shopify's own limit on the field; 1 is the floor because a single
+   * meaningful word beats nothing, and the merchant's template decides the real target length.
+   *
+   * Products only: collections carry no image in the Admin API, and an article's image is written
+   * through a different mutation than a product's media, so it is not covered by this one rule.
+   */
+  'image.alt': {
+    field: 'image.alt',
+    subPillar: 'image-alt-text',
+    label: 'Image alt text',
+    minLength: 1,
+    maxLength: 512,
+    resourceTypes: ['product'],
+    guidance: 'A short description of what the image actually shows, built from the product\'s own name and attributes.',
+    generator: 'template',
+    writeScope: 'write_products',
   },
 };
 
 /** Which field, if any, a finding's sub-pillar can be fixed through. */
 export function fieldForSubPillar(subPillar: string): FieldRule | null {
   return Object.values(FIELD_RULES).find((rule) => rule.subPillar === subPillar) ?? null;
+}
+
+// ─── Fixability ──────────────────────────────────────────────────────
+/**
+ * How a finding can be resolved, answered from what Scorelo can PROVE rather than from what a
+ * model believes.
+ *
+ * This is deliberately NOT an AI judgement. "Can this be written to the merchant's store?" is the
+ * security boundary of the whole fix flow: it depends on the allow-list above, on the scopes the
+ * merchant actually granted, and on whether a generator exists — three facts, all checkable. A
+ * model asked the same question would sometimes say yes about a field nothing can write, and the
+ * cost of that answer lands on a live storefront.
+ *
+ * AI's place is one step further in: once this says a field IS writable, a model proposes the
+ * VALUE, and a human approves it.
+ *
+ *   auto      Scorelo can generate and write it without a model.
+ *   ai        A model must draft the value; a human still approves it.
+ *   needs_access  Writable in principle, but this connection lacks the scope — reconnect.
+ *   manual    Nothing Scorelo can write. Theme edits, app settings, store configuration.
+ */
+export type Fixability = 'auto' | 'ai' | 'needs_access' | 'manual';
+
+export interface FixabilityVerdict {
+  fixability: Fixability;
+  field: FixableField | null;
+  /** Merchant-facing sentence. Never a raw code, never a promise Scorelo cannot keep. */
+  reason: string;
+  /** The scope to ask for when `needs_access`. */
+  requiredScope: string | null;
+}
+
+/**
+ * `resolutionType` is written by the check itself (content / catalog / theme / media / settings /
+ * integration / apps), so it already records what KIND of work a finding needs. Anything outside
+ * the Admin API's reach can be stated as manual without guessing.
+ */
+const UNWRITABLE_RESOLUTION_TYPES = new Set(['theme', 'apps', 'settings', 'integration']);
+
+export function classifyFixability(input: {
+  subPillar: string;
+  resolutionType: string | null;
+  /** Scopes on the store's live Shopify connection, as granted. */
+  grantedScopes: readonly string[];
+  /** Whether a model is configured and reachable. */
+  aiAvailable: boolean;
+}): FixabilityVerdict {
+  const rule = fieldForSubPillar(input.subPillar);
+
+  if (!rule) {
+    const kind = input.resolutionType && UNWRITABLE_RESOLUTION_TYPES.has(input.resolutionType)
+      ? `This is a ${input.resolutionType} change`
+      : 'Scorelo has no writable field for this check yet';
+    return {
+      fixability: 'manual',
+      field: null,
+      reason: `${kind}, so it has to be made in Shopify. Scorelo shows what to change and where.`,
+      requiredScope: null,
+    };
+  }
+
+  if (!input.grantedScopes.includes(rule.writeScope)) {
+    return {
+      fixability: 'needs_access',
+      field: rule.field,
+      reason: `Scorelo can write this ${rule.label.toLowerCase()} once you reconnect your store and grant write access.`,
+      requiredScope: rule.writeScope,
+    };
+  }
+
+  if (rule.generator === 'template') {
+    return {
+      fixability: 'auto',
+      field: rule.field,
+      reason: `Scorelo can generate this ${rule.label.toLowerCase()} from your own template and apply it after you review it.`,
+      requiredScope: null,
+    };
+  }
+
+  if (!input.aiAvailable) {
+    return {
+      fixability: 'manual',
+      field: rule.field,
+      reason: `This ${rule.label.toLowerCase()} needs a written value, and no AI model is configured to draft one.`,
+      requiredScope: null,
+    };
+  }
+
+  return {
+    fixability: 'ai',
+    field: rule.field,
+    reason: `Scorelo can draft this ${rule.label.toLowerCase()} for you to review, then apply the ones you approve.`,
+    requiredScope: null,
+  };
 }
 
 export function isFixableResourceType(value: string): value is FixableResourceType {

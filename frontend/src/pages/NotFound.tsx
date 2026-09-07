@@ -17,10 +17,10 @@ export default function NotFound() {
   const { pathname } = useLocation();
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-16 md:px-8">
-      <div className={`${card} flex flex-col items-center p-10 text-center`}>
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-100 text-surface-500">
-          <Compass size={24} />
+    <div className="mx-auto max-w-2xl px-4 py-10 md:px-6">
+      <div className={`${card} flex flex-col items-center p-6 text-center`}>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-100 text-surface-500">
+          <Compass size={18} />
         </span>
         <h1 className="mt-4 text-lg font-semibold text-surface-900">Page not found</h1>
         <p className="mt-1.5 max-w-md text-sm text-surface-500">

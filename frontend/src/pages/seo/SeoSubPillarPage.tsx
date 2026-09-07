@@ -30,6 +30,16 @@ type LoadState = 'loading' | 'success' | 'empty' | 'error';
 interface Props {
   /** The sub-pillar's own analysis. Layout is shared; data is not. */
   analysis: SubPillarAnalysis;
+  /**
+   * A configuration surface belonging to this sub-pillar alone, rendered under the header and
+   * above the score.
+   *
+   * A slot rather than a branch: Image Alt Text has a template builder and the other seven
+   * sub-pillars do not, and putting `slug === 'image-alt-text'` inside this shared template would
+   * make every future exception another condition in a file that is supposed to be identical for
+   * all of them. The route decides; the template just renders what it is given.
+   */
+  configurator?: React.ReactNode;
 }
 
 /**
@@ -37,7 +47,7 @@ interface Props {
  * Every SEO sub-pillar renders through this shell and supplies its own
  * score, findings, evidence columns and terminology.
  */
-export default function SeoSubPillarPage({ analysis }: Props) {
+export default function SeoSubPillarPage({ analysis, configurator }: Props) {
   const [data, setData] = useState<SubPillarAnalysis | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -206,7 +216,7 @@ export default function SeoSubPillarPage({ analysis }: Props) {
               className="btn-secondary btn-xs"
             >
               <Settings2 size={12} aria-hidden="true" />
-              Client settings
+              Settings
             </button>
             <button
               type="button"
@@ -219,6 +229,9 @@ export default function SeoSubPillarPage({ analysis }: Props) {
             </button>
           </div>
         </header>
+
+        {/* Sub-pillar configuration, when this sub-pillar has any. */}
+        {configurator && <div className="mt-3">{configurator}</div>}
 
         {/* Score + breakdown */}
         <div className="mt-3 grid grid-cols-12 gap-3">

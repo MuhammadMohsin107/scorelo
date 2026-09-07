@@ -29,21 +29,32 @@ export const canonicalsAnalysis: SubPillarAnalysis = {
   findings: [],
   evidence: {
     title: 'Affected URLs',
-    caption: 'URLs sampled from the latest crawl with their canonical status',
-    searchPlaceholder: 'Search URL or canonical target…',
-    searchKeys: ['url', 'canonical', 'expected'],
-    sampleNoun: 'crawled URLs',
+    // ─── Columns must match what the CHECK measures ────────────────────
+    // These used to be "Declared canonical" and "Expected canonical", reading `canonical` and
+    // `expected` cells. The canonicals check writes neither: it measures HANDLE FAMILIES from
+    // Admin data, because a rendered <link rel="canonical"> needs page HTML and the storefront is
+    // password-protected. So both columns fell back to their empty text on every row — a table of
+    // "none" and "—" that read as a measured result ("this page declares no canonical") when in
+    // fact nothing had been read.
+    //
+    // The subKey was `urlType`; the check writes `pageType`, so the URL's second line was blank
+    // too. Every key below is one the check actually writes: url, pageType, title, length.
+    caption: 'URLs sampled from the latest audit with their handle-duplication status',
+    searchPlaceholder: 'Search URL or page name…',
+    searchKeys: ['url', 'title'],
+    sampleNoun: 'analyzed URLs',
     facet: { label: 'URL type', allLabel: 'All URL types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'url', header: 'URL', variant: 'mono', subKey: 'urlType', clamp: 'max-w-[18rem]' },
-      { key: 'canonical', header: 'Declared canonical', variant: 'mono', emptyText: 'none', clamp: 'max-w-[16rem]' },
-      { key: 'expected', header: 'Expected canonical', variant: 'muted', clamp: 'max-w-[16rem]' },
+      { key: 'url', header: 'URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[20rem]' },
+      { key: 'title', header: 'Page', variant: 'muted', clamp: 'max-w-[16rem]' },
+      // Family size. 1 means the handle is unique — which is exactly what "Healthy" means here.
+      { key: 'length', header: 'In handle family', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('url', 'Sort: URL'), sortByCell('urlType', 'Sort: URL type')],
+    sorts: [sortByCell('length', 'Sort: family size', 'desc'), sortByCell('url', 'Sort: URL')],
   },
   relatedAreas: [
     { label: 'Handles & Redirects', href: '/seo/handles-redirects', hint: 'Where duplicate URLs are created' },

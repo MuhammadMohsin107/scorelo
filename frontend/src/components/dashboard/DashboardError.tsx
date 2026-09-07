@@ -7,15 +7,15 @@ interface Props {
 
 export default function DashboardError({ message, onRetry }: Props) {
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto">
-      <div className="card p-8 md:p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-        <div className="w-14 h-14 rounded-2xl bg-critical-50 flex items-center justify-center mb-5">
-          <AlertCircle size={28} className="text-critical-500" />
+    <div className="page-shell">
+      <div className="card flex min-h-[240px] flex-col items-center justify-center border border-surface-200 p-6 text-center">
+        <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-lg bg-critical-50">
+          <AlertCircle size={20} className="text-critical-500" />
         </div>
-        <h2 className="text-lg font-semibold text-surface-900 mb-2">
+        <h2 className="text-[15px] font-semibold text-surface-900 mb-2">
           Unable to load dashboard
         </h2>
-        <p className="text-sm text-surface-500 max-w-md mb-6">
+        <p className="text-[12.5px] text-surface-500 max-w-md mb-2">
           {message || 'Something went wrong while fetching your dashboard data. Please try again.'}
         </p>
         {onRetry && (

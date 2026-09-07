@@ -19,10 +19,10 @@ export default function ScoreTrend({ data }: Props) {
 
   if (data.length < 2) {
     return (
-      <section className={`${cardClass} h-full p-6`} aria-labelledby="score-trend-title">
+      <section className={`${cardClass} h-full p-3.5`} aria-labelledby="score-trend-title">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-surface-500">Trend</p>
-        <h2 id="score-trend-title" className="mt-1 text-lg font-semibold tracking-tight text-surface-950">Score over time</h2>
-        <p className="mt-3 text-sm text-surface-500">No score history yet. Run an analysis to start tracking performance.</p>
+        <h2 id="score-trend-title" className="mt-1 text-[15px] font-semibold tracking-tight text-surface-950">Score over time</h2>
+        <p className="mt-2 text-[12.5px] text-surface-500">No score history yet. Run an analysis to start tracking performance.</p>
       </section>
     );
   }
@@ -75,13 +75,13 @@ export default function ScoreTrend({ data }: Props) {
 
   return (
     <section className={`${cardClass} flex h-full flex-col`} aria-labelledby="score-trend-title">
-      <div className="flex items-start justify-between gap-4 border-b border-surface-100 px-5 py-4">
+      <div className="flex items-start justify-between gap-2.5 border-b border-surface-100 px-3.5 py-2.5">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-surface-500">Trend</p>
-          <h2 id="score-trend-title" className="mt-1 text-lg font-semibold tracking-tight text-surface-950">Score over time</h2>
+          <h2 id="score-trend-title" className="mt-1 text-[15px] font-semibold tracking-tight text-surface-950">Score over time</h2>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-semibold tracking-tight text-surface-950 tabular-nums">{current}</p>
+          <p className="text-[20px] font-semibold tracking-tight text-surface-950 tabular-nums">{current}</p>
           <span className={`mt-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${deltaChip}`}>
             <DeltaIcon size={12} strokeWidth={2.5} />
             {delta > 0 ? '+' : ''}
@@ -90,7 +90,7 @@ export default function ScoreTrend({ data }: Props) {
         </div>
       </div>
 
-      <div className="relative flex-1 px-3 pb-3 pt-4">
+      <div className="relative flex-1 px-3 pb-3 pt-2.5">
         {activePoint && (
           <div
             className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 shadow-md"
@@ -98,7 +98,7 @@ export default function ScoreTrend({ data }: Props) {
             role="status"
           >
             <p className="text-[10px] font-medium text-surface-500">{formatDate(activePoint.date)}</p>
-            <p className="text-sm font-semibold tabular-nums text-surface-950">{activePoint.score}</p>
+            <p className="text-[12.5px] font-semibold tabular-nums text-surface-950">{activePoint.score}</p>
           </div>
         )}
 
@@ -167,7 +167,7 @@ export default function ScoreTrend({ data }: Props) {
         </svg>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-surface-100 px-5 py-3 text-xs text-surface-500">
+      <div className="flex items-center justify-between gap-3 border-t border-surface-100 px-3.5 py-2 text-[11.5px] text-surface-500">
         <span>
           Last {data.length} analyses · {formatDate(data[0].date)} – {formatDate(data[data.length - 1].date)}
         </span>

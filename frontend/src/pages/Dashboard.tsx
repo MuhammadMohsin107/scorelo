@@ -56,33 +56,33 @@ export default function Dashboard() {
 
   return (
     <div className="page-shell section-stack">
-      {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between motion-safe:animate-fade-in">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600">Store performance</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-surface-950 md:text-3xl">Dashboard</h1>
-          <p className="mt-1 text-sm text-surface-500">A clear view of what is healthy, what changed, and what to fix next.</p>
+      {/* Page header. The "Store performance" eyebrow is gone: the sidebar wordmark already says
+          it, and it cost a whole line above the only title on the page. */}
+      <div className="page-head motion-safe:animate-fade-in">
+        <div className="min-w-0">
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">A clear view of what is healthy, what changed, and what to fix next.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
-            <Globe size={13} className="text-surface-400" />
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+          <span className="meta-chip">
+            <Globe size={12} className="text-surface-400" />
             <span className="font-medium text-surface-800">{data.storeName}</span>
             <span className="text-surface-300">·</span>
-            <span className="font-mono text-[11px] text-surface-500">{data.storeUrl}</span>
+            <span className="truncate font-mono text-[10.5px] text-surface-500">{data.storeUrl}</span>
           </span>
           {data.lastUpdated && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-xs text-surface-600 shadow-sm">
-              <Clock size={13} className="text-surface-400" />
+            <span className="meta-chip">
+              <Clock size={12} className="text-surface-400" />
               Analyzed <span className="font-medium text-surface-800">{formatLastUpdated(data.lastUpdated)}</span>
             </span>
           )}
           <button
             onClick={() => loadData(true)}
             disabled={isRefreshing}
-            className="btn-secondary h-[34px] px-3 text-xs"
+            className="btn-secondary btn-xs"
             aria-label="Refresh dashboard data"
           >
-            <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
             {isRefreshing ? 'Refreshing' : 'Refresh'}
           </button>
         </div>

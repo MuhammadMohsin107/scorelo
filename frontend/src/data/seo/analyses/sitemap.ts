@@ -29,22 +29,24 @@ export const sitemapAnalysis: SubPillarAnalysis = {
   findings: [],
   evidence: {
     title: 'Affected URLs',
-    caption: 'URLs sampled from the latest crawl with their index and sitemap status',
-    searchPlaceholder: 'Search URL or robots directive…',
-    searchKeys: ['url', 'robots', 'indexability'],
-    sampleNoun: 'crawled URLs',
-    facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
+    // `indexability`, `inSitemap` and `robots` were never written by the check, so all three
+    // rendered empty on every row. What it actually probes is three storefront endpoints — the
+    // homepage, /robots.txt and /sitemap.xml — recording each one's result and HTTP status.
+    caption: 'Storefront endpoints probed by the latest audit',
+    searchPlaceholder: 'Search endpoint…',
+    searchKeys: ['url', 'title'],
+    sampleNoun: 'probed endpoints',
+    facet: { label: 'Endpoint', allLabel: 'All endpoints', values: ['Storefront', 'robots.txt', 'sitemap.xml'] },
     columns: [
-      { key: 'url', header: 'URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[17rem]' },
-      { key: 'indexability', header: 'Indexability' },
-      { key: 'inSitemap', header: 'In sitemap', align: 'center' },
-      { key: 'robots', header: 'Robots directive', variant: 'muted', clamp: 'max-w-[13rem]' },
+      { key: 'url', header: 'Endpoint', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[17rem]' },
+      { key: 'title', header: 'Result', clamp: 'max-w-[20rem]' },
+      { key: 'length', header: 'HTTP', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('url', 'Sort: URL'), sortByCell('indexability', 'Sort: indexability')],
+    sorts: [sortByCell('length', 'Sort: HTTP status', 'desc'), sortByCell('url', 'Sort: endpoint')],
   },
   relatedAreas: [
     { label: 'Canonicals & Duplicates', href: '/seo/canonicals', hint: 'Which URL should be indexed' },
