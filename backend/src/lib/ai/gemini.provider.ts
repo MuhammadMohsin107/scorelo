@@ -81,14 +81,45 @@ const FIX_SCHEMA = {
   required: ['proposals'],
 };
 
-/** Maps an HTTP status to the caller-facing reason. Mirrors the OpenAI provider's mapping so the
- * two vendors produce the same operator-visible vocabulary. */
-function reasonFor(status: number): AiFailureReason {
+/**
+ * Maps an upstream failure to the caller-facing reason. Mirrors the OpenAI provider's vocabulary
+ * so both vendors produce the same operator-visible words.
+ *
+ * The 400 case is not cosmetic. Google answers a REJECTED API KEY with
+ * `400 INVALID_ARGUMENT / API_KEY_INVALID`, not with 401 the way OpenAI does. Classifying that as
+ * 'server' pointed operators at an outage when the real problem was a mistyped key.
+ */
+function reasonFor(status: number, detail: string): AiFailureReason {
   if (status === 401 || status === 403) return 'auth';
+  if (status === 400 && /API_KEY_INVALID|API key not valid/i.test(detail)) return 'auth';
   if (status === 429) return 'rate_limit';
   // Google reports an exhausted free-tier quota as 429 too; 402 is included for completeness.
   if (status === 402) return 'quota';
   return 'server';
+}
+
+/**
+ * Google's own words for why it refused, made safe to log.
+ *
+ * This body used to be discarded on the theory that an upstream error might echo request details.
+ * The cost of that was concrete: an invalid key, an unknown model and a malformed schema all
+ * arrive as the same "HTTP 400", so an operator had a status code and nothing to act on. Google
+ * puts the reason in `error.message`, and the key is not in it — it travels in a header and is
+ * never reflected. It is scrubbed anyway, and the message is capped, so neither a long body nor a
+ * surprising one can flood the log.
+ */
+async function upstreamDetail(response: Response, apiKey: string): Promise<string> {
+  let message = '';
+  try {
+    const body = (await response.json()) as { error?: { message?: unknown; status?: unknown } };
+    const status = typeof body.error?.status === 'string' ? body.error.status : '';
+    const text = typeof body.error?.message === 'string' ? body.error.message : '';
+    message = [status, text].filter(Boolean).join(': ');
+  } catch {
+    // A non-JSON error body carries nothing an operator could use; the status still does.
+  }
+  const safe = message.replaceAll(apiKey, '[redacted]').slice(0, 300);
+  return safe ? `HTTP ${response.status} — ${safe}` : `HTTP ${response.status}`;
 }
 
 /**
@@ -129,9 +160,8 @@ async function generate(
     });
 
     if (!response.ok) {
-      // The body may echo request details; only the status is kept, so nothing from an upstream
-      // error can leak into logs or to a customer.
-      return { ok: false, reason: reasonFor(response.status), detail: `HTTP ${response.status}` };
+      const detail = await upstreamDetail(response, apiKey);
+      return { ok: false, reason: reasonFor(response.status, detail), detail };
     }
 
     const payload = (await response.json()) as {

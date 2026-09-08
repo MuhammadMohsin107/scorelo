@@ -3,7 +3,7 @@ import { listNotifications, markAllNotificationsRead, markNotificationRead } fro
 import { optionalStoreId, requireUserId } from '../lib/requestContext.js';
 
 export async function getNotifications(req: Request, res: Response) {
-  res.json({ data: await listNotifications(requireUserId(req), optionalStoreId(req)) });
+  res.json({ data: await listNotifications(requireUserId(req), req.query as never, optionalStoreId(req)) });
 }
 
 export async function markNotificationAsRead(req: Request, res: Response) {

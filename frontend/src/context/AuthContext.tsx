@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { UserRow } from '../data/api.types';
 import * as authRepository from '../data/auth.repository';
 import { resetCachedUser, updateCachedUser } from '../data/user.repository';
+import { resetNotifications } from '../data/notifications';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -44,6 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const adoptSession = useCallback((session: UserRow) => {
     resetCachedUser();
+    // The notification store is module state that outlives a sign-out, so without this the next
+    // person to sign in on this browser would see the previous account's bell until it refetched.
+    resetNotifications();
     updateCachedUser(session);
     setUser(session);
     setStatus('authenticated');
@@ -94,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await authRepository.logout();
     resetCachedUser();
+    resetNotifications();
     setUser(null);
     setStatus('unauthenticated');
   }, []);

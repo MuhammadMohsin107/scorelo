@@ -5,7 +5,7 @@ import { checkRegistry } from './index.js';
 import { scoreOverall, scorePillar } from './scoring.js';
 import { resolveStoreDataProvider, StoreDataError, type StoreDataProvider, type StoreSnapshot } from './store-data/index.js';
 import { unavailableResult, type AuditCheck, type PillarKey, type SubPillarResult } from './types.js';
-import { createNotification } from '../services/notification.service.js';
+import { createNotification, notifyScoreMovement } from '../services/notification.service.js';
 
 /** Seams for integration tests to drive the worker without a live Shopify shop.
  * Production always uses the defaults. */
@@ -230,6 +230,10 @@ export async function runAuditJob(jobId: number, deps: RunnerDeps = {}): Promise
       message: `Scorelo checked ${outcomes.length} ${outcomes.length === 1 ? 'pillar' : 'pillars'} and recorded ${allFindings.length} ${allFindings.length === 1 ? 'finding' : 'findings'}.`,
       tone: 'success',
     });
+
+    // Compares this audit against the previous one and reports the largest pillar move. Gated by
+    // `notifyScoreChanges`, which until now was a Settings toggle that nothing read.
+    await notifyScoreMovement(job.storeId, auditId);
 
     // Raised separately from the completion notice, and gated by its own preference: a merchant
     // who wants to hear only about critical problems can turn the routine one off and still be

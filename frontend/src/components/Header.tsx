@@ -3,12 +3,11 @@ import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Sun, X } from 'lucide-re
 import { useNavigate } from 'react-router-dom';
 import Breadcrumbs from './Breadcrumbs';
 import {
-  fetchNotifications,
   formatNotificationTime,
   iconForNotification,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-  type NotificationRecord,
+  markAllNotificationsRead,
+  markNotificationRead,
+  useNotifications,
 } from '../data/notifications';
 import { fetchCurrentUser, initialsFor, subscribeCurrentUser } from '../data/user.repository';
 import { useAuth } from '../context/AuthContext';
@@ -34,14 +33,15 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
   const { theme, toggle } = useTheme();
   const headerRef = useRef<HTMLElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [user, setUser] = useState<UserRow | null>(null);
   const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(null);
   const [query, setQuery] = useState('');
   /** Phone only: whether the icon has expanded into the field. Irrelevant from `sm` up, where the
    * field is always present. */
   const [searchOpen, setSearchOpen] = useState(false);
-  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  // Shared with the /notifications page. The bell used to keep its own array and its own count,
+  // so marking everything read on that page left this badge showing the old number.
+  const { items: notifications, unreadCount, error: notificationError } = useNotifications();
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -52,12 +52,6 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
     // unbuilt one.
     onSearch?.(trimmed);
   };
-
-  useEffect(() => {
-    fetchNotifications()
-      .then(setNotifications)
-      .catch((error) => console.error('Failed to load notifications', error));
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -87,15 +81,12 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
     setOpenMenu((current) => (current === menu ? null : menu));
   };
 
-  const markNotificationRead = (id: number) => {
-    setNotifications((current) => current.map((notification) => notification.id === id ? { ...notification, isRead: true } : notification));
+  // Both write through the shared store, which rolls the optimistic change back and surfaces the
+  // reason if the request fails.
+  const openNotification = (id: number) => {
     setOpenMenu(null);
-    markNotificationAsRead(id).catch((error) => console.error('Failed to mark notification read', error));
-  };
-
-  const markAllRead = () => {
-    setNotifications((current) => current.map((notification) => ({ ...notification, isRead: true })));
-    markAllNotificationsAsRead().catch((error) => console.error('Failed to mark all notifications read', error));
+    void markNotificationRead(id);
+    navigate('/notifications');
   };
 
   return (
@@ -209,8 +200,14 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
             <div className="absolute right-0 top-10 z-50 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-surface-200 bg-surface-0 shadow-xl" role="dialog" aria-label="Notifications">
               <div className="flex items-center justify-between border-b border-surface-200 px-3 py-2">
                 <div><h2 className="text-[13px] font-semibold text-surface-900">Notifications</h2><p className="text-[11px] text-surface-500">{unreadCount} unread</p></div>
-                <button type="button" onClick={markAllRead} className="text-[11px] font-semibold text-brand-600 hover:text-brand-700">Mark all as read</button>
+                <button type="button" onClick={() => void markAllNotificationsRead()} disabled={unreadCount === 0} className="text-[11px] font-semibold text-brand-600 transition-colors hover:text-brand-700 disabled:cursor-not-allowed disabled:text-surface-300">Mark all as read</button>
               </div>
+              {/* A failed write is said out loud instead of only reaching the console — the row
+                  has already been rolled back, so silence would leave the customer believing a
+                  change stuck that did not. */}
+              {notificationError && (
+                <p role="alert" className="border-b border-critical-100 bg-critical-50 px-3 py-1.5 text-[11px] text-critical-700">{notificationError}</p>
+              )}
               <div className="max-h-[min(400px,calc(100vh-7rem))] overflow-y-auto">
                 {/* A real empty state, because an empty bell is now a real outcome. Notifications
                     are only written by events that actually happened — a finished audit, a failed
@@ -224,14 +221,15 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
                 )}
                 {notifications.map((notification) => {
                   const Icon = iconForNotification(notification.type);
-                  return <button type="button" key={notification.id} onClick={() => markNotificationRead(notification.id)} className={`flex w-full gap-2.5 border-b border-surface-100 px-3 py-2 text-left transition-colors hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
+                  return <button type="button" key={notification.id} onClick={() => openNotification(notification.id)} className={`flex w-full gap-2.5 border-b border-surface-100 px-3 py-2 text-left transition-colors hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
                     <Icon size={15} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
                     <span className="min-w-0 flex-1"><span className={`block text-[12px] ${notification.isRead ? 'font-medium text-surface-700' : 'font-semibold text-surface-900'}`}>{notification.title}</span><span className="mt-0.5 block text-[11px] leading-[1.35] text-surface-500">{notification.message}</span><span className="mt-1 block text-[10px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>
                     {!notification.isRead && <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
                   </button>;
                 })}
               </div>
-              <div className="px-3 py-2 text-center"><button type="button" onClick={() => setOpenMenu(null)} className="text-[11px] font-semibold text-brand-600 hover:text-brand-700">View all notifications</button></div>
+              {/* This used to only close the panel — the one thing its label promised not to do. */}
+              <div className="px-3 py-2 text-center"><button type="button" onClick={() => { setOpenMenu(null); navigate('/notifications'); }} className="text-[11px] font-semibold text-brand-600 hover:text-brand-700">View all notifications</button></div>
             </div>
           )}
 

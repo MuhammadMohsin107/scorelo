@@ -108,7 +108,17 @@ export const frequencyOptions: AnalysisFrequency[] = ['Daily', 'Weekly', 'Fortni
 export const crawlScopeOptions: CrawlScope[] = ['Entire store', 'Products & collections only', 'Key templates only'];
 
 // ─── Notification copy ───────────────────────────────────────────────
+//
 // Each toggle carries microcopy explaining exactly what it changes.
+//
+// EVERY LINE HERE SAID "EMAIL YOU". None of them sent an email. Scorelo's mailer is wired to
+// three things only — address verification, password reset and the two-factor code — and nothing
+// in the audit path sends mail at all. What these switches actually gate is the in-app bell
+// (see backend notification.service.ts, PREFERENCE_BY_TYPE), so that is what they now describe.
+//
+// The last two also say plainly that nothing writes them yet. A switch that has no effect in
+// either position is worse than an absent feature, because the customer turns it on and believes
+// they will be told.
 export const notificationCopy: {
   key: keyof NotificationSettings;
   group: 'Analysis' | 'Account';
@@ -119,37 +129,37 @@ export const notificationCopy: {
     key: 'analysisComplete',
     group: 'Analysis',
     label: 'Analysis completed',
-    description: 'Email you when a scheduled or manual audit finishes and new scores are available.',
+    description: 'Show a notification when a scheduled or manual audit finishes and new scores are available.',
   },
   {
     key: 'criticalIssues',
     group: 'Analysis',
     label: 'Critical issues detected',
-    description: 'Alert you as soon as an audit finds a critical-severity issue on any pillar.',
+    description: 'Notify you as soon as an audit finds a critical-severity issue on any pillar.',
   },
   {
     key: 'scoreChanges',
     group: 'Analysis',
     label: 'Significant score changes',
-    description: 'Notify you when any pillar score moves by more than 5 points between audits.',
+    description: 'Notify you when a pillar score moves by more than 5 points between audits.',
   },
   {
     key: 'weeklySummary',
     group: 'Analysis',
     label: 'Weekly performance summary',
-    description: 'A Monday digest covering score movement, resolved issues and what to fix next.',
+    description: 'A Monday digest of score movement and what to fix next. Not available yet — scheduled digests need a background scheduler Scorelo does not run.',
   },
   {
     key: 'integrationAlerts',
     group: 'Account',
     label: 'Integration problems',
-    description: 'Tell you when a connected data source fails to sync or its authorization expires.',
+    description: 'Notify you when a connected data source fails to sync or its authorization expires.',
   },
   {
     key: 'productUpdates',
     group: 'Account',
     label: 'Scorelo product updates',
-    description: 'Occasional emails about new checks, pillars and features. No marketing.',
+    description: 'Announcements about new checks, pillars and features. Not available yet — nothing publishes product announcements.',
   },
 ];
 

@@ -1,5 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './layouts/AppShell';
 import Dashboard from './pages/Dashboard';
 import SeoDashboard from './pages/seo/SeoDashboard';
@@ -28,54 +27,6 @@ import Signup from './pages/auth/Signup';
 import RequireAuth from './components/auth/RequireAuth';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-
-/**
- * ─── Reload starts at the dashboard ──────────────────────────────────
- *
- * Refreshing any in-app page returns to the dashboard, by product decision.
- *
- * ONLY A RELOAD. This distinguishes how the page was ENTERED, using the Navigation Timing API:
- *
- *   reload        F5 / Ctrl-R / the browser's reload button  ->  go to the dashboard
- *   navigate      a pasted URL, a bookmark, a shared link    ->  stay exactly where asked
- *   back_forward  the browser's back and forward buttons     ->  stay, or history breaks
- *
- * That distinction is the whole design. An earlier version of this redirected on every entry and
- * had to be deleted, because it also broke deep links and the back button — a customer sent a
- * colleague a link to /seo/title-tags and the colleague landed on the dashboard.
- *
- * It reads `performance.getEntriesByType('navigation')`, NOT the long-deprecated
- * `performance.navigation.type` the deleted version used.
- *
- * Runs once, before paint, and replaces the history entry rather than pushing one — so pressing
- * back after a refresh does not bounce between the dashboard and the page you refreshed.
- */
-function ResetRouteOnReload() {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  // A ref, not state: this must fire once per page load, and re-running it on every navigation
-  // would send the customer home the moment they clicked anything.
-  const handled = useRef(false);
-
-  useLayoutEffect(() => {
-    if (handled.current) return;
-    handled.current = true;
-    if (pathname === '/') return;
-
-    let wasReload = false;
-    try {
-      const [entry] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-      wasReload = entry?.type === 'reload';
-    } catch {
-      // Timing API unavailable (old browser, restricted context). Staying put is the safe
-      // default: showing the page that was asked for is never wrong.
-    }
-
-    if (wasReload) navigate('/', { replace: true });
-  }, [navigate, pathname]);
-
-  return null;
-}
 
 /** Sends an already-signed-in visitor away from /login and /signup. */
 function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
@@ -110,10 +61,16 @@ export default function App() {
 function AuthenticatedApp() {
   return (
     <RequireAuth>
-      {/* Inside RequireAuth so a signed-out visitor is sent to /login first — being redirected to
-          the dashboard only to be bounced to the sign-in screen would lose the page they wanted
-          to return to after signing in. */}
-      <ResetRouteOnReload />
+      {/* ─── Reload stays on the page you were on ──────────────────────
+          A refresh re-renders the route in the address bar and nothing redirects it.
+
+          A `ResetRouteOnReload` component used to sit here and send every refresh back to the
+          dashboard. It is gone by product decision: pressing F5 on /seo/title-tags is how a
+          person reloads the data in front of them, and answering that by throwing away the page
+          they were reading costs them the scroll position, the filters and the row they had open.
+
+          Deep links, bookmarks and the back/forward buttons behaved correctly under that
+          component too — this simply makes reload behave the same as all three. */}
       <AppShell>
         <Routes>
           <Route path="/" element={<Dashboard />} />
