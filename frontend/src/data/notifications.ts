@@ -72,10 +72,37 @@ export function getNotificationState(): NotificationState {
   return state;
 }
 
+/**
+ * Normalises whatever the API returned into the shape this store guarantees.
+ *
+ * THIS IS NOT DEFENSIVENESS FOR ITS OWN SAKE. GET /notifications used to return a bare array and
+ * now returns `{ items, unreadCount, total }`. During a deploy where the backend ships before the
+ * browser bundle — or the other way round — one side sees the other's shape, and the old code did
+ * `notifications.filter(...)` straight onto it. `.filter is not a function` unmounted the entire
+ * React tree and left a blank page on first sign-in.
+ *
+ * Reading both shapes means a version skew degrades to a slightly wrong count for a few seconds
+ * instead of taking the application down.
+ */
+function normalizeList(payload: unknown): NotificationListResponse {
+  if (Array.isArray(payload)) {
+    const items = payload as NotificationRecord[];
+    return { items, unreadCount: items.filter((item) => !item.isRead).length, total: items.length };
+  }
+
+  const data = (payload ?? {}) as Partial<NotificationListResponse>;
+  const items = Array.isArray(data.items) ? data.items : [];
+  return {
+    items,
+    unreadCount: typeof data.unreadCount === 'number' ? data.unreadCount : items.filter((item) => !item.isRead).length,
+    total: typeof data.total === 'number' ? data.total : items.length,
+  };
+}
+
 export async function loadNotifications(): Promise<void> {
   if (state.status === 'idle') set({ status: 'loading' });
   try {
-    const data = await api.get<NotificationListResponse>(`/notifications?limit=${PAGE_SIZE}`);
+    const data = normalizeList(await api.get<unknown>(`/notifications?limit=${PAGE_SIZE}`));
     set({ items: data.items, unreadCount: data.unreadCount, total: data.total, status: 'ready', error: null });
   } catch (error) {
     console.error('Failed to load notifications', error);

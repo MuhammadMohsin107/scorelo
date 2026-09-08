@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import AppShell from './layouts/AppShell';
 import Dashboard from './pages/Dashboard';
 import SeoDashboard from './pages/seo/SeoDashboard';
@@ -37,6 +38,9 @@ function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    // Outermost, so a render crash anywhere below shows a recoverable screen instead of unmounting
+    // the tree and leaving a blank page. See components/ErrorBoundary.tsx.
+    <ErrorBoundary>
     <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
@@ -55,6 +59,7 @@ export default function App() {
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
