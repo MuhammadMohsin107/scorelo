@@ -12,6 +12,8 @@ interface LiveSubPillarData {
   lastAnalyzed: string;
   status?: 'ok' | 'unavailable';
   unavailableReason?: string | null;
+  /** 'seed' = development fixture. The pages label it instead of passing it off as an audit. */
+  source?: 'engine' | 'seed';
 }
 
 function formatLastAnalyzed(isoDate: string): string {
@@ -77,5 +79,6 @@ export async function fetchSubPillarAnalysis(base: SubPillarAnalysis): Promise<S
     lastAnalyzed: formatLastAnalyzed(data.lastAnalyzed),
     status: data.status ?? 'ok',
     unavailableReason: data.unavailableReason ?? null,
+    source: data.source ?? 'engine',
   };
 }

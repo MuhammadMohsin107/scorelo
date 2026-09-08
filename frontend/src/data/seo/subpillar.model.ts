@@ -157,6 +157,12 @@ export interface SubPillarAnalysis {
    * must not be rendered as a result. Defaults to 'ok' for static config and seeded fixtures.
    */
   status?: 'ok' | 'unavailable';
+  /**
+   * Which audit produced these numbers. 'seed' is a development fixture, and the page must say
+   * so rather than presenting it as a measurement of the merchant's store. The backend has
+   * always sent it; nothing read it, so a seeded database looked identical to a real audit.
+   */
+  source?: 'engine' | 'seed';
   /** Plain-language reason shown instead of the score when status is 'unavailable'. */
   unavailableReason?: string | null;
 }

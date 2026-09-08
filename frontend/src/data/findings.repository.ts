@@ -136,7 +136,9 @@ export interface PlanAiFixesResult {
   /** Resources the model returned nothing usable for, each with the validation reason. */
   skipped: Array<{ resourceType: string; resourceId: string; reason: string }>;
   model: string | null;
-  unavailableReason?: 'disabled' | 'unavailable' | 'not_fixable' | 'nothing_to_fix';
+  /** `not_configured` = the server has no model provider credentials, which is a different
+   * problem from a provider that failed. See noticeFor() in BulkFixWorkflow. */
+  unavailableReason?: 'disabled' | 'not_configured' | 'unavailable' | 'not_fixable' | 'nothing_to_fix';
 }
 
 /**

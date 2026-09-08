@@ -108,12 +108,27 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
     [rows, findingIdByRowId],
   );
 
-  const noticeFor = (reasons: string[]) =>
-    reasons.includes('disabled')
-      ? 'AI drafting is turned off on this server. The recommendations below need to be written by hand.'
-      : reasons.includes('nothing_to_plan')
-        ? 'These rows are not covered by AI drafting yet — write the values yourself, or edit the suggestions above.'
-        : 'AI could not draft these right now. Nothing has been filled in for you — the boxes are exactly as they were.';
+  /**
+   * Every one of these was previously collapsed into "AI could not draft these right now", which
+   * described an outage regardless of what actually happened. A server with no API key, a
+   * sub-pillar the planner does not cover, and a genuine provider failure need three different
+   * actions from whoever reads the message — so they now say three different things.
+   */
+  const noticeFor = (reasons: string[]) => {
+    if (reasons.includes('disabled')) {
+      return 'AI drafting is turned off on this server. The recommendations below need to be written by hand.';
+    }
+    if (reasons.includes('not_configured')) {
+      return 'AI drafting is not set up on this server yet — no model provider is configured. Ask your administrator to add the AI credentials, or write the values yourself.';
+    }
+    if (reasons.includes('nothing_to_fix') || reasons.includes('not_fixable')) {
+      return 'Scorelo has no stored evidence for these rows to draft from, so nothing was requested. Re-analyze the store, or write the values yourself.';
+    }
+    if (reasons.includes('nothing_to_plan')) {
+      return 'These rows are not covered by AI drafting yet — write the values yourself, or edit the suggestions above.';
+    }
+    return 'AI could not draft these right now. Nothing has been filled in for you — the boxes are exactly as they were.';
+  };
 
   /**
    * Opens EMPTY, in manual mode. Nothing is written for the merchant until they ask.

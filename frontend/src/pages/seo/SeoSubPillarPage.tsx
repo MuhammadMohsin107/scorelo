@@ -206,6 +206,12 @@ export default function SeoSubPillarPage({ analysis, configurator }: Props) {
             <p className="page-subtitle">{data.description}</p>
           </div>
           <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+            {/* A seeded fixture is never passed off as a measurement of the merchant's store. */}
+            {data.source === 'seed' && (
+              <span className="inline-flex items-center rounded border border-warning-200 bg-warning-50 px-1.5 py-0.5 text-[10.5px] font-bold text-warning-700">
+                Demo data
+              </span>
+            )}
             <span className="meta-chip">
               <Clock3 size={12} className="text-surface-400" aria-hidden="true" />
               Last analyzed <span className="font-medium text-surface-800">{data.lastAnalyzed}</span>

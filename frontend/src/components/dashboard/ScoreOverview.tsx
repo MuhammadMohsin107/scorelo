@@ -81,18 +81,25 @@ export default function ScoreOverview({ data, metrics }: Props) {
         : 'bg-surface-100 text-surface-600';
 
   return (
-    <section className={`${cardClass} relative overflow-hidden`} aria-labelledby="overall-health-title">
+    // `h-full` is what closes the gap under this card. It shares a grid row with the trend chart,
+    // which is ~140px taller; without it the section stopped at its own content height and the
+    // page background showed through the rest of the row, reading as a hole between the dashboard
+    // and the pillar cards. The row is `items-stretch` by default, so the card now fills it.
+    <section className={`${cardClass} relative flex h-full flex-col overflow-hidden`} aria-labelledby="overall-health-title">
       {/* The 288px blurred glow that sat here is gone. It carried no information and, being
           absolutely positioned, contributed nothing but render cost. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-300/60 to-transparent" aria-hidden="true" />
 
-      {/* 14px, not 28. `md:p-7` was the last oversized padding left on the dashboard, and because
-          this card sets the height of its whole grid row, that padding read as a gap between the
-          dashboard and the pillar cards below it. */}
-      <div className="relative p-3.5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+      {/* 14px padding, not 28 — `md:p-7` was the last oversized padding on the dashboard.
+          `flex-1` + `justify-center`: the content centres in whatever height the row turns out to
+          be, so a taller neighbour gives this card breathing room instead of a block of dead
+          space under its last line. */}
+      <div className="relative flex flex-1 flex-col justify-center p-3.5">
+        {/* `items-stretch` (the default) keeps the divider between the two halves running the
+            full height; each half centres its own content instead. */}
+        <div className="flex flex-col gap-3 lg:flex-row">
           {/* Score + narrative */}
-          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 sm:flex-row sm:items-center sm:gap-4">
             <ScoreRing score={data.score} hex={tone.hex} measured={data.measured} />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-surface-500">Overall health</p>
@@ -127,7 +134,7 @@ export default function ScoreOverview({ data, metrics }: Props) {
             </div>
           </div>
 
-          <div className="lg:w-[280px] lg:flex-shrink-0 lg:border-l lg:border-surface-100 lg:pl-4">
+          <div className="flex flex-col justify-center lg:w-[280px] lg:flex-shrink-0 lg:border-l lg:border-surface-100 lg:pl-4">
             <MetricSummary metrics={metrics} overallScore={data} layout="column" />
           </div>
 

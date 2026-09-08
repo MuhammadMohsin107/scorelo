@@ -13,6 +13,35 @@ const bad = 'bg-critical-100 text-critical-700';
 
 /** Detail tables + opportunities for Content sub-pillars (keyed by route). */
 export const contentTables: Record<string, GenericSubPillarDetails> = {
+  /**
+   * Product descriptions had NO entry here, so the page fell back to the generic evidence
+   * columns (`item` / `issue` / `affected`). The check writes `product`, `description`, `words`,
+   * `issue` and `recommendation`, so only "Issue" ever had a value and the rest of the table
+   * rendered blank. Same shape as collections below — it is the same check, keyed by resource.
+   *
+   * `rows` is empty because the audit supplies them: fetchSubPillarAnalysis overwrites
+   * `evidence.rows` with the real evidence sample.
+   */
+  'content/product-descriptions': {
+    table: {
+      title: 'Product Description Analysis',
+      subtitle: 'Search and filter products by description status',
+      searchPlaceholder: 'Search by product or description…',
+      filters: ['All', 'Missing', 'Too Short', 'Duplicate', 'Good'],
+      statusClass: { Missing: bad, 'Too Short': warn, Duplicate: bad, Good: good },
+      columns: [
+        { key: 'product', header: 'Product' },
+        { key: 'description', header: 'Description', variant: 'muted' },
+        { key: 'words', header: 'Word Count', align: 'center', variant: 'number' },
+        { key: 'status', header: 'Status', align: 'center', variant: 'status' },
+        { key: 'issue', header: 'Issue', variant: 'muted' },
+        { key: 'recommendation', header: 'Recommendation', variant: 'muted' },
+      ],
+      rows: [],
+    },
+    opportunities: [],
+  },
+
   'content/collection-descriptions': {
     table: {
       title: 'Collection Description Analysis',

@@ -90,6 +90,19 @@ export default function NonSeoSubPillarPage() {
 
   const focusEvidence = (status: RowStatus | 'All') => { setStatusFilter(status); evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
+  /**
+   * The recommendation shown at the bottom of the page comes from the audit's most severe
+   * finding.
+   *
+   * It used to be `config.metrics[0].description` — a static catalog string written as the tail
+   * of a sentence that a number was meant to lead ("142 pages pass the experience threshold"),
+   * so on its own it rendered as a fragment: "pages pass the experience threshold",
+   * "images exceed the recommended payload". Every non-SEO sub-pillar showed one, and none of
+   * them was a recommendation or a measurement of this store.
+   */
+  const severityWeight: Record<SubPillarFinding['severity'], number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  const leadFinding = [...data.findings].sort((a, b) => severityWeight[a.severity] - severityWeight[b.severity])[0];
+
   // Same compact shell as the SEO master template: page-shell frame, one header row, a 12-column
   // grid on a 12px gutter. The two templates render the same components, so they must also agree
   // on the space around them — a Content sub-pillar and an SEO sub-pillar are the same screen.
@@ -106,6 +119,12 @@ export default function NonSeoSubPillarPage() {
             <p className="page-subtitle">{data.description}</p>
           </div>
           <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+            {/* A seeded fixture is never passed off as a measurement of the merchant's store. */}
+            {data.source === 'seed' && (
+              <span className="inline-flex items-center rounded border border-warning-200 bg-warning-50 px-1.5 py-0.5 text-[10.5px] font-bold text-warning-700">
+                Demo data
+              </span>
+            )}
             <span className="meta-chip">
               <Clock3 size={12} className="text-surface-400" aria-hidden="true" />
               Last analyzed <span className="font-medium text-surface-800">{data.lastAnalyzed}</span>
@@ -155,11 +174,11 @@ export default function NonSeoSubPillarPage() {
             <p className={eyebrow}>Recommendation</p>
             <div className="mt-1.5 flex flex-col gap-2 rounded-md border border-brand-100 bg-brand-50/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-[12.5px] leading-[1.5] text-surface-700">
-                {config.metrics[0]?.description ?? `Review the ${data.title} findings and address the highest-impact items first.`}
+                {leadFinding?.recommendation ?? `No ${data.title} issues were flagged in the latest analysis — review the evidence to confirm coverage.`}
               </p>
               <button
                 type="button"
-                onClick={() => focusEvidence(data.findings[0]?.issueType ?? 'All')}
+                onClick={() => focusEvidence(leadFinding?.issueType ?? 'All')}
                 className="btn-primary btn-xs flex-shrink-0"
               >
                 <ArrowRight size={12} />

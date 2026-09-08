@@ -89,8 +89,16 @@ export interface PlanFixesResult {
   /** Targets the audit found but that produced no usable proposal, with the reason. */
   skipped: Array<{ resourceType: string; resourceId: string; reason: string }>;
   model: string | null;
-  /** Present when planning did not happen at all. Coarse and non-technical by design. */
-  unavailableReason?: 'disabled' | 'unavailable' | 'not_fixable' | 'nothing_to_fix';
+  /**
+   * Present when planning did not happen at all.
+   *
+   * `not_configured` is split out from `unavailable` because they need different actions and the
+   * merchant could not tell them apart: a server with no AI credentials reported the same
+   * "could not draft right now" as a provider outage, so an operator debugging it had no way to
+   * know whether to look at the key or at the vendor. It still says nothing about which vendor is
+   * configured, and never about the key itself.
+   */
+  unavailableReason?: 'disabled' | 'not_configured' | 'unavailable' | 'not_fixable' | 'nothing_to_fix';
 }
 
 function toView(row: typeof aiFixProposals.$inferSelect): FixProposalView {
@@ -259,13 +267,21 @@ export async function planAiFixes(
   const batch = targets.slice(0, Math.min(options.limit ?? MAX_TARGETS_PER_REQUEST, MAX_TARGETS_PER_REQUEST));
 
   if (!aiConfigured()) {
+    // Logged so this shows up in the server's own output the moment someone presses the button —
+    // an operator should not have to reproduce it to find out the key is missing.
+    console.warn(
+      `[scorelo-ai] fix planning skipped for finding ${findingId}: `
+      + (!env.aiRecommendationsEnabled
+        ? 'AI_RECOMMENDATIONS_ENABLED=false'
+        : `no API key configured for AI_PROVIDER=${env.aiProvider}`),
+    );
     return {
       findingId,
       planned: false,
       proposals: [],
       skipped: [],
       model: null,
-      unavailableReason: !env.aiRecommendationsEnabled ? 'disabled' : 'unavailable',
+      unavailableReason: !env.aiRecommendationsEnabled ? 'disabled' : 'not_configured',
     };
   }
 
