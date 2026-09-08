@@ -343,7 +343,11 @@ async function seed() {
   }
 
   console.log(
-    `[scorelo-db] seeded user ${user.id}, store ${store.id}, 6 integrations, 5 notifications, 6 audits, ` +
+    // No notifications: the five that used to be seeded here claimed audits had finished and
+    // syncs had failed on a store nothing had touched. They are written only by real events now,
+    // so a fresh seed correctly starts with an empty bell — the count said otherwise for a while
+    // after the rows were removed.
+    `[scorelo-db] seeded user ${user.id}, store ${store.id}, 6 integrations, 6 audits, ` +
     `${11 + jsonScoreCount} audit_scores, ${4 + jsonFindingCount} findings (${jsonScoreCount} sub-pillars from subpillar-seed.json)`,
   );
 }

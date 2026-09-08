@@ -49,6 +49,9 @@ export interface SecurityEventRecord {
  * than widened in api.types.ts, which is outside this phase's scope.
  */
 export interface SecurityProfile {
+  /** The address 2FA codes and verification mail go to — GET /users/me has always returned it,
+   * this contract simply did not declare it, so the Security page could not name or use it. */
+  email: string;
   passwordChangedAt: string | null;
   emailVerifiedAt: string | null;
   /** Non-null means email 2FA is on. There is no secret here — the factor is the verified inbox. */

@@ -121,6 +121,52 @@ export async function markAllNotificationsRead(): Promise<void> {
   }
 }
 
+/**
+ * Removes one notification permanently.
+ *
+ * Separate from marking it read: reading is about attention, deleting is about the record. The
+ * bell already stops showing a notification once it is read, so this exists for the archive on
+ * /notifications, where a merchant clearing old rows means it.
+ */
+export async function dismissNotification(id: number): Promise<void> {
+  const target = state.items.find((item) => item.id === id);
+  if (!target) return;
+
+  const previous = state;
+  set({
+    items: state.items.filter((item) => item.id !== id),
+    unreadCount: target.isRead ? state.unreadCount : Math.max(0, state.unreadCount - 1),
+    total: Math.max(0, state.total - 1),
+    error: null,
+  });
+
+  try {
+    await api.delete(`/notifications/${id}`);
+  } catch (error) {
+    console.error('Failed to dismiss notification', error);
+    set({ ...previous, error: 'That notification could not be removed.' });
+  }
+}
+
+/** Deletes every notification already read. Unread ones are left alone — they have not been seen. */
+export async function clearReadNotifications(): Promise<void> {
+  const readCount = state.items.filter((item) => item.isRead).length;
+  if (readCount === 0) return;
+
+  const previous = state;
+  set({ items: state.items.filter((item) => !item.isRead), error: null });
+
+  try {
+    await api.delete('/notifications/read');
+    // Re-read: rows beyond this page were deleted too, so the totals here are a guess until the
+    // server says otherwise.
+    await loadNotifications();
+  } catch (error) {
+    console.error('Failed to clear read notifications', error);
+    set({ ...previous, error: 'Those notifications could not be removed.' });
+  }
+}
+
 /** Drops everything on sign-out, so the next person in this tab never sees the previous one's. */
 export function resetNotifications(): void {
   state = EMPTY;

@@ -24,26 +24,29 @@ interface FieldErrors {
 /**
  * Step 2 of password recovery.
  *
- * TWO CREDENTIALS, NOT ONE. The emailed six-digit code only proves the customer read the inbox;
- * exchanging it yields a high-entropy, single-use ticket, and that is what actually authorises the
- * change. A number a person can type is never the thing that sets a password.
+ * TWO WAYS IN, ONE ENDING.
  *
- * The ticket lives in component state for the length of the flow and is never written to storage,
- * never rendered and never logged. A refresh loses it, which is correct — the customer re-enters a
- * fresh code rather than the browser holding a reusable credential.
+ *   ?token=…   the emailed LINK — the normal route. The token IS the credential: 256 bits of
+ *              CSPRNG output, single-use, 30-minute expiry, stored only as a SHA-256 hash. There
+ *              is nothing for the customer to type, so this lands straight on the password form.
+ *   a code     the six-digit fallback. A number a person can type is guessable, so it never sets
+ *              a password itself — it is exchanged for a high-entropy ticket first, and the ticket
+ *              is what authorises the change.
  *
- * The legacy `?token=` link from before this flow is still honoured, unchanged, so links already
- * sitting in inboxes keep working for one release.
+ * Neither credential is written to storage, rendered or logged. A refresh loses an in-memory
+ * ticket, which is correct: the customer starts again rather than the browser holding something
+ * reusable. The link survives a refresh because it is in the URL the customer was sent.
  */
 export default function ResetPassword() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  const legacyToken = searchParams.get('token') ?? '';
+  /** The emailed link's token. Present = this customer arrived the normal way. */
+  const linkToken = searchParams.get('token') ?? '';
   const emailFromState = (location.state as { email?: string } | null)?.email ?? '';
   const [email] = useState(emailFromState || searchParams.get('email') || '');
 
-  // A legacy link arrives already verified by its own token, so it skips straight to the password.
+  // A link is already proof on its own, so it skips the code step entirely.
   const [ticket, setTicket] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -56,7 +59,7 @@ export default function ResetPassword() {
   const [cooldown, setCooldown] = useState(0);
   const [done, setDone] = useState(false);
 
-  const stage: 'code' | 'password' = legacyToken || ticket ? 'password' : 'code';
+  const stage: 'code' | 'password' = linkToken || ticket ? 'password' : 'code';
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -120,7 +123,7 @@ export default function ResetPassword() {
     setPending(true);
     try {
       // Exactly one credential goes with the request — the backend rejects a body carrying both.
-      const credential = ticket ? { ticket } : { token: legacyToken };
+      const credential = ticket ? { ticket } : { token: linkToken };
       await resetPassword({ ...credential, password, confirmPassword });
       setDone(true);
     } catch (error) {
@@ -134,9 +137,10 @@ export default function ResetPassword() {
     }
   }
 
-  // No address and no legacy token means the flow was entered sideways — a bookmark, or a refresh
-  // that dropped router state. Say so rather than presenting a form guaranteed to fail.
-  if (!email && !legacyToken) {
+  // No address and no link token means the page was entered sideways — a bookmark, a truncated
+  // link, or a mail client that dropped the query string. Say so rather than presenting a form
+  // that is guaranteed to fail on submit.
+  if (!email && !linkToken) {
     return (
       <AuthLayout
         title="Reset link not valid"
@@ -150,7 +154,7 @@ export default function ResetPassword() {
           </Link>
         }
       >
-        <AuthAlert message="Request a new code from the forgot-password page." />
+        <AuthAlert message="Request a new reset link from the forgot-password page." />
       </AuthLayout>
     );
   }

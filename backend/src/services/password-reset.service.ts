@@ -1,17 +1,15 @@
 import bcrypt from 'bcryptjs';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { passwordResetTokens, users } from '../db/schema.js';
+import { env } from '../config/env.js';
 import { ApiError } from '../middleware/error.js';
 import { mailerConfigured, sendMail } from '../lib/mailer.js';
-import { buildVerificationEmail } from '../lib/emails/emailVerification.js';
+import { buildPasswordResetLinkEmail } from '../lib/emails/passwordResetLink.js';
 import {
-  CHALLENGE_TTL_MS,
   consumeAllChallenges,
-  issueOtpChallenge,
   issueTicket,
-  recordDelivery,
   redeemOtpChallenge,
   redeemTicket,
 } from './auth-challenge.service.js';
@@ -44,9 +42,10 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-// generateToken() lived here to mint the emailed ?token= link. Nothing issues those any more —
-// requestPasswordReset() sends a code, and lib/otp.ts owns generation for both credential shapes.
-// Only resolveLegacyToken() still reads the old table, to honour links already in inboxes.
+// `resolveLegacyToken` keeps its name because the CODE flow is still supported alongside this
+// one: /auth/verify-reset-code exchanges a six-digit code for a ticket, and resetPassword accepts
+// either credential. Both paths land on the same transaction, so a link already in an inbox and a
+// code already in flight both keep working.
 
 /**
  * Requests a reset.
@@ -81,27 +80,45 @@ export async function requestPasswordReset(input: ForgotPasswordInput): Promise<
     return;
   }
 
-  // The emailed credential is now a one-time CODE rather than a link. What it unlocks is
-  // unchanged in strength: the code only proves the customer read this inbox, and exchanges into
-  // the 256-bit ticket that actually authorises the password change. See resetPassword().
-  const { challengeId, code } = await issueOtpChallenge(user.id, 'password_reset');
+  // ── One-time link ──────────────────────────────────────────────────
+  // The emailed credential is a LINK again. It was briefly a six-digit code, which made the
+  // customer the transport: read the code, switch windows, retype it before it expired. The token
+  // below is 256 bits of CSPRNG output, so the link is also the stronger of the two — a code is a
+  // million-space number that has to be rate-limited to stay safe, and this is not guessable at all.
+  //
+  // Only the SHA-256 hash is stored. A dump of `password_reset_tokens` therefore yields nothing
+  // usable, and the raw token exists only in the email.
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
 
-  const message = buildVerificationEmail({
-    to: user.email,
-    fullName: user.fullName,
-    code,
-    expiresInMinutes: Math.round(CHALLENGE_TTL_MS / 60_000),
-    purpose: 'password-reset',
-  });
+  // Any earlier unused link for this account is spent first. Requesting a new one is what a
+  // customer does when the old mail is lost or was intercepted, and leaving the previous link
+  // live would mean the "new" request did not actually replace anything.
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: new Date() })
+    .where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt)));
+
+  await db.insert(passwordResetTokens).values({ userId: user.id, tokenHash: hashToken(token), expiresAt });
+
+  const resetUrl = `${env.frontendUrl.replace(/\/+$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
 
   try {
-    await sendMail(message);
-    await recordDelivery(challengeId);
+    await sendMail(buildPasswordResetLinkEmail({
+      to: user.email,
+      fullName: user.fullName,
+      resetUrl,
+      expiresInMinutes: Math.round(RESET_TOKEN_TTL_MS / 60_000),
+    }));
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown error';
-    await recordDelivery(challengeId, reason);
-    // Logged without the address or the code — both would leak what the generic response protects.
+    // Logged without the address, the token or the URL — all three would leak what the generic
+    // response protects. The row is burned so an undeliverable link cannot sit there live.
     console.error(`[scorelo-auth] password reset email failed to send: ${reason}`);
+    await db
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(passwordResetTokens.tokenHash, hashToken(token)), isNull(passwordResetTokens.usedAt)));
   }
 }
 

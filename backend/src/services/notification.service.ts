@@ -227,6 +227,39 @@ export async function markNotificationRead(userId: number, id: number, storeId?:
   return notification;
 }
 
+/**
+ * Removes one notification for good.
+ *
+ * Deliberately separate from "read". Reading something is a statement about attention; deleting
+ * it is a statement about the record. Collapsing the two would mean a merchant who glanced at
+ * "Store analysis could not finish" could never look at it again.
+ */
+export async function deleteNotification(userId: number, id: number, storeId?: number) {
+  const resolvedStoreId = await getCurrentStoreId(userId, storeId);
+
+  const [notification] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(and(eq(notifications.id, id), eq(notifications.storeId, resolvedStoreId)))
+    .limit(1);
+  // Checked before deleting so a caller aiming at another store's row gets 404 rather than a
+  // silent success that deleted nothing.
+  if (!notification) throw new ApiError(404, 'Notification not found', 'NOTIFICATION_NOT_FOUND');
+
+  await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.storeId, resolvedStoreId)));
+  return { id };
+}
+
+/** Clears everything already read. Unread rows are never touched — the merchant has not seen them. */
+export async function clearReadNotifications(userId: number, storeId?: number) {
+  const resolvedStoreId = await getCurrentStoreId(userId, storeId);
+  const where = and(eq(notifications.storeId, resolvedStoreId), eq(notifications.isRead, true));
+
+  const rows = await db.select({ id: notifications.id }).from(notifications).where(where);
+  if (rows.length > 0) await db.delete(notifications).where(where);
+  return { deleted: rows.length };
+}
+
 export async function markAllNotificationsRead(userId: number, storeId?: number) {
   const resolvedStoreId = await getCurrentStoreId(userId, storeId);
 

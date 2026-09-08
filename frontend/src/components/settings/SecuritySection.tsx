@@ -16,6 +16,7 @@ import {
   type SecurityProfile,
   type SessionRecord,
 } from '../../data/security.repository';
+import { resendVerification } from '../../data/auth.repository';
 import { Button } from '../workflows/WorkflowPrimitives';
 import { Field, SettingsCard, TextInput } from './SettingsPrimitives';
 
@@ -55,6 +56,28 @@ export default function SecuritySection() {
   const [twoFactorPassword, setTwoFactorPassword] = useState('');
   const [twoFactorError, setTwoFactorError] = useState('');
   const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
+  const [verificationNotice, setVerificationNotice] = useState('');
+
+  /**
+   * Sends the verification email that unblocks 2FA.
+   *
+   * The endpoint answers identically for every address by design, so there is no failure worth
+   * distinguishing here — a success message either way is what the API already guarantees, and
+   * anything more specific would confirm which addresses exist.
+   */
+  async function handleResendVerification() {
+    if (!profile?.email) return;
+    setSendingVerification(true);
+    try {
+      await resendVerification(profile.email);
+    } catch {
+      // Deliberately not surfaced separately — see above.
+    } finally {
+      setSendingVerification(false);
+      setVerificationNotice('Verification email sent. Open the link in it, then reload this page to turn on two-factor authentication.');
+    }
+  }
 
   /** Read from the server's record, never from local state — the backend owns whether 2FA is on. */
   const twoFactorOn = Boolean(profile?.twoFactorEnabledAt);
@@ -290,14 +313,33 @@ export default function SecuritySection() {
         </div>
 
         {/* The email gate is enforced server-side; showing it here explains the refusal before the
-            customer runs into it. */}
+            customer runs into it.
+
+            It also now offers the way out. This used to be a dead end: the notice said "verify
+            your address first", the Turn on button was disabled, and there was nothing anywhere on
+            the page that could send a verification email — so the only reading available was that
+            the button was broken. */}
         {!profile?.emailVerifiedAt && !twoFactorOn && (
-          <div className="mt-2 flex items-start gap-2.5 rounded-md border border-warning-100 bg-warning-50 px-2.5 py-2">
+          <div className="mt-2 flex flex-wrap items-start gap-2.5 rounded-md border border-warning-100 bg-warning-50 px-2.5 py-2">
             <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-warning-600" aria-hidden="true" />
-            <p className="text-[11.5px] leading-[1.4] text-warning-800">
-              Verify your email address first — the codes are sent there, so turning this on before
-              then would lock you out.
-            </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11.5px] leading-[1.4] text-warning-800">
+                Verify your email address first — the codes are sent there, so turning this on before
+                then would lock you out.
+              </p>
+              {verificationNotice ? (
+                <p className="mt-1 text-[11.5px] font-medium text-warning-900">{verificationNotice}</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={sendingVerification || !profile?.email}
+                  className="mt-1 cursor-pointer rounded text-[11.5px] font-semibold text-warning-900 underline underline-offset-2 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {sendingVerification ? 'Sending…' : `Send a verification email to ${profile?.email ?? 'your address'}`}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -328,15 +370,28 @@ export default function SecuritySection() {
             />
           </Field>
           <div className="pb-3">
-            <Button
-              type="submit"
-              variant={twoFactorOn ? 'danger' : 'primary'}
-              disabled={
-                togglingTwoFactor || !twoFactorPassword || (!twoFactorOn && !profile?.emailVerifiedAt)
+            {/* A disabled control has to say why it is disabled where the pointer is, not only in
+                a banner further up the card — typing a correct password into a field beside a
+                button that then does nothing reads as a broken button, not as a precondition. */}
+            <span
+              title={
+                !twoFactorOn && !profile?.emailVerifiedAt
+                  ? 'Verify your email address first — the sign-in codes are sent there.'
+                  : !twoFactorPassword
+                    ? 'Enter your current password to confirm this change.'
+                    : undefined
               }
             >
-              {togglingTwoFactor ? 'Saving…' : twoFactorOn ? 'Turn off' : 'Turn on'}
-            </Button>
+              <Button
+                type="submit"
+                variant={twoFactorOn ? 'danger' : 'primary'}
+                disabled={
+                  togglingTwoFactor || !twoFactorPassword || (!twoFactorOn && !profile?.emailVerifiedAt)
+                }
+              >
+                {togglingTwoFactor ? 'Saving…' : twoFactorOn ? 'Turn off' : 'Turn on'}
+              </Button>
+            </span>
           </div>
         </form>
       </SettingsCard>

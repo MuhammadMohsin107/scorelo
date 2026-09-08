@@ -1,6 +1,8 @@
-import { AlertCircle, ArrowLeft, BellOff, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, BellOff, Loader2, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
+  clearReadNotifications,
+  dismissNotification,
   formatNotificationTime,
   iconForNotification,
   markAllNotificationsRead,
@@ -12,6 +14,7 @@ export default function Notifications() {
   // The same store the header bell reads. Marking something read here updates the badge in the
   // same tick — the two used to hold separate arrays and drift apart until a full reload.
   const { items, unreadCount, total, status, error } = useNotifications();
+  const readCount = items.filter((notification) => notification.isRead).length;
 
   return (
     <div className="min-h-full bg-surface-50">
@@ -25,14 +28,28 @@ export default function Notifications() {
               {unreadCount} unread{total > items.length && ` · showing the latest ${items.length} of ${total}`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void markAllNotificationsRead()}
-            disabled={unreadCount === 0}
-            className="btn-secondary btn-xs"
-          >
-            Mark all as read
-          </button>
+          {/* Read notifications leave the bell on their own; this page keeps them so a merchant
+              can look back at what happened. "Clear read" is how they go for good — an explicit
+              act, never a side effect of glancing at one. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => void markAllNotificationsRead()}
+              disabled={unreadCount === 0}
+              className="btn-secondary btn-xs"
+            >
+              Mark all as read
+            </button>
+            <button
+              type="button"
+              onClick={() => void clearReadNotifications()}
+              disabled={readCount === 0}
+              className="btn-ghost btn-xs text-surface-600"
+            >
+              <Trash2 size={12} aria-hidden="true" />
+              Clear read ({readCount})
+            </button>
+          </div>
         </div>
 
         {/* A rolled-back write says so. Previously both handlers applied the change optimistically
@@ -66,24 +83,37 @@ export default function Notifications() {
             </div>
           )}
 
+          {/* A row, not a button, so the per-row remove control is not nested inside a clickable
+              element — a button inside a button is invalid HTML and the inner one stops working. */}
           {items.map((notification) => {
             const Icon = iconForNotification(notification.type);
             return (
-              <button
+              <div
                 key={notification.id}
-                type="button"
-                onClick={() => void markNotificationRead(notification.id)}
-                disabled={notification.isRead}
-                className={`flex w-full gap-2.5 border-b border-surface-100 px-3 py-2 text-left transition-colors last:border-b-0 enabled:hover:bg-surface-50 disabled:cursor-default ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}
+                className={`flex items-start gap-2.5 border-b border-surface-100 px-3 py-2 transition-colors last:border-b-0 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}
               >
                 <Icon size={16} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
-                <span className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => void markNotificationRead(notification.id)}
+                  disabled={notification.isRead}
+                  className="min-w-0 flex-1 text-left disabled:cursor-default"
+                  aria-label={notification.isRead ? notification.title : `Mark "${notification.title}" as read`}
+                >
                   <span className={`block text-[12.5px] ${notification.isRead ? 'font-medium text-surface-700' : 'font-bold text-surface-900'}`}>{notification.title}</span>
                   <span className="mt-0.5 block text-[11.5px] leading-[1.4] text-surface-500">{notification.message}</span>
                   <span className="mt-1 block text-[11px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span>
-                </span>
+                </button>
                 {!notification.isRead && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => void dismissNotification(notification.id)}
+                  aria-label={`Remove "${notification.title}"`}
+                  className="mt-px flex-shrink-0 rounded p-1 text-surface-300 transition-colors hover:bg-surface-100 hover:text-critical-600"
+                >
+                  <X size={13} />
+                </button>
+              </div>
             );
           })}
         </section>

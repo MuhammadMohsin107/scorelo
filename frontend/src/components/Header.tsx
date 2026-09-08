@@ -41,7 +41,16 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   // Shared with the /notifications page. The bell used to keep its own array and its own count,
   // so marking everything read on that page left this badge showing the old number.
-  const { items: notifications, unreadCount, error: notificationError } = useNotifications();
+  const { items, unreadCount, error: notificationError } = useNotifications();
+  /**
+   * THE BELL SHOWS UNREAD ONLY.
+   *
+   * It listed read ones too, which is why the panel could say "0 unread" above four notifications
+   * — nothing ever left it, so a merchant who had dealt with everything still saw a full list and
+   * no way to clear it. Reading one now removes it from here; the archive lives on
+   * /notifications, where it can also be deleted for good.
+   */
+  const notifications = items.filter((notification) => !notification.isRead);
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -209,14 +218,21 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
                 <p role="alert" className="border-b border-critical-100 bg-critical-50 px-3 py-1.5 text-[11px] text-critical-700">{notificationError}</p>
               )}
               <div className="max-h-[min(400px,calc(100vh-7rem))] overflow-y-auto">
-                {/* A real empty state, because an empty bell is now a real outcome. Notifications
-                    are only written by events that actually happened — a finished audit, a failed
-                    sync, an expired token, an uninstall — so a healthy new store legitimately has
-                    none, and saying so beats an unexplained blank panel. */}
+                {/* Two different empty states, because they mean different things: nothing has
+                    happened yet, versus everything that happened has been dealt with. */}
                 {notifications.length === 0 && (
                   <p className="px-3 py-6 text-center text-[11.5px] leading-[1.45] text-surface-500">
-                    Nothing to report yet.<br />
-                    <span className="text-surface-400">You'll hear about finished audits and connection problems here.</span>
+                    {items.length > 0 ? (
+                      <>
+                        You're all caught up.<br />
+                        <span className="text-surface-400">Read notifications stay on the notifications page.</span>
+                      </>
+                    ) : (
+                      <>
+                        Nothing to report yet.<br />
+                        <span className="text-surface-400">You'll hear about finished audits, score changes and connection problems here.</span>
+                      </>
+                    )}
                   </p>
                 )}
                 {notifications.map((notification) => {
