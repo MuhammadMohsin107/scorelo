@@ -1,9 +1,10 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { auditScores, audits } from '../db/schema.js';
+import { auditScores, audits, findings, stores } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { getCurrentStoreId } from './store.service.js';
-import type { ReportTrendQuery } from '../schemas/report.schema.js';
+import { pillarLabel, pillarRank, scoreStatus, severityRank, subPillarLabel } from '../lib/report-labels.js';
+import type { ReportExportQuery, ReportTrendQuery } from '../schemas/report.schema.js';
 
 export async function getReportTrend(userId: number, { limit }: ReportTrendQuery, storeId?: number) {
   const resolvedStoreId = await getCurrentStoreId(userId, storeId);
@@ -28,14 +29,184 @@ export function escapeCsv(value: string | number | Date | null) {
   return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-export async function getReportCsv(userId: number, storeId?: number) {
-  const comparison = await getReportComparison(userId, storeId);
-  const previousByKey = new Map(comparison.previousScores.map((score) => [`${score.pillar}:${score.subPillar ?? ''}`, score]));
-  const lines = ['Pillar,Sub-pillar,Current score,Previous score,Change'];
-  for (const score of comparison.currentScores) {
-    const previous = previousByKey.get(`${score.pillar}:${score.subPillar ?? ''}`);
-    const change = previous ? score.score - previous.score : '';
-    lines.push([score.pillar, score.subPillar, score.score, previous?.score ?? '', change].map(escapeCsv).join(','));
+// ─── CSV export ───────────────────────────────────────────────────────
+//
+// The old export was five columns of `audit_scores` in whatever order MySQL returned them, with
+// sub-pillar rows and pillar rows interleaved and no way to tell which was which. What follows is
+// a report: a summary of the run, the pillar comparison the Reports page shows, the sub-pillar
+// breakdown behind it, and the prioritised issue list — each a clean table, in the order a person
+// reads an audit.
+
+type ScoreRow = typeof auditScores.$inferSelect;
+type AuditRow = typeof audits.$inferSelect;
+
+/** `details.status === 'unavailable'` means the stored score is a placeholder, not a result. */
+function isMeasured(score: ScoreRow): boolean {
+  const details = (score.details ?? {}) as { status?: string };
+  return details.status !== 'unavailable';
+}
+
+function scoreCell(score: ScoreRow): string {
+  return isMeasured(score) ? String(score.score) : 'Not measured';
+}
+
+/** UTC, spelled out. A bare ISO string in a spreadsheet cell is read as text and sorts wrong. */
+function reportDate(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+}
+
+function signed(value: number): string {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+/** 'critical' / 'open' are storage values. A column a person reads says "Critical" and "Open". */
+function sentence(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
+}
+
+function row(cells: (string | number | null)[]): string {
+  return cells.map(escapeCsv).join(',');
+}
+
+async function resolveExportAudit(storeId: number, auditId?: number): Promise<{ current: AuditRow; previous: AuditRow | null }> {
+  const where = auditId ? and(eq(audits.storeId, storeId), eq(audits.id, auditId)) : eq(audits.storeId, storeId);
+  const [current] = await db.select().from(audits).where(where).orderBy(desc(audits.runAt)).limit(1);
+  // A missing audit and an audit belonging to someone else are the same 404 — the store filter
+  // above is what makes an id from another merchant's account unreachable, not a later check.
+  if (!current) {
+    throw new ApiError(404, auditId ? 'Report not found' : 'No completed audits found', auditId ? 'REPORT_NOT_FOUND' : 'AUDITS_NOT_FOUND');
   }
-  return lines.join('\n');
+
+  const [previous] = await db
+    .select()
+    .from(audits)
+    .where(and(eq(audits.storeId, storeId), lt(audits.runAt, current.runAt)))
+    .orderBy(desc(audits.runAt))
+    .limit(1);
+
+  return { current, previous: previous ?? null };
+}
+
+export interface ReportCsvResult {
+  csv: string;
+  filename: string;
+}
+
+export async function getReportCsv(userId: number, query: ReportExportQuery = {}): Promise<ReportCsvResult> {
+  const resolvedStoreId = await getCurrentStoreId(userId, query.storeId);
+  const [store] = await db.select().from(stores).where(eq(stores.id, resolvedStoreId)).limit(1);
+  const { current, previous } = await resolveExportAudit(resolvedStoreId, query.auditId);
+
+  const [currentScores, previousScores, issueRows] = await Promise.all([
+    db.select().from(auditScores).where(eq(auditScores.auditId, current.id)),
+    previous ? db.select().from(auditScores).where(eq(auditScores.auditId, previous.id)) : Promise.resolve([] as ScoreRow[]),
+    db.select().from(findings).where(eq(findings.auditId, current.id)),
+  ]);
+
+  const previousByKey = new Map(previousScores.map((score) => [`${score.pillar}:${score.subPillar ?? ''}`, score]));
+  const overallMeasured = (current.metadata as { overallAvailable?: boolean } | null)?.overallAvailable !== false;
+  const lines: string[] = [];
+
+  // ── 1. Report summary ──────────────────────────────────────────────
+  lines.push(row(['Scorelo report']));
+  lines.push(row(['Store', store?.name ?? '']));
+  lines.push(row(['Store URL', store?.url ?? '']));
+  lines.push(row(['Report date', reportDate(current.runAt)]));
+  lines.push(row(['Compared with', previous ? reportDate(previous.runAt) : 'No earlier audit']));
+  lines.push(row(['Overall score', overallMeasured ? String(current.overallScore) : 'Not measured']));
+  lines.push(row(['Previous overall score', previous ? String(previous.overallScore) : '']));
+  lines.push(row(['Change', previous && overallMeasured ? signed(current.overallScore - previous.overallScore) : '']));
+  lines.push(row(['Issues found', String(issueRows.length)]));
+  // A seeded fixture must never leave the building looking like a real audit of the store.
+  if (current.source !== 'engine') lines.push(row(['Data source', `${current.source} (not a live audit of this store)`]));
+  lines.push('');
+
+  // ── 2. Pillar performance ──────────────────────────────────────────
+  const pillarRows = currentScores
+    .filter((score) => score.subPillar === null)
+    .sort((a, b) => pillarRank(a.pillar) - pillarRank(b.pillar));
+
+  lines.push(row(['Pillar performance']));
+  lines.push(row(['Pillar', 'Current score', 'Previous score', 'Change', 'Status', 'Checks passed', 'Checks total']));
+  for (const score of pillarRows) {
+    const before = previousByKey.get(`${score.pillar}:`);
+    const measured = isMeasured(score);
+    lines.push(row([
+      pillarLabel(score.pillar),
+      scoreCell(score),
+      before && isMeasured(before) ? String(before.score) : '',
+      before && isMeasured(before) && measured ? signed(score.score - before.score) : '',
+      measured ? scoreStatus(score.score) : 'Not measured',
+      score.checksPassed ?? '',
+      score.checksTotal ?? '',
+    ]));
+  }
+  lines.push('');
+
+  // ── 3. Sub-pillar breakdown ────────────────────────────────────────
+  // Sorted by the LABEL, not the slug: the reader sees "Canonicals & duplicates" before
+  // "Image alt text", so ordering by 'canonicals' vs 'image-alt-text' would look arbitrary.
+  const subPillarRows = currentScores
+    .filter((score) => score.subPillar !== null)
+    .sort((a, b) =>
+      pillarRank(a.pillar) - pillarRank(b.pillar)
+      || subPillarLabel(a.subPillar ?? '').localeCompare(subPillarLabel(b.subPillar ?? '')));
+
+  lines.push(row(['Sub-pillar breakdown']));
+  lines.push(row(['Pillar', 'Sub-pillar', 'Score', 'Status', 'Items analyzed', 'Items healthy', 'Items with issues', 'Notes']));
+  for (const score of subPillarRows) {
+    const details = (score.details ?? {}) as { status?: string; unavailableReason?: string; summary?: string };
+    const measured = isMeasured(score);
+    const analyzed = score.analyzedCount ?? 0;
+    const healthy = score.healthyCount ?? 0;
+    lines.push(row([
+      pillarLabel(score.pillar),
+      subPillarLabel(score.subPillar ?? ''),
+      scoreCell(score),
+      measured ? scoreStatus(score.score) : 'Not measured',
+      measured ? analyzed : '',
+      measured ? healthy : '',
+      measured ? Math.max(analyzed - healthy, 0) : '',
+      // The reason a check could not measure is the most useful thing on an unmeasured row.
+      measured ? details.summary ?? '' : details.unavailableReason ?? '',
+    ]));
+  }
+  lines.push('');
+
+  // ── 4. Issues, most severe first ───────────────────────────────────
+  lines.push(row(['Issues']));
+  lines.push(row(['Priority', 'Severity', 'Pillar', 'Sub-pillar', 'Issue', 'Status', 'Affected items', 'Affected unit', 'Impact', 'Potential score lift', 'Recommendation']));
+  if (issueRows.length === 0) {
+    // Padded to the header's width so the block stays a rectangle a spreadsheet can read.
+    lines.push(row(['', '', '', '', 'No issues found in this audit', '', '', '', '', '', '']));
+  } else {
+    const ordered = [...issueRows].sort((a, b) =>
+      severityRank(a.severity) - severityRank(b.severity)
+      || pillarRank(a.pillar) - pillarRank(b.pillar)
+      || b.affectedCount - a.affectedCount
+      || a.title.localeCompare(b.title));
+
+    ordered.forEach((finding, index) => {
+      lines.push(row([
+        index + 1,
+        sentence(finding.severity),
+        pillarLabel(finding.pillar),
+        subPillarLabel(finding.subPillar),
+        finding.title,
+        sentence(finding.status),
+        finding.affectedCount,
+        finding.affectedLabel,
+        finding.impact,
+        finding.scoreLift > 0 ? signed(finding.scoreLift) : '',
+        finding.recommendation,
+      ]));
+    });
+  }
+
+  const slug = (store?.name ?? 'store').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'store';
+  const stamp = reportDate(current.runAt).slice(0, 10);
+  // \r\n: Excel treats a lone \n inside a quoted cell as a row break on some platforms.
+  return { csv: lines.join('\r\n'), filename: `scorelo-report-${slug}-${stamp}.csv` };
 }

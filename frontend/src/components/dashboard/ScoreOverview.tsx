@@ -82,13 +82,17 @@ export default function ScoreOverview({ data, metrics }: Props) {
 
   return (
     <section className={`${cardClass} relative overflow-hidden`} aria-labelledby="overall-health-title">
-      <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-brand-100/50 blur-3xl" aria-hidden="true" />
+      {/* The 288px blurred glow that sat here is gone. It carried no information and, being
+          absolutely positioned, contributed nothing but render cost. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-300/60 to-transparent" aria-hidden="true" />
 
-      <div className="relative p-3.5 md:p-7">
-        <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
+      {/* 14px, not 28. `md:p-7` was the last oversized padding left on the dashboard, and because
+          this card sets the height of its whole grid row, that padding read as a gap between the
+          dashboard and the pillar cards below it. */}
+      <div className="relative p-3.5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
           {/* Score + narrative */}
-          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <ScoreRing score={data.score} hex={tone.hex} measured={data.measured} />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-surface-500">Overall health</p>
@@ -123,7 +127,7 @@ export default function ScoreOverview({ data, metrics }: Props) {
             </div>
           </div>
 
-          <div className="lg:w-[300px] lg:flex-shrink-0 lg:border-l lg:border-surface-100 lg:pl-7">
+          <div className="lg:w-[280px] lg:flex-shrink-0 lg:border-l lg:border-surface-100 lg:pl-4">
             <MetricSummary metrics={metrics} overallScore={data} layout="column" />
           </div>
 

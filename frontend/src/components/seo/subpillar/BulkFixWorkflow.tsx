@@ -56,6 +56,8 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
   const [aiCount, setAiCount] = useState(0);
   /** A redraft the merchant asked for, separate from the automatic first pass. */
   const [isDrafting, setIsDrafting] = useState(false);
+  /** How the values in this modal were produced. 'manual' until the merchant asks for a draft. */
+  const [fillMode, setFillMode] = useState<'manual' | 'ai'>('manual');
 
   /**
    * Asks the model to draft values for the rows given.
@@ -113,34 +115,26 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
         ? 'These rows are not covered by AI drafting yet — write the values yourself, or edit the suggestions above.'
         : 'AI could not draft these right now. Nothing has been filled in for you — the boxes are exactly as they were.';
 
-  /** First pass: deterministic suggestions, then AI for whatever is still blank. */
+  /**
+   * Opens EMPTY, in manual mode. Nothing is written for the merchant until they ask.
+   *
+   * This used to pre-fill every box with the deterministic suggestion and then quietly call the
+   * model for whatever was still blank. Both halves were wrong for the same reason: the merchant
+   * never chose either. What they saw was a column of values they had not asked for — and for
+   * short titles that value was the store name appended to their own title, which reads as a
+   * recommendation while being pure boilerplate.
+   *
+   * Writing a value is now always a deliberate act: type it, or press Draft with AI.
+   */
   useEffect(() => {
     if (applied.length > 0) return;
-    let active = true;
+    setDrafts(Object.fromEntries(rows.map((row) => [row.id, ''])));
+    setIsGenerating(false);
+  }, [applied.length, rows]);
 
-    const deterministic = Object.fromEntries(rows.map((row) => [row.id, row.suggested?.value ?? '']));
-    setDrafts(deterministic);
-
-    (async () => {
-      const { filled, model, reasons } = await draftWithAi(true, deterministic);
-      if (!active) return;
-
-      const count = Object.keys(filled).length;
-      setAiCount(count);
-      setAiModel(model);
-      if (count > 0) setDrafts((existing) => ({ ...existing, ...filled }));
-      // Silent when every box already had a defensible value — there was nothing for AI to do,
-      // and a warning about it would be noise.
-      const everythingAlreadyFilled = Object.values(deterministic).every(Boolean);
-      if (count === 0 && !everythingAlreadyFilled) setAiNotice(noticeFor(reasons));
-      setIsGenerating(false);
-    })();
-
-    return () => { active = false; };
-  }, [applied.length, rows, draftWithAi]);
-
-  /** The explicit action: redraft everything selected, whatever is in the boxes now. */
+  /** The explicit action: draft every selected row from the resources' own content. */
   const redraftWithAi = async () => {
+    setFillMode('ai');
     setIsDrafting(true);
     setAiNotice(null);
     const { filled, model, reasons } = await draftWithAi(false, drafts);
@@ -150,6 +144,14 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
     if (count > 0) setDrafts((existing) => ({ ...existing, ...filled }));
     else setAiNotice(noticeFor(reasons));
     setIsDrafting(false);
+  };
+
+  /** Back to typing: clears what the model wrote, so "manual" means manual. */
+  const switchToManual = () => {
+    setFillMode('manual');
+    setAiNotice(null);
+    setAiCount(0);
+    setDrafts(Object.fromEntries(rows.map((row) => [row.id, ''])));
   };
 
   const reviews = useMemo(
@@ -223,20 +225,49 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
                   {aiCount} drafted by AI{aiModel ? ` · ${aiModel}` : ''}
                 </span>
               )}
-              {/* The AI option, stated as an action rather than left as a background behaviour.
-                  A merchant who does not like a suggestion can ask the model to rewrite the whole
-                  selection from the resources' own content. */}
-              <button
-                type="button"
-                onClick={() => void redraftWithAi()}
-                disabled={isDrafting}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-surface-0 px-2 py-1 text-[11.5px] font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isDrafting
-                  ? <Loader2 size={11} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                  : <Sparkles size={11} aria-hidden="true" />}
-                {isDrafting ? 'Drafting…' : aiCount > 0 ? 'Redraft with AI' : 'Draft with AI'}
-              </button>
+
+              {/* ── Two ways to fill these boxes, and the merchant picks ────
+                  Manual is the default and writes nothing at all. AI drafts every selected row
+                  from the resources' own content. Neither happens on its own: a value the
+                  merchant did not ask for is not a recommendation, it is a surprise. */}
+              <div className="ml-auto flex items-center gap-1.5">
+                <div className="inline-flex gap-0.5 rounded-md border border-surface-200 bg-surface-100/70 p-0.5" role="group" aria-label="How to fill the recommendations">
+                  <button
+                    type="button"
+                    onClick={switchToManual}
+                    aria-pressed={fillMode === 'manual'}
+                    className={`cursor-pointer rounded px-2 py-0.5 text-[11.5px] font-medium transition-colors ${
+                      fillMode === 'manual' ? 'bg-surface-0 text-surface-950 shadow-[0_1px_2px_var(--c-shadow-md)]' : 'text-surface-500 hover:text-surface-800'
+                    }`}
+                  >
+                    Write manually
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void redraftWithAi()}
+                    aria-pressed={fillMode === 'ai'}
+                    disabled={isDrafting}
+                    className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-[11.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                      fillMode === 'ai' ? 'bg-surface-0 text-brand-700 shadow-[0_1px_2px_var(--c-shadow-md)]' : 'text-surface-500 hover:text-surface-800'
+                    }`}
+                  >
+                    {isDrafting
+                      ? <Loader2 size={11} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      : <Sparkles size={11} aria-hidden="true" />}
+                    {isDrafting ? 'Drafting…' : 'Draft with AI'}
+                  </button>
+                </div>
+
+                {fillMode === 'ai' && aiCount > 0 && !isDrafting && (
+                  <button
+                    type="button"
+                    onClick={() => void redraftWithAi()}
+                    className="cursor-pointer rounded px-1.5 py-0.5 text-[11px] font-medium text-surface-500 transition-colors hover:text-brand-700"
+                  >
+                    Redraft
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Stated, not implied. An empty box with no explanation reads as a broken feature. */}

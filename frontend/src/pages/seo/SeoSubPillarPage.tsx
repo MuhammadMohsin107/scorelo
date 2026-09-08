@@ -230,8 +230,10 @@ export default function SeoSubPillarPage({ analysis, configurator }: Props) {
           </div>
         </header>
 
-        {/* Sub-pillar configuration, when this sub-pillar has any. */}
-        {configurator && <div className="mt-3">{configurator}</div>}
+        {/* The configurator no longer sits here. It moved INTO the Settings panel this page
+            already opens from the header, beside Re-analyze — a template the merchant sets once is
+            configuration, and it was pushing the score, the findings and the evidence table below
+            the fold on every visit. The page now reads score first, exactly like the other seven. */}
 
         {/* Score + breakdown */}
         <div className="mt-3 grid grid-cols-12 gap-3">
@@ -314,7 +316,9 @@ export default function SeoSubPillarPage({ analysis, configurator }: Props) {
         onChange={updatePageSetting}
         onReset={() => setPageSettings(getDefaultSubPillarSettings(analysis.slug))}
         onSave={savePageSettings}
-      />
+      >
+        {configurator}
+      </PageSettingsPanel>
     </div>
   );
 }

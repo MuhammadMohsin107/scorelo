@@ -25,10 +25,12 @@ export default function PillarOverview({ pillars }: Props) {
 
   return (
     <section aria-labelledby="pillar-performance-title">
-      <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-surface-500">Pillars</p>
-          <h2 id="pillar-performance-title" className="mt-1 text-[15px] font-semibold tracking-tight text-surface-950">Performance by pillar</h2>
+      {/* Eyebrow and heading on one baseline, as everywhere else — stacked, they cost a line to
+          say two things the customer reads as one. */}
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-1.5">
+          <p className="eyebrow">Pillars</p>
+          <h2 id="pillar-performance-title" className="section-title">Performance by pillar</h2>
         </div>
         <span className="inline-flex items-center gap-2 text-[11.5px] text-surface-500">
           <span className="inline-block h-3 w-0.5 rounded-full bg-surface-900" aria-hidden="true" />

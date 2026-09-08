@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { shopifyConnections } from '../db/schema.js';
-import { aiConfigured, env } from '../config/env.js';
+import { aiConfigured, aiModelName } from '../config/env.js';
 import { classifyFixability, type FixabilityVerdict } from '../lib/ai/fix-policy.js';
 
 /**
@@ -50,7 +50,9 @@ export async function getFixContext(storeId: number): Promise<FixContext> {
   return {
     grantedScopes,
     aiAvailable: aiConfigured(),
-    aiModel: aiConfigured() ? env.openaiModel : null,
+    // Whichever vendor is configured. Reading env.openaiModel here hard-coded one of them into a
+    // service that has no business knowing which is in use.
+    aiModel: aiConfigured() ? aiModelName() : null,
   };
 }
 

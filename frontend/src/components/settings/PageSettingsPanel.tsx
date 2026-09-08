@@ -20,6 +20,17 @@ interface PageSettingsPanelProps {
   onChange: (key: string, value: PageSettingValue) => void;
   onReset: () => void;
   onSave: () => void;
+  /**
+   * A configuration surface belonging to one sub-pillar, rendered above the generic fields.
+   *
+   * Image Alt Text's template builder lives here rather than on the page. It is something a
+   * merchant sets once and rarely revisits, so on the page it pushed the score, the findings and
+   * the evidence table below the fold every single visit — while the panel is exactly where a
+   * "set it and forget it" control belongs, next to Re-analyze.
+   *
+   * It owns its own save, so the footer's Save applies to the generic fields only.
+   */
+  children?: React.ReactNode;
 }
 
 function renderField(field: PageSettingField, value: PageSettingValue, onChange: (value: PageSettingValue) => void) {
@@ -117,6 +128,7 @@ export default function PageSettingsPanel({
   onChange,
   onReset,
   onSave,
+  children,
 }: PageSettingsPanelProps) {
   if (!open) return null;
 
@@ -144,6 +156,7 @@ export default function PageSettingsPanel({
         </header>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          {children}
           {definition.sections.map((section) => (
             <section key={section.id} className={`${settingsCard} overflow-hidden`}>
               <div className="border-b border-surface-200 px-3 py-2">

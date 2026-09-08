@@ -52,7 +52,8 @@ scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_pol
 # /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install would finish the
 # install without ever handing Scorelo the `code`, so handleShopifyCallback would never run and
 # no access token would ever be stored.
-use_legacy_install_flow = true 
+use_legacy_install_flow = false 
+
 
 [auth]
 # Each entry must match redirectUri in buildInstallUrl() exactly, for the BACKEND_URL that

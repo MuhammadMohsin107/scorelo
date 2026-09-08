@@ -25,9 +25,9 @@ function monthAndYear(isoDate: string): string | null {
 /** Small label/value pair used across the identity card's meta strip. */
 function MetaPill({ icon: Icon, label, value }: { icon: typeof UserRound; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-surface-200 bg-surface-0 px-2.5 py-1.5">
-      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-surface-100 text-surface-600">
-        <Icon size={12} aria-hidden="true" />
+    <div className="flex items-center gap-2 rounded-md border border-surface-200 bg-surface-0 px-2 py-1">
+      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-surface-100 text-surface-600">
+        <Icon size={11} aria-hidden="true" />
       </span>
       <span className="min-w-0">
         <span className="block text-[9.5px] font-bold uppercase tracking-[0.11em] text-surface-400">{label}</span>
@@ -60,17 +60,17 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
           gone: this is now a plain flex row where the avatar and the name share one ground and
           cannot overlap anything at any width. The band carried no information, so nothing was
           lost with it — and the card is ~90px shorter. */}
-      <section className={`${settingsCard} px-3.5 py-3`}>
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <section className={`${settingsCard} px-3 py-2.5`}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-2.5">
             <span
-              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[15px] font-bold tracking-tight text-white"
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[14px] font-bold tracking-tight text-white"
               aria-hidden="true"
             >
               {initials}
             </span>
             <div className="min-w-0">
-              <h3 className="truncate text-[16px] font-bold leading-tight tracking-tight text-surface-950">
+              <h3 className="truncate text-[15px] font-bold leading-tight tracking-tight text-surface-950">
                 {displayName}
               </h3>
               <p className="truncate text-[11.5px] text-surface-500">
@@ -97,7 +97,7 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
           </div>
         </div>
 
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
           <MetaPill icon={AtSign} label="Email" value={profile.email || '—'} />
           {memberSince && <MetaPill icon={CalendarDays} label="Member since" value={memberSince} />}
           <MetaPill icon={Store} label="Workspace" value={workspace.workspaceName || '—'} />
@@ -109,7 +109,7 @@ export default function ProfileSection({ profile, workspace, errors, onChange }:
         title="Personal information"
         description="Shown across your Scorelo workspace and used as the address for account email."
       >
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           <Field label="Full name" htmlFor="fullName" error={errors.fullName} hint="Used across your Scorelo workspace.">
             <TextInput
               id="fullName"

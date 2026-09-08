@@ -234,24 +234,24 @@ export default function Settings() {
         description="Manage your account, the store Scorelo analyzes, and how the platform behaves."
       />
 
-      <div className="grid gap-3 lg:grid-cols-[224px_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-2.5 lg:grid-cols-[212px_minmax(0,1fr)] lg:items-start">
         {/* ── Navigation ────────────────────────────────────────── */}
         <nav className="lg:sticky lg:top-3" aria-label="Settings sections">
           {/* Identity header: the same monogram the app header renders, so the settings nav
               is visibly anchored to the account being edited. */}
-          <div className="mb-2 hidden items-center gap-3 rounded-lg border border-surface-200 bg-surface-0 p-3 lg:flex">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[12.5px] font-bold text-white">
+          <div className="mb-1.5 hidden items-center gap-2.5 rounded-lg border border-surface-200 bg-surface-0 px-2.5 py-2 lg:flex">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-[12px] font-bold text-white">
               {initialsFor(draft.profile.fullName)}
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-[13px] font-bold text-surface-900">
+              <span className="block truncate text-[12.5px] font-bold text-surface-900">
                 {draft.profile.fullName.trim() || 'Your account'}
               </span>
               <span className="block truncate text-[11px] text-surface-500">{draft.profile.email}</span>
             </span>
           </div>
 
-          <div className="relative mb-2">
+          <div className="relative mb-1.5">
             <label htmlFor="settings-search" className="sr-only">
               Search settings
             </label>
@@ -266,7 +266,7 @@ export default function Settings() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search settings…"
-              className="w-full rounded-lg border border-surface-200 bg-surface-0 py-2 pl-8 pr-8 text-[12.5px] outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-surface-200 bg-surface-0 py-1.5 pl-8 pr-8 text-[12px] outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             />
             {search && (
               <button
@@ -281,14 +281,14 @@ export default function Settings() {
           </div>
 
           {/* Mobile / tablet: horizontal pills. Desktop: grouped list. */}
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2 lg:hidden">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1.5 lg:hidden">
             {visibleSections.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => navigate(`/settings/${item.id}`)}
                 aria-current={active === item.id ? 'page' : undefined}
-                className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[11.5px] font-bold transition-colors ${
+                className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors ${
                   active === item.id ? 'bg-surface-950 text-surface-0' : 'border border-surface-200 bg-surface-0 text-surface-600'
                 }`}
               >
@@ -306,8 +306,8 @@ export default function Settings() {
               const items = visibleSections.filter((item) => item.group === group);
               if (items.length === 0) return null;
               return (
-                <div key={group} className="mb-2.5">
-                  <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-surface-400">{group}</p>
+                <div key={group} className="mb-1.5">
+                  <p className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-surface-400">{group}</p>
                   <ul className="space-y-0.5">
                     {items.map((item) => {
                       const isActive = active === item.id;
@@ -368,7 +368,7 @@ export default function Settings() {
 
         {/* ── Active section ────────────────────────────────────── */}
         <div className="min-w-0">
-          <header className="mb-2.5 flex flex-wrap items-start justify-between gap-3 border-b border-surface-200 pb-2.5">
+          <header className="mb-2 flex flex-wrap items-start justify-between gap-2 border-b border-surface-200 pb-2">
             <div className="min-w-0">
               <h2 className="section-title">{activeMeta.title}</h2>
               <p className="section-subtitle max-w-2xl">{activeMeta.description}</p>
@@ -382,7 +382,7 @@ export default function Settings() {
           {saveError && (
             <div
               role="alert"
-              className="mb-2.5 flex items-start gap-2.5 rounded-lg border border-critical-200 bg-critical-50 p-3.5"
+              className="mb-2 flex items-start gap-2.5 rounded-lg border border-critical-200 bg-critical-50 px-2.5 py-2"
             >
               <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-critical-600" aria-hidden="true" />
               <div className="min-w-0 flex-1">
@@ -428,7 +428,7 @@ export default function Settings() {
                   title="Store"
                   description="The storefront Scorelo crawls. These values set the context for every pillar score."
                 >
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <Field label="Store name" htmlFor="storeName" error={errors.storeName} hint="Displayed in the dashboard header.">
                       <TextInput
                         id="storeName"
@@ -532,7 +532,7 @@ export default function Settings() {
                 </SettingsCard>
 
                 <SettingsCard title="Crawl scope" description="Control how much of the store each audit covers.">
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <Field label="Scope" htmlFor="crawlScope" hint="Narrower scopes finish faster but cover less.">
                       <SelectInput
                         id="crawlScope"
@@ -772,25 +772,25 @@ function IntegrationsSection() {
           </Link>
         }
       >
-        <div className="mb-2.5 grid grid-cols-3 gap-3">
+        <div className="mb-2 grid grid-cols-3 gap-2">
           {[
             { label: 'Connected', value: connected },
             { label: 'Need attention', value: attention },
             { label: 'Available', value: records.length },
           ].map((tile) => (
-            <div key={tile.label} className="rounded-lg border border-surface-200 px-3 py-2.5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{tile.label}</p>
-              <p className="mt-1 text-[16px] font-bold tabular-nums text-surface-950">{tile.value}</p>
+            <div key={tile.label} className="rounded-md border border-surface-200 px-2.5 py-2">
+              <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{tile.label}</p>
+              <p className="mt-0.5 text-[15px] font-bold leading-[1.15] tabular-nums text-surface-950">{tile.value}</p>
             </div>
           ))}
         </div>
 
         <ul className="divide-y divide-surface-100">
           {records.map((record) => (
-            <li key={record.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
+            <li key={record.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
               <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-surface-900">{record.name}</p>
-                <p className="mt-0.5 text-[11.5px] text-surface-500">
+                <p className="text-[12px] font-semibold text-surface-900">{record.name}</p>
+                <p className="text-[11px] text-surface-500">
                   {record.status === 'Connected' ? `Last synced ${record.lastSynced}` : record.detail}
                 </p>
               </div>
@@ -811,17 +811,17 @@ function BillingSection() {
   return (
     <>
       <SettingsCard title="Current plan" description="What this workspace is entitled to today.">
-        <div className="flex flex-wrap items-start justify-between gap-2.5">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h4 className="text-[20px] font-bold tracking-tight text-surface-950">{planInfo.name}</h4>
+              <h4 className="text-[17px] font-bold tracking-tight text-surface-950">{planInfo.name}</h4>
               <StatusBadge label="Active" tone="success" />
             </div>
-            <p className="mt-1 text-[12.5px] text-surface-500">{planInfo.description}</p>
+            <p className="mt-0.5 text-[11.5px] text-surface-500">{planInfo.description}</p>
           </div>
           <div className="text-right">
-            <p className="text-[20px] font-bold tracking-tight text-surface-950 tabular-nums">{planInfo.price}</p>
-            <p className="text-[11.5px] text-surface-500">{planInfo.cadence}</p>
+            <p className="text-[17px] font-bold tracking-tight text-surface-950 tabular-nums">{planInfo.price}</p>
+            <p className="text-[11px] text-surface-500">{planInfo.cadence}</p>
           </div>
         </div>
       </SettingsCard>
@@ -851,18 +851,18 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
   return (
     <>
       <section className="overflow-hidden rounded-lg border border-critical-200 bg-surface-0">
-        <div className="border-b border-critical-100 bg-critical-50/60 px-3.5 py-2.5 sm:px-3.5">
-          <h3 className="text-[13px] font-bold tracking-tight text-critical-900">Irreversible actions</h3>
-          <p className="mt-1 text-[12.5px] leading-[1.45] text-critical-700">
+        <div className="border-b border-critical-100 bg-critical-50/60 px-3 py-2">
+          <h3 className="text-[12.5px] font-bold tracking-tight text-critical-900">Irreversible actions</h3>
+          <p className="mt-0.5 text-[11.5px] leading-[1.4] text-critical-700">
             These actions change what Scorelo analyzes. Each one asks for confirmation first.
           </p>
         </div>
 
         <div className="divide-y divide-surface-100">
-          <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 sm:px-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
             <div className="min-w-0">
               <p className="text-[12.5px] font-bold text-surface-900">Disconnect store</p>
-              <p className="mt-1 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
+              <p className="mt-0.5 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
                 Stops all scheduled analysis and clears{' '}
                 <span className="font-semibold text-surface-700">{storeName || 'this store'}</span> from your workspace
                 settings. Existing findings stay visible until the next audit.
@@ -873,10 +873,10 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 sm:px-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
             <div className="min-w-0">
               <p className="text-[12.5px] font-bold text-surface-900">Delete workspace</p>
-              <p className="mt-1 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
+              <p className="mt-0.5 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
                 Permanently removes the workspace, every audit and all historical scores.
               </p>
             </div>
@@ -886,7 +886,7 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
           </div>
         </div>
 
-        <div className="border-t border-surface-200 px-3.5 py-2.5 sm:px-3.5">
+        <div className="border-t border-surface-200 px-3 py-2">
           <PreviewNotice>
             Workspace deletion requires owner verification through the Scorelo account service, which is not connected in
             this build — so the action is disabled rather than simulated.
@@ -901,32 +901,33 @@ function DangerSection({ storeName, onDisconnect }: { storeName: string; onDisco
 function SettingsSkeleton() {
   return (
     <div className="page-shell section-stack" aria-busy="true" aria-label="Loading settings">
-      <div className="space-y-2 border-b border-surface-200 pb-3">
-        <div className="skeleton h-3 w-28" />
-        <div className="skeleton h-9 w-48" />
+      {/* Mirrors the loaded layout exactly — same track width, same paddings — so the page does
+          not jump when the real content replaces it. */}
+      <div className="space-y-1.5 border-b border-surface-200 pb-2">
+        <div className="skeleton h-5 w-40" />
         <div className="skeleton h-4 w-96 max-w-full" />
       </div>
-      <div className="grid gap-3 lg:grid-cols-[248px_minmax(0,1fr)]">
-        <div className="space-y-2">
-          <div className="skeleton h-9 w-full rounded-lg" />
+      <div className="grid gap-2.5 lg:grid-cols-[212px_minmax(0,1fr)]">
+        <div className="space-y-1.5">
+          <div className="skeleton h-8 w-full rounded-md" />
           {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="skeleton h-9 w-full rounded-lg" />
+            <div key={index} className="skeleton h-7 w-full rounded-md" />
           ))}
         </div>
         <div className="space-y-2">
-          <div className="space-y-2 border-b border-surface-200 pb-2.5">
-            <div className="skeleton h-6 w-40" />
+          <div className="space-y-1.5 border-b border-surface-200 pb-2">
+            <div className="skeleton h-5 w-40" />
             <div className="skeleton h-4 w-72 max-w-full" />
           </div>
           {Array.from({ length: 2 }).map((_, index) => (
-            <div key={index} className={`${settingsCard} p-3.5`}>
+            <div key={index} className={`${settingsCard} p-3`}>
               <div className="skeleton h-5 w-44" />
-              <div className="skeleton mt-2 h-4 w-72 max-w-full" />
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <div className="skeleton mt-1.5 h-4 w-72 max-w-full" />
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, field) => (
-                  <div key={field} className="space-y-2">
+                  <div key={field} className="space-y-1.5">
                     <div className="skeleton h-4 w-24" />
-                    <div className="skeleton h-10 w-full rounded-lg" />
+                    <div className="skeleton h-8 w-full rounded-md" />
                   </div>
                 ))}
               </div>

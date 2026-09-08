@@ -22,7 +22,7 @@ echo "repo: $(pwd)"
 
 # ─── 1. Code ──────────────────────────────────────────────────────────────────
 head2 "1. CODE"
-git fetch -q origin 2>/dev/null
+git fetch -q origin 2>/dev/nulls
 LOCAL=$(git rev-parse --short HEAD 2>/dev/null)
 ORIGIN=$(git rev-parse --short origin/main 2>/dev/null)
 echo "   HEAD=$LOCAL  origin/main=$ORIGIN"

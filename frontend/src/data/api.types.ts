@@ -8,6 +8,9 @@ export interface AuditRow {
   storeId: number;
   overallScore: number;
   runAt: string;
+  /** 'engine' = a real audit of the store. 'seed' = a development fixture, which must never be
+   * presented to a customer as a measurement of their store. Absent on legacy rows. */
+  source?: 'engine' | 'seed';
   /** Engine metadata written by runner.ts. Absent on seeded/legacy audit rows, which is why
    * every field is optional — consumers must treat a missing value as "unknown", not "false". */
   metadata?: {

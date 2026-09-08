@@ -174,8 +174,8 @@ export default function SecuritySection() {
       <SettingsCard title="Security" description="Loading your account security details.">
         <div className="space-y-2">
           <div className="skeleton h-4 w-48" />
-          <div className="skeleton h-10 w-full rounded-lg" />
-          <div className="skeleton h-10 w-full rounded-lg" />
+          <div className="skeleton h-8 w-full rounded-md" />
+          <div className="skeleton h-8 w-full rounded-md" />
         </div>
       </SettingsCard>
     );
@@ -185,13 +185,13 @@ export default function SecuritySection() {
     return (
       <SettingsCard title="Security" description="Your security settings could not be loaded.">
         <div className="flex flex-col items-center py-2 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-critical-50 text-critical-600">
-            <AlertCircle size={22} />
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-critical-50 text-critical-600">
+            <AlertCircle size={18} />
           </span>
-          <p className="mt-2 text-[12.5px] text-surface-600">Nothing was changed.</p>
-          <div className="mt-2.5">
+          <p className="mt-1.5 text-[12px] text-surface-600">Nothing was changed.</p>
+          <div className="mt-2">
             <Button onClick={load}>
-              <RefreshCw size={15} />
+              <RefreshCw size={14} />
               Retry
             </Button>
           </div>
@@ -207,7 +207,7 @@ export default function SecuritySection() {
         title="Password"
         description="Changing your password signs out every other device. This one stays signed in."
       >
-        <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-100 pb-2.5">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-100 pb-2">
           <p className="text-[12.5px] font-semibold text-surface-800">Last changed</p>
           <p className="text-[12.5px] text-surface-700">
             {profile?.passwordChangedAt
@@ -220,19 +220,19 @@ export default function SecuritySection() {
 
         <form onSubmit={handleChangePassword} noValidate>
           {passwordError && (
-            <div role="alert" className="mb-2.5 flex items-start gap-2.5 rounded-lg border border-critical-200 bg-critical-50 p-3.5">
+            <div role="alert" className="mb-2.5 flex items-start gap-2.5 rounded-md border border-critical-200 bg-critical-50 px-2.5 py-2">
               <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-critical-600" aria-hidden="true" />
               <p className="text-[12.5px] leading-[1.45] text-critical-800">{passwordError}</p>
             </div>
           )}
           {passwordNotice && !passwordError && (
-            <div role="status" className="mb-2.5 flex items-start gap-2.5 rounded-lg border border-success-100 bg-success-50 p-3.5">
+            <div role="status" className="mb-2 flex items-start gap-2.5 rounded-md border border-success-100 bg-success-50 px-2.5 py-2">
               <Check size={15} className="mt-0.5 flex-shrink-0 text-success-700" aria-hidden="true" />
-              <p className="text-[12.5px] leading-[1.45] text-success-800">{passwordNotice}</p>
+              <p className="text-[11.5px] leading-[1.4] text-success-800">{passwordNotice}</p>
             </div>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Field label="Current password" htmlFor="currentPassword" className="sm:col-span-2">
               <TextInput
                 id="currentPassword"
@@ -250,7 +250,7 @@ export default function SecuritySection() {
             </Field>
           </div>
 
-          <div className="mt-2.5">
+          <div className="mt-2">
             <Button type="submit" disabled={saving || !currentPassword || !newPassword}>
               {saving ? 'Updating…' : 'Change password'}
             </Button>
@@ -292,9 +292,9 @@ export default function SecuritySection() {
         {/* The email gate is enforced server-side; showing it here explains the refusal before the
             customer runs into it. */}
         {!profile?.emailVerifiedAt && !twoFactorOn && (
-          <div className="mt-2.5 flex items-start gap-2.5 rounded-lg border border-warning-100 bg-warning-50 p-3.5">
+          <div className="mt-2 flex items-start gap-2.5 rounded-md border border-warning-100 bg-warning-50 px-2.5 py-2">
             <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-warning-600" aria-hidden="true" />
-            <p className="text-[12.5px] leading-[1.45] text-warning-800">
+            <p className="text-[11.5px] leading-[1.4] text-warning-800">
               Verify your email address first — the codes are sent there, so turning this on before
               then would lock you out.
             </p>
@@ -302,7 +302,7 @@ export default function SecuritySection() {
         )}
 
         {twoFactorError && (
-          <div role="alert" className="mt-2.5 flex items-start gap-2.5 rounded-lg border border-critical-200 bg-critical-50 p-3.5">
+          <div role="alert" className="mt-2.5 flex items-start gap-2.5 rounded-md border border-critical-200 bg-critical-50 px-2.5 py-2">
             <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-critical-600" aria-hidden="true" />
             <p className="text-[12.5px] leading-[1.45] text-critical-800">{twoFactorError}</p>
           </div>
@@ -310,7 +310,7 @@ export default function SecuritySection() {
 
         <form
           onSubmit={handleToggleTwoFactor}
-          className="mt-2.5 flex flex-wrap items-end gap-3 border-t border-surface-100 pt-2.5"
+          className="mt-2 flex flex-wrap items-end gap-2.5 border-t border-surface-100 pt-2"
           noValidate
         >
           <Field
@@ -361,14 +361,14 @@ export default function SecuritySection() {
         {sessions.length === 0 ? (
           // Honest empty state. Reached when every session has been revoked or expired — including
           // right after Phase 2 ships, when pre-existing sign-ins have no session row.
-          <p className="py-2.5 text-[12.5px] text-surface-500">No active sessions.</p>
+          <p className="py-2 text-[12px] text-surface-500">No active sessions.</p>
         ) : (
           <ul className="divide-y divide-surface-100">
             {sessions.map((session) => (
-              <li key={session.id} className="flex flex-wrap items-start justify-between gap-2.5 py-2.5">
-                <div className="flex min-w-0 gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-surface-100 text-surface-600">
-                    <Laptop size={15} aria-hidden="true" />
+              <li key={session.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                <div className="flex min-w-0 gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-600">
+                    <Laptop size={14} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[12.5px] font-semibold text-surface-800">
@@ -390,7 +390,7 @@ export default function SecuritySection() {
                   type="button"
                   onClick={() => handleRevoke(session.id)}
                   disabled={busy}
-                  className="cursor-pointer rounded-lg border border-surface-200 px-2.5 py-1.5 text-[11.5px] font-semibold text-surface-700 transition-colors hover:border-critical-200 hover:bg-critical-50 hover:text-critical-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="cursor-pointer rounded-md border border-surface-200 px-2 py-1 text-[11px] font-semibold text-surface-700 transition-colors hover:border-critical-200 hover:bg-critical-50 hover:text-critical-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Sign out
                 </button>
@@ -404,11 +404,11 @@ export default function SecuritySection() {
       <SettingsCard title="Security activity" description="Recent security events on your account.">
         {events.length === 0 ? (
           // A new account genuinely has no history. Nothing is seeded to make this look populated.
-          <p className="py-2.5 text-[12.5px] text-surface-500">No security activity yet.</p>
+          <p className="py-2 text-[12px] text-surface-500">No security activity yet.</p>
         ) : (
           <ul className="divide-y divide-surface-100">
             {events.map((event) => (
-              <li key={event.id} className="flex flex-wrap items-start justify-between gap-3 py-2">
+              <li key={event.id} className="flex flex-wrap items-start justify-between gap-2 py-1.5">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-[12.5px] font-semibold text-surface-800">
                     {event.type === 'login_failed' ? (

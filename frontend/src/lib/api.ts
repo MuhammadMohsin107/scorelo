@@ -109,8 +109,43 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return (payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload) as T;
 }
 
+/**
+ * Fetches a file the server generated (today: the Reports CSV export).
+ *
+ * `request` always parses JSON, so a CSV routed through it arrives as a parse error. This shares
+ * everything that matters — the Authorization header, the one-shot refresh-and-replay on 401, and
+ * the `{ error, code }` decoding of a failure — and differs only in returning the bytes. The
+ * filename comes from Content-Disposition so the server names its own file; `fallbackName` is
+ * used only when the header is missing.
+ */
+async function downloadFile(path: string, fallbackName: string): Promise<{ blob: Blob; filename: string }> {
+  let response = await rawRequest(path, { method: 'GET' });
+
+  if (response.status === 401 && getRefreshToken() && await refreshAccessToken()) {
+    response = await rawRequest(path, { method: 'GET' });
+  }
+
+  if (!response.ok) {
+    let message = 'Download failed';
+    let code: string | undefined;
+    try {
+      const payload = await response.json();
+      if (payload && typeof payload.error === 'string') message = payload.error;
+      if (payload && typeof payload.code === 'string') code = payload.code;
+    } catch {
+      // A non-JSON error body carries nothing useful; the status still does.
+    }
+    throw new ApiError(message, response.status, code);
+  }
+
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  return { blob: await response.blob(), filename: match ? decodeURIComponent(match[1]) : fallbackName };
+}
+
 export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: 'GET' }),
+  download: downloadFile,
   post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>(path, {
     ...options,
     method: 'POST',

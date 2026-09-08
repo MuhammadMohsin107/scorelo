@@ -7,3 +7,15 @@ export const reportTrendQuerySchema = z.object({
 }).strict();
 
 export type ReportTrendQuery = z.infer<typeof reportTrendQuerySchema>;
+
+/**
+ * `auditId` selects one historical report to export. It is a filter, not an authorisation:
+ * the service resolves it inside the caller's own store, so an id belonging to another
+ * merchant simply does not match and returns 404.
+ */
+export const reportExportQuerySchema = z.object({
+  auditId: z.coerce.number().int().positive().optional(),
+  ...storeIdQueryShape,
+}).strict();
+
+export type ReportExportQuery = z.infer<typeof reportExportQuerySchema>;

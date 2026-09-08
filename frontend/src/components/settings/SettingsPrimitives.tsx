@@ -22,12 +22,12 @@ export function SettingsCard({
 }) {
   return (
     <section className={`${settingsCard} overflow-hidden`}>
-      <div className="border-b border-surface-200 px-3.5 py-2.5 sm:px-3.5">
-        <h3 className="text-[13px] font-bold tracking-tight text-surface-950">{title}</h3>
-        {description && <p className="mt-1 max-w-2xl text-[12.5px] leading-[1.45] text-surface-500">{description}</p>}
+      <div className="border-b border-surface-200 px-3 py-2">
+        <h3 className="text-[12.5px] font-bold tracking-tight text-surface-950">{title}</h3>
+        {description && <p className="mt-0.5 max-w-2xl text-[11.5px] leading-[1.4] text-surface-500">{description}</p>}
       </div>
-      <div className="px-3.5 py-2.5 sm:px-3.5">{children}</div>
-      {footer && <div className="border-t border-surface-200 bg-surface-50/60 px-3.5 py-2 sm:px-3.5">{footer}</div>}
+      <div className="px-3 py-2">{children}</div>
+      {footer && <div className="border-t border-surface-200 bg-surface-50/60 px-3 py-1.5">{footer}</div>}
     </section>
   );
 }
@@ -192,12 +192,12 @@ export function ToggleRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 py-2.5">
+    <div className="flex items-start justify-between gap-3 py-2">
       <div className="min-w-0">
         <label htmlFor={id} className={`block text-[12.5px] font-semibold ${disabled ? 'text-surface-400' : 'text-surface-800'}`}>
           {label}
         </label>
-        <p className="mt-0.5 max-w-xl text-[11.5px] leading-[1.45] text-surface-500">{description}</p>
+        <p className="mt-0.5 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">{description}</p>
       </div>
       <button
         id={id}
@@ -238,9 +238,9 @@ export function ReadOnlyRow({ label, value, hint }: { label: string; value: Reac
 /** Explains why a group is display-only in this build. */
 export function PreviewNotice({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-lg border border-info-100 bg-info-50 p-3.5">
-      <Info size={15} className="mt-0.5 flex-shrink-0 text-info-700" aria-hidden="true" />
-      <p className="text-[11.5px] leading-[1.4] text-info-800">{children}</p>
+    <div className="flex items-start gap-2 rounded-md border border-info-100 bg-info-50 px-2.5 py-2">
+      <Info size={14} className="mt-px flex-shrink-0 text-info-700" aria-hidden="true" />
+      <p className="text-[11px] leading-[1.4] text-info-800">{children}</p>
     </div>
   );
 }
@@ -262,7 +262,7 @@ export function SaveBar({
   if (!visible) return null;
   return (
     <div className="sticky bottom-4 z-20 mt-2" role="region" aria-label="Unsaved changes">
-      <div className="flex flex-col gap-3 rounded-lg border border-surface-300 bg-surface-0/95 p-3 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      <div className="flex flex-col gap-2 rounded-lg border border-surface-300 bg-surface-0/95 px-3 py-2 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.35)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <p className="flex items-center gap-2 text-[12.5px] font-semibold text-surface-800">
           <span className="h-2 w-2 flex-shrink-0 rounded-full bg-warning-500" aria-hidden="true" />
           {message}

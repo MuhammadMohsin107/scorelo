@@ -35,8 +35,9 @@ export default function Notifications() {
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <Link to="/" className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-brand-600 hover:text-brand-700"><ArrowLeft size={14} /> Back to dashboard</Link>
-            <h1 className="mt-2.5 text-[20px] font-semibold tracking-tight text-surface-950">Notifications</h1>
-            <p className="mt-1 text-[12.5px] text-surface-600">{unreadCount} unread notification{unreadCount === 1 ? '' : 's'}</p>
+            {/* Matches .page-title (17/18px) — this heading was the last 20px page title left. */}
+            <h1 className="mt-1.5 page-title">Notifications</h1>
+            <p className="page-subtitle">{unreadCount} unread notification{unreadCount === 1 ? '' : 's'}</p>
           </div>
           <button type="button" onClick={markAllRead} disabled={unreadCount === 0} className="btn-secondary text-[11.5px]">Mark all as read</button>
         </div>
@@ -56,10 +57,10 @@ export default function Notifications() {
           )}
           {notifications.map((notification) => {
             const Icon = iconForNotification(notification.type);
-            return <button key={notification.id} type="button" onClick={() => markRead(notification.id)} className={`flex w-full gap-2.5 border-b border-surface-100 px-3.5 py-2.5 text-left transition-colors last:border-b-0 hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
-              <Icon size={19} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
-              <span className="min-w-0 flex-1"><span className={`block text-[12.5px] ${notification.isRead ? 'font-medium text-surface-700' : 'font-bold text-surface-900'}`}>{notification.title}</span><span className="mt-1 block text-[12.5px] leading-[1.4] text-surface-500">{notification.message}</span><span className="mt-2 block text-[11.5px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>
-              {!notification.isRead && <span className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
+            return <button key={notification.id} type="button" onClick={() => markRead(notification.id)} className={`flex w-full gap-2.5 border-b border-surface-100 px-3 py-2 text-left transition-colors last:border-b-0 hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
+              <Icon size={16} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
+              <span className="min-w-0 flex-1"><span className={`block text-[12.5px] ${notification.isRead ? 'font-medium text-surface-700' : 'font-bold text-surface-900'}`}>{notification.title}</span><span className="mt-0.5 block text-[11.5px] leading-[1.4] text-surface-500">{notification.message}</span><span className="mt-1 block text-[11px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>
+              {!notification.isRead && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-brand-500" aria-label="Unread" />}
             </button>;
           })}
         </section>

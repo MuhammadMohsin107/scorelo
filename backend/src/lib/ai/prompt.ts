@@ -86,6 +86,7 @@ Rules you must not break:
 - Plain text on a single line. No HTML, no markdown, no quotes around the value, no emoji, no line breaks.
 - Never use placeholder wording such as "Lorem ipsum", "Your brand here", "TBD" or bracketed slots.
 - The value must be meaningfully different from the current value, and must still describe the same resource.
+- REWRITE, DO NOT PAD. Appending the shop name, a separator and a suffix to the existing value is not a rewrite: "Gift Card" must not become "Gift Card | Acme Store". Every word you add has to describe THIS resource — what it is, what it is for, who it suits — using only the supplied context. If the only way you can reach the character range is boilerplate, return the best short description you can instead.
 - "reason" is one short sentence saying what you changed and why, for a merchant to read while approving.
 
 If a resource genuinely has too little information to write a defensible value, still return a proposal built only from its title — never pad it with invented detail.`;

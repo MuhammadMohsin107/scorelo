@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { updateReturning } from '../db/returning.js';
-import { aiFixProposals, audits, findings, stores } from '../db/schema.js';
+import { aiFixProposals, auditScores, audits, findings, stores } from '../db/schema.js';
 import { aiConfigured, aiModelName, env } from '../config/env.js';
 import { ApiError } from '../middleware/error.js';
 import { aiProvider } from '../lib/ai/index.js';
@@ -117,7 +117,52 @@ function text(value: unknown): string {
 }
 
 /**
- * Derives the fixable resources from the finding's OWN evidence rows.
+ * Every evidence row the audit itself recorded for this finding.
+ *
+ * TWO SOURCES, AND THE SECOND ONE IS WHY AI FIX PLANNING WORKS AT ALL.
+ *
+ * A check may attach rows to the finding it raises (canonicals does). Most do not: title-tags and
+ * meta-descriptions — the only two sub-pillars the bulk-fix UI actually offers — record their
+ * sample once at the SUB-PILLAR level, in `audit_scores.details.evidenceRows`, and leave
+ * `findings.evidence_rows` null.
+ *
+ * Reading only the finding's own rows therefore produced an empty target list for exactly those
+ * two, and planAiFixes returned 'nothing_to_fix' WITHOUT EVER CALLING THE MODEL. From the UI that
+ * was indistinguishable from an outage: "AI could not draft these right now" on a perfectly
+ * healthy provider with a valid key.
+ *
+ * The sub-pillar sample is read from the same audit, for the same store, on the server. It is the
+ * identical trust level as the finding's own rows — the audit wrote both — so using it as a
+ * fallback preserves the authorization property that makes a resourceId safe to accept.
+ */
+async function candidateRows(finding: typeof findings.$inferSelect): Promise<EvidenceRow[]> {
+  const own = Array.isArray(finding.evidenceRows) ? (finding.evidenceRows as EvidenceRow[]) : [];
+  if (own.length > 0) return own;
+
+  const [scoreRow] = await db
+    .select({ details: auditScores.details })
+    .from(auditScores)
+    .where(and(
+      eq(auditScores.auditId, finding.auditId),
+      eq(auditScores.pillar, finding.pillar),
+      eq(auditScores.subPillar, finding.subPillar),
+    ))
+    .limit(1);
+
+  const details = (scoreRow?.details ?? {}) as { evidenceRows?: unknown };
+  const sample = Array.isArray(details.evidenceRows) ? (details.evidenceRows as EvidenceRow[]) : [];
+
+  // Narrow to the rows this finding is about. `issueType` is the check's own word for the defect
+  // ("Too Short"), stored on the finding — without it a "too short titles" finding would be
+  // planned against every flagged row in the sub-pillar, including ones it never raised.
+  const issueType = text((finding.details as { issueType?: unknown } | null)?.issueType);
+  if (!issueType) return sample;
+  const matching = sample.filter((row) => text(row?.status) === issueType);
+  return matching.length > 0 ? matching : sample;
+}
+
+/**
+ * Derives the fixable resources from the audit's own evidence rows.
  *
  * This is the authorization anchor for "the resource belongs to this store". Evidence rows were
  * written by the audit from that store's snapshot, so a resource named here provably came from
@@ -125,8 +170,7 @@ function text(value: unknown): string {
  * set is rejected, which is what makes it impossible to aim a proposal at another tenant's
  * catalogue or at a resource the audit never examined.
  */
-function extractTargets(finding: typeof findings.$inferSelect, rule: FieldRule): Array<FixTarget & { resourceType: FixableResourceType; resourceId: string }> {
-  const rows = Array.isArray(finding.evidenceRows) ? (finding.evidenceRows as EvidenceRow[]) : [];
+function extractTargets(rows: EvidenceRow[], rule: FieldRule): Array<FixTarget & { resourceType: FixableResourceType; resourceId: string }> {
   const targets: Array<FixTarget & { resourceType: FixableResourceType; resourceId: string }> = [];
 
   for (const row of rows) {
@@ -199,7 +243,7 @@ export async function planAiFixes(
     };
   }
 
-  let targets = extractTargets(finding, rule);
+  let targets = extractTargets(await candidateRows(finding), rule);
 
   // A caller may narrow to specific resources (the bulk UI selecting rows). Anything outside the
   // audit's own evidence is silently absent rather than fetched — see extractTargets().
@@ -446,7 +490,7 @@ export async function decideFixProposals(
  * Bulk preparation for the future Fix Center selection UI.
  *
  * Deliberately sequential and capped: each finding is one model call, and a merchant selecting
- * fifty rows must not be able to fire fifty concurrent requests at OpenAI. One finding failing
+ * fifty rows must not be able to fire fifty concurrent requests at the model provider. One finding failing
  * never stops the rest — it comes back with its own reason, exactly as the single-finding path
  * would report it.
  */
