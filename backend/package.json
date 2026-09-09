@@ -15,7 +15,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "test": "tsx --test src/tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "verify:shopify": "tsx src/scripts/verify-shopify.ts"
+    "verify:shopify": "tsx src/scripts/verify-shopify.ts",
+    "verify:smtp": "tsx src/scripts/verify-smtp.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
