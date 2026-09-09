@@ -82,6 +82,13 @@ export interface AltTextPreviewRow {
   skipped: boolean;
   truncated: boolean;
   characters: number;
+  /**
+   * What the template would have produced, present only on a skipped row.
+   *
+   * A skipped row's `generated` is the merchant's own existing alt text, so on a store where every
+   * image already has some, the preview showed nothing about the template being edited.
+   */
+  wouldGenerate: string | null;
 }
 
 export interface AltTextPreviewResponse {

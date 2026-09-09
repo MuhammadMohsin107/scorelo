@@ -122,6 +122,20 @@ function PreviewBody({ state, error, preview }: { state: 'idle' | 'loading' | 'e
               {row.skipped && <span className="text-surface-500">kept existing alt text</span>}
               {row.truncated && <span className="text-warning-700">shortened to fit</span>}
             </div>
+            {/* WHAT THE TEMPLATE WOULD HAVE PRODUCED, shown only on a row that was skipped.
+                Without it the preview demonstrates nothing about the template being edited: every
+                sampled image already had alt text, so every line was the merchant's OWN existing
+                text, at its own length — which is why the counts above read 137, 208 and 230
+                against a 125 limit and looked like the limit was being ignored. The line below is
+                the actual engine output for this product, so the template is visible in action
+                even where nothing would be overwritten. */}
+            {row.skipped && row.wouldGenerate && (
+              <p className="mt-1 break-words border-l-2 border-surface-200 pl-2 text-[11.5px] leading-[1.4] text-surface-500">
+                <span className="font-semibold text-surface-600">Your template would produce:</span>{' '}
+                {row.wouldGenerate}{' '}
+                <span className="tabular-nums text-surface-400">({row.wouldGenerate.length} chars)</span>
+              </p>
+            )}
           </div>
         </li>
       ))}
@@ -263,9 +277,9 @@ export default function AltTextTemplateBuilder() {
   }
 
   return (
-    <div className="grid grid-cols-12 gap-3">
+    <div className="flex flex-col gap-3">
       {/* ── Builder ───────────────────────────────────────────────── */}
-      <section className={`${card} col-span-12 overflow-hidden xl:col-span-7`} aria-labelledby="alt-template-title">
+      <section className={`${card} overflow-hidden`} aria-labelledby="alt-template-title">
         <div className={`${cardHeader} flex flex-wrap items-center justify-between gap-2`}>
           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
             <p className={eyebrow}>Configuration</p>
@@ -411,8 +425,14 @@ export default function AltTextTemplateBuilder() {
                 <span className="block text-[12px] font-medium text-surface-500">Automatically generate for new image uploads</span>
                 <span id="alt-auto-generate-note" className="mt-0.5 flex items-start gap-1 text-[10.5px] leading-[1.4] text-surface-500">
                   <Info size={11} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
-                  Not available yet — this needs Shopify media webhooks and write access, which
-                  Scorelo does not have. Your template is stored and ready for when it lands.
+                  {/* The reason was half out of date: Scorelo now requests write_products, so
+                      "no write access" is no longer true. What is still missing is real — media
+                      webhooks to hear about an upload, and a media-specific mutation, since alt
+                      text is not written through productUpdate like the SEO fields are. Stating
+                      the wrong reason for a correct limitation is its own kind of inaccuracy. */}
+                  Not available yet — this needs Shopify media webhooks to hear about an upload, and
+                  image alt text is written through a different Shopify mutation than the SEO fields
+                  Scorelo already saves. Your template is stored and ready for when it lands.
                 </span>
               </span>
             </div>
@@ -446,7 +466,7 @@ export default function AltTextTemplateBuilder() {
       </section>
 
       {/* ── Live preview ──────────────────────────────────────────── */}
-      <section className={`${card} col-span-12 overflow-hidden xl:col-span-5`} aria-labelledby="alt-preview-title" aria-live="polite">
+      <section className={`${card} overflow-hidden`} aria-labelledby="alt-preview-title" aria-live="polite">
         <div className={`${cardHeader} flex flex-wrap items-center justify-between gap-2`}>
           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
             <p className={eyebrow}>Preview</p>

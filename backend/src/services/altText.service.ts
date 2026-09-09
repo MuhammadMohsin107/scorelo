@@ -209,6 +209,17 @@ export interface AltTextPreviewRow {
   skipped: boolean;
   truncated: boolean;
   characters: number;
+  /**
+   * What the template WOULD have produced, present only when the row was skipped.
+   *
+   * A skipped row's `generated` is the merchant's own existing alt text, unchanged — correct, and
+   * useless as a preview of the template being edited. When every sampled image already has alt
+   * text (the common case on an established store) the whole panel showed nothing but existing
+   * copy at its own lengths, which read as the character limit being ignored. This is the engine's
+   * real output for the same product, so the template is visible without pretending anything would
+   * be overwritten.
+   */
+  wouldGenerate: string | null;
 }
 
 export interface AltTextPreviewResponse {
@@ -311,6 +322,24 @@ export async function previewAltText(
           config,
           currentAlt,
         );
+        // Re-run with no current alt text, so the skip rule does not apply and the template's own
+        // output is visible. Same template, same limit, same formatting — only the "already has
+        // alt text" condition is removed. Computed only when it would differ from `generated`.
+        const wouldGenerate = generated.skipped
+          ? generateAltText(
+              config.template,
+              {
+                product_title: node.title ?? null,
+                product_type: node.productType ?? null,
+                vendor: node.vendor ?? null,
+                shop_name: shopName,
+                image_position: 1,
+              },
+              config,
+              null,
+            ).value
+          : null;
+
         rows.push({
           resourceTitle: node.title?.trim() || 'Untitled product',
           imageUrl: media.image?.url ?? null,
@@ -319,6 +348,7 @@ export async function previewAltText(
           skipped: generated.skipped,
           truncated: generated.truncated,
           characters: generated.value.length,
+          wouldGenerate,
         });
       }
 
@@ -352,6 +382,21 @@ export async function previewAltText(
         config,
         currentAlt,
       );
+      // Same reasoning as the products branch: a skipped row shows the merchant's existing alt
+      // text, so the template's own output has to be computed separately to be visible at all.
+      const wouldGenerate = generated.skipped
+        ? generateAltText(
+            config.template,
+            {
+              article_title: node.title ?? null,
+              blog_title: node.blog?.title ?? null,
+              shop_name: shopName,
+            },
+            config,
+            null,
+          ).value
+        : null;
+
       rows.push({
         resourceTitle: node.title?.trim() || 'Untitled article',
         imageUrl: node.image.url ?? null,
@@ -360,6 +405,7 @@ export async function previewAltText(
         skipped: generated.skipped,
         truncated: generated.truncated,
         characters: generated.value.length,
+        wouldGenerate,
       });
     }
 
