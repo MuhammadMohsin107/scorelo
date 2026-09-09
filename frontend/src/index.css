@@ -426,9 +426,31 @@
  * native pieces (autofill, the caret, scrollbars) in step. Light mode is byte-identical, since
  * these ARE the light values.
  *
- * It also means the accent never needs a dark variant: it only ever sits on this light sheet. */
+ * It also means the accent never needs a dark variant: it only ever sits on this light sheet.
+ *
+ * ── AND THE BRAND RAMP HAS TO COME WITH IT ───────────────────────────────────
+ * Re-declaring only the surfaces left the sheet internally inconsistent, because .btn-primary
+ * pairs `bg-brand-600` with `text-surface-0` and relies on the two inverting TOGETHER: dark indigo
+ * on white in light mode, light lavender on near-black in dark. Pinning the surfaces alone broke
+ * that pairing inside the sheet — in a dark theme the label went back to white while the button
+ * stayed lavender (#8b87f5), which is about 2.2:1 and effectively unreadable. That is what made
+ * "Go to sign in" on the verified-email screen look blank.
+ *
+ * So the brand ramp is pinned to its light values here too. The sheet is a light object in every
+ * theme; every token it consumes must agree on that, not just half of them. */
 .auth-sheet {
   color-scheme: light;
+  --c-brand-50:  #eef2ff;
+  --c-brand-100: #e0e7ff;
+  --c-brand-200: #c7d2fe;
+  --c-brand-300: #a5b4fc;
+  --c-brand-400: #818cf8;
+  --c-brand-500: #6366f1;
+  --c-brand-600: #4f46e5;
+  --c-brand-700: #4338ca;
+  --c-brand-800: #3730a3;
+  --c-brand-900: #312e81;
+  --c-brand-950: #1e1b4b;
   --c-surface-0:   #ffffff;
   --c-surface-50:  #fafafa;
   --c-surface-100: #f4f4f5;
