@@ -3,6 +3,10 @@ import { bulkUpdateFindingStatus, getFinding, listFindings, updateFindingStatus 
 import { optionalStoreId, requireUserId } from '../lib/requestContext.js';
 import { aiRecommendationStatus, getAiRecommendation } from '../services/ai-recommendation.service.js';
 import { aiFixStatus, decideFixProposal, decideFixProposals, listFixProposals, planAiFixes, planAiFixesForFindings } from '../services/ai-fix.service.js';
+import { applyApprovedProposals } from '../services/fix-apply.service.js';
+import { getCurrentStoreId } from '../services/store.service.js';
+import { createAuditJob } from '../services/job.service.js';
+import { ApiError } from '../middleware/error.js';
 
 export async function getFindings(req: Request, res: Response) {
   res.json({ data: await listFindings(requireUserId(req), req.query as never, optionalStoreId(req)) });
@@ -78,6 +82,41 @@ export async function postAiFixDecision(req: Request, res: Response) {
 export async function postAiFixDecisions(req: Request, res: Response) {
   const body = req.body as { approve?: number[]; reject?: number[] };
   res.json({ data: await decideFixProposals(requireUserId(req), body, { storeId: optionalStoreId(req) }) });
+}
+
+/**
+ * Writes approved proposals to the merchant's Shopify store, then re-audits.
+ *
+ * THE STORE IS RESOLVED, NOT ACCEPTED. `getCurrentStoreId` scopes to stores this user owns, so a
+ * storeId in the query cannot aim a write at another customer's catalogue.
+ *
+ * THE RE-AUDIT IS WHY THE SCORE MOVES. Applying changes the storefront; `audit_scores` is written
+ * only by the audit runner, so without a fresh run the merchant would see "12 fixes applied" beside
+ * an unchanged score and reasonably conclude the feature is broken.
+ *
+ * It is BEST-EFFORT and deliberately cannot fail the request: the writes have already happened and
+ * are not undone by a queueing problem. A 409 here is the ordinary case of an audit already running
+ * — that run will pick the changes up anyway — so it is reported as `reaudit: 'already-running'`
+ * rather than raised. Nothing is queued when every proposal was skipped or failed, because there is
+ * no change for an audit to find.
+ */
+export async function postApplyFixes(req: Request, res: Response) {
+  const userId = requireUserId(req);
+  const storeId = await getCurrentStoreId(userId, optionalStoreId(req));
+  const summary = await applyApprovedProposals(storeId, req.body.fixes, userId);
+
+  let reaudit: 'queued' | 'already-running' | 'not-needed' | 'failed' = 'not-needed';
+  if (summary.applied > 0) {
+    try {
+      await createAuditJob(userId, storeId);
+      reaudit = 'queued';
+    } catch (error) {
+      reaudit = error instanceof ApiError && error.statusCode === 409 ? 'already-running' : 'failed';
+      console.warn(`[scorelo-fix] re-audit not queued after apply (store ${storeId}): ${reaudit}`);
+    }
+  }
+
+  res.json({ data: { ...summary, reaudit } });
 }
 
 export async function getAiFixStatus(_req: Request, res: Response) {

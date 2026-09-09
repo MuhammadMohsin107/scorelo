@@ -65,6 +65,32 @@ export const decideFixProposalSchema = z.object({
   decision: z.enum(['approve', 'reject']),
 }).strict();
 
+/**
+ * Writing fixes to the merchant's Shopify store.
+ *
+ * WHAT THE CALLER MAY AND MAY NOT CHOOSE. The proposal id selects WHICH resource and WHICH field is
+ * written — both re-read from the stored row, never from the request, because those two are the
+ * authorization: the row exists only because the audit found that resource on this merchant's own
+ * store. A body cannot aim a write at a resource the audit never saw.
+ *
+ * `value` is the one thing the caller may supply, and it is optional. It exists because the preview
+ * screen lets a merchant EDIT the drafted text before applying, and a fix flow that silently wrote
+ * the model's wording instead of the human's correction would be worse than useless. When present
+ * it replaces the stored value — after passing the same `validateProposedValue` bounds the AI's own
+ * text had to pass, so a hand-typed value gets no weaker check than a generated one.
+ *
+ * The 2000 cap is a parser bound, not the policy: the real per-field limits live in FIELD_RULES
+ * (60 for a title, 160 for a description) and are enforced server-side at apply time.
+ *
+ * The 100 cap matches the decision endpoints and keeps one request inside Shopify's rate budget.
+ */
+export const applyFixProposalsSchema = z.object({
+  fixes: z.array(z.object({
+    proposalId: z.coerce.number().int().positive(),
+    value: z.string().trim().min(1).max(2000).optional(),
+  })).min(1).max(100),
+}).strict();
+
 /** Approving several previewed proposals in one request — what the Fix Center preview submits. */
 export const bulkDecideFixProposalsSchema = z.object({
   approve: z.array(z.coerce.number().int().positive()).max(100).optional(),

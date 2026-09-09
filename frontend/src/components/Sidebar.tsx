@@ -148,11 +148,26 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar
+       *
+       * MOBILE ONLY — the `lg:` rules below are untouched, so the desktop column is unchanged.
+       *
+       * Two base-layer bugs made the drawer eat the left of every phone screen:
+       *
+       *   1. `fixed` and `relative` were both present. Tailwind emits both and the winner is
+       *      decided by their order in the generated stylesheet, not in this string — `relative`
+       *      won, so the drawer stayed IN THE FLEX FLOW. `-translate-x-full` slid it out of sight
+       *      while it kept reserving its width, leaving a dead band with the page squeezed beside
+       *      it. Dropping `relative` changes nothing at lg, where `lg:static` already governed.
+       *
+       *   2. Width was declared only at `lg:`, so on a phone the element had no width and sized
+       *      itself to its content — a band about as wide as the nav labels. The base width added
+       *      here is overridden by the `lg:w-*` pair, and 288px is below both desktop widths, so
+       *      the cap never binds there either. */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full flex-shrink-0 bg-chrome flex flex-col
-          border-r border-chrome-border relative overflow-hidden
+          fixed top-0 left-0 z-50 h-full w-[82vw] max-w-[288px] flex-shrink-0 bg-chrome flex flex-col
+          border-r border-chrome-border overflow-hidden
           transition-[width,transform] duration-300 ease-in-out
           lg:translate-x-0 lg:static lg:z-auto
           ${isCollapsed ? 'lg:w-[60px]' : 'lg:w-[232px]'}

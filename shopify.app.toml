@@ -44,9 +44,18 @@ embedded = false
 #   read_metaobjects metaobject instances for Content + AI Discovery
 #   read_legal_policies shop policies (refund/shipping/privacy) for the CRO returns check —
 #                    shopPolicies used to fall under read_content and now needs its own scope
+#   write_products   productUpdate / collectionUpdate seo{title,description} — the Apply-fix path
+#   write_content    pageUpdate / articleUpdate global.title_tag + global.description_tag
+#                    metafields (Page and Article have no seo field), implicitly grants
+#                    write_online_store_pages
 # read_orders and read_customers are deliberately absent — Protected Customer Data, and no
-# Scorelo check reads an order or a customer.
-scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_policies"
+# Scorelo check reads an order or a customer. write_themes is absent too: Speed findings are
+# diagnostic and nothing proposes theme edits.
+#
+# CHANGING THIS REQUIRES MERCHANTS TO RECONNECT. Shopify issues scopes only on fresh consent, so
+# stores connected before the write scopes were added keep read-only tokens; the Apply path checks
+# the granted scope string per field and refuses rather than failing at Shopify.
+scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_policies,write_products,write_content"
 
 # REQUIRED. Scorelo drives the classic authorization-code grant itself (buildInstallUrl →
 # /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install would finish the

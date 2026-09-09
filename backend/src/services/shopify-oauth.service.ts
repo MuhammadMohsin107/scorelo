@@ -32,7 +32,30 @@ import { createNotification } from './notification.service.js';
  *                     requires this scope of its own — without it Shopify denies the field
  *                     outright, so the returns check reports "not measured" rather than scoring.
  *
+ * ─── Write scopes ────────────────────────────────────────────────────
+ * These are what turn an approved fix into an actual change on the storefront. Without them the
+ * flow can propose and record a value but never save it — which is the state this app shipped in:
+ * `ai_fix_proposals` reached `approved` and stopped there.
+ *
+ *   write_products    seo{title,description} on Product and Collection, through productUpdate and
+ *                     collectionUpdate.
+ *   write_content     Page and Article search listings. Neither has an `seo` field on its update
+ *                     input — verified against the 2026-07 schema — so their listing is written as
+ *                     the `global.title_tag` / `global.description_tag` metafields, which is both
+ *                     what Shopify's own SEO guide documents AND exactly what this app already
+ *                     READS in PAGES_QUERY/ARTICLES_QUERY. Write field and read field are the same
+ *                     field, so an applied fix is visible to the very next audit. Implicitly
+ *                     grants write_online_store_pages, so that is NOT requested separately.
+ *
+ * SCOPE IS STILL CHECKED PER FIELD AT RUNTIME. `FIELD_RULES[].writeScope` names what each field
+ * needs and fixability.service.ts compares it against `shopify_connections.scope` — what the
+ * merchant ACTUALLY consented to. Adding a scope here grants nothing on existing connections:
+ * Shopify only issues scopes on fresh consent, so a store connected before this change stays
+ * read-only until it reconnects, and Apply refuses with a reason rather than failing at Shopify.
+ *
  * Deliberately NOT requested:
+ *   write_themes — Speed findings are diagnostic, and editing theme code from an audit tool is a
+ *     far larger blast radius than a bounded metadata field. Nothing here proposes theme changes.
  *   read_orders, read_customers — Protected Customer Data. They force a Level 2 approval review
  *     with extra security obligations, and until approved Shopify redacts the fields anyway. No
  *     Scorelo check reads an order or a customer.
@@ -43,7 +66,17 @@ import { createNotification } from './notification.service.js';
  * the scope string they were granted (stored per-connection), so a widened list only takes effect
  * for merchants who reconnect.
  */
-const SCOPES = ['read_products', 'read_content', 'read_themes', 'read_metaobjects', 'read_legal_policies'].join(',');
+const SCOPES = [
+  'read_products',
+  'read_content',
+  'read_themes',
+  'read_metaobjects',
+  'read_legal_policies',
+  // Write access, required by the Apply-fix path. See the block above for why each is needed and
+  // why existing connections keep read-only access until they reconnect.
+  'write_products',
+  'write_content',
+].join(',');
 
 /** Renew an expiring access token this many ms BEFORE it actually expires, so a long audit run
  * cannot have its token die mid-flight. */

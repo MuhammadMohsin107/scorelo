@@ -152,6 +152,39 @@ export function planAiFixes(findingId: string, resourceIds: string[]): Promise<P
   return api.post<PlanAiFixesResult>(`/findings/${findingId}/ai-fix-plan`, { resourceIds });
 }
 
+/** What one resource's write actually did. */
+export interface ApplyFixResult {
+  proposalId: number;
+  status: 'applied' | 'failed' | 'skipped';
+  /** Why it failed or was skipped — Shopify's own wording, or the reason it was refused. */
+  detail?: string;
+}
+
+export interface ApplyFixesResult {
+  applied: number;
+  failed: number;
+  skipped: number;
+  results: ApplyFixResult[];
+  /**
+   * Whether a fresh audit was queued. `audit_scores` is written only by the audit runner, so
+   * without a run the score cannot move however many resources were written.
+   */
+  reaudit: 'queued' | 'already-running' | 'not-needed' | 'failed';
+}
+
+/**
+ * Writes fixes to the merchant's live Shopify store, then queues a re-audit.
+ *
+ * THIS IS THE ONLY CALL IN THE APP THAT CHANGES A STOREFRONT. The proposal id decides which
+ * resource and which field — the server re-reads both from the stored row, so this request cannot
+ * aim a write anywhere the audit did not already find. `value` is optional and carries the
+ * merchant's EDITED text when they changed the draft; the server validates it against the same
+ * length and content rules the model's own value had to pass.
+ */
+export function applyFixes(fixes: Array<{ proposalId: number; value?: string }>): Promise<ApplyFixesResult> {
+  return api.post<ApplyFixesResult>('/ai-fixes/apply', { fixes });
+}
+
 /** Whether AI fix PLANNING is possible, and which sub-pillars it covers. */
 export function fetchAiFixStatus(): Promise<{ enabled: boolean; model: string | null; fixableSubPillars: string[] }> {
   return api.get<{ enabled: boolean; model: string | null; fixableSubPillars: string[] }>('/findings/ai-fix-status');

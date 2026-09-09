@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, ClipboardCheck, History, Loader2, RotateCcw, Sparkles, X } from 'lucide-react';
 import type { EvidenceRow, RowStatus } from '../../../data/seo/subpillar.model';
-import { planAiFixes } from '../../../data/findings.repository';
+import { applyFixes, planAiFixes } from '../../../data/findings.repository';
+import { ApiError } from '../../../lib/api';
 import { card, eyebrow } from './tone';
 
 interface AppliedUpdate {
@@ -48,6 +49,19 @@ function validate(row: EvidenceRow, value: string, mode: 'title-tags' | 'generic
 export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose, onApply }: Props) {
   const [isGenerating, setIsGenerating] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  /**
+   * `rowId -> proposal id`, populated when the model drafts a row.
+   *
+   * This is what separates a row that can be SAVED TO SHOPIFY from one that can only be edited on
+   * screen. The apply endpoint reads the resource and field from the stored proposal — never from
+   * this client — so a row with no proposal is not writable, and the UI has to say so rather than
+   * showing an Apply button that would silently do nothing.
+   */
+  const [proposalIds, setProposalIds] = useState<Record<string, number>>({});
+  /** Per-row failure text from Shopify after an apply, keyed by row id. */
+  const [applyErrors, setApplyErrors] = useState<Record<string, string>>({});
+  const [applyNotice, setApplyNotice] = useState<string | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
   const [applied, setApplied] = useState<AppliedUpdate[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   /** What AI actually managed to do, stated plainly rather than implied by a filled box. */
@@ -86,6 +100,10 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
       }
 
       const filled: Record<string, string> = {};
+      // The proposal id is what makes a draft WRITABLE. Without it a row can only be edited
+      // locally: the apply endpoint identifies the resource and field from the stored proposal,
+      // never from this client, so a row with no id has nothing the server would accept.
+      const ids: Record<string, number> = {};
       const reasons: string[] = [];
       let model: string | null = null;
 
@@ -95,7 +113,10 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
           model = result.model ?? model;
           for (const proposal of result.proposals) {
             const ref = `${proposal.resourceType}:${proposal.resourceId}`;
-            if (resourceIds.includes(ref)) filled[ref] = proposal.proposedValue;
+            if (resourceIds.includes(ref)) {
+              filled[ref] = proposal.proposedValue;
+              ids[ref] = proposal.id;
+            }
           }
           if (!result.planned && result.unavailableReason) reasons.push(result.unavailableReason);
         } catch {
@@ -103,7 +124,7 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
         }
       }
 
-      return { filled, model, reasons };
+      return { filled, ids, model, reasons };
     },
     [rows, findingIdByRowId],
   );
@@ -152,10 +173,11 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
     setFillMode('ai');
     setIsDrafting(true);
     setAiNotice(null);
-    const { filled, model, reasons } = await draftWithAi(false, drafts);
+    const { filled, ids, model, reasons } = await draftWithAi(false, drafts);
     const count = Object.keys(filled).length;
     setAiCount(count);
     setAiModel(model);
+    setProposalIds((existing) => ({ ...existing, ...ids }));
     if (count > 0) setDrafts((existing) => ({ ...existing, ...filled }));
     else setAiNotice(noticeFor(reasons));
     setIsDrafting(false);
@@ -178,17 +200,91 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
 
   const updateDraft = (id: string, value: string) => setDrafts((current) => ({ ...current, [id]: value }));
 
-  const handleApply = () => {
-    const updates = ready.map(({ row, value }) => ({
-      id: row.id,
-      before: row.current?.value ?? '',
-      after: value.trim(),
-      beforeStatus: row.status,
-      status: 'Healthy',
-    }));
-    if (updates.length === 0) return;
-    onApply(updates);
-    setApplied(updates);
+  /** Rows that carry a proposal id — the only ones Shopify can actually be asked to save. */
+  const writable = ready.filter(({ row }) => proposalIds[row.id] !== undefined);
+  const applyErrorCount = Object.keys(applyErrors).length;
+
+  /**
+   * Writes the approved values to the merchant's real Shopify store.
+   *
+   * THIS USED TO BE A LOCAL STATE UPDATE. The button said "Apply N test fixes" and did exactly
+   * that: it rewrote the rows on screen and nothing else. The storefront never changed, so the
+   * next audit re-measured the same missing descriptions and the score never moved — which is
+   * precisely what made the feature look broken.
+   *
+   * The table is now updated from what the SERVER confirmed, not from what was submitted. A row
+   * Shopify rejected keeps its old value and shows the reason, because showing it as fixed would
+   * be the same lie in a new place.
+   */
+  const handleApply = async () => {
+    if (writable.length === 0 || isApplying) return;
+    setIsApplying(true);
+    setApplyNotice(null);
+    setApplyErrors({});
+
+    try {
+      // The EDITED text is sent, not the drafted text — the merchant's correction is the point of
+      // an editable preview. The server re-checks it against the same bounds either way.
+      const result = await applyFixes(
+        writable.map(({ row, value }) => ({ proposalId: proposalIds[row.id]!, value: value.trim() })),
+      );
+
+      const byId = new Map(result.results.map((entry) => [entry.proposalId, entry]));
+      const failures: Record<string, string> = {};
+      const updates: AppliedUpdate[] = [];
+
+      for (const { row, value } of writable) {
+        const outcome = byId.get(proposalIds[row.id]!);
+        if (outcome?.status === 'applied') {
+          updates.push({
+            id: row.id,
+            before: row.current?.value ?? '',
+            after: value.trim(),
+            beforeStatus: row.status,
+            status: 'Healthy',
+          });
+        } else if (outcome) {
+          failures[row.id] = outcome.detail ?? 'Shopify did not accept this change.';
+        }
+      }
+
+      setApplyErrors(failures);
+      if (updates.length > 0) {
+        onApply(updates);
+        setApplied(updates);
+      }
+
+      // The re-audit is what actually moves the score, so it is stated rather than left implied —
+      // a merchant who sees "12 saved" and an unchanged score would reasonably assume a bug.
+      const reaudit =
+        result.reaudit === 'queued'
+          ? ' A fresh audit is running — scores update when it finishes.'
+          : result.reaudit === 'already-running'
+            ? ' An audit is already running and will pick these up.'
+            : '';
+
+      // The reasons are carried IN the notice rather than promised somewhere else on screen. Every
+      // distinct reason is shown once — twenty rows refused for one missing scope is one sentence,
+      // not twenty.
+      const distinct = [...new Set(Object.values(failures))];
+      const why = distinct.length > 0 ? ` ${distinct.join(' ')}` : '';
+
+      setApplyNotice(
+        result.applied === 0
+          ? `Nothing was saved to Shopify.${why}`
+          : `Saved ${result.applied} change${result.applied === 1 ? '' : 's'} to Shopify.${reaudit}${
+              result.failed + result.skipped > 0 ? ` ${result.failed + result.skipped} could not be saved.${why}` : ''
+            }`,
+      );
+    } catch (error) {
+      setApplyNotice(
+        error instanceof ApiError && [400, 403, 409, 429, 502].includes(error.status)
+          ? error.message
+          : 'We could not save these changes to Shopify. Please try again.',
+      );
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const handleUndo = () => {
@@ -317,7 +413,33 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
             </div>
             <footer className="flex flex-col-reverse gap-2 border-t border-surface-200 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="inline-flex items-center gap-1.5 text-[11.5px] text-surface-500"><ClipboardCheck size={13} /> Validation runs before apply</div>
-              <div className="flex justify-end gap-1.5"><button type="button" onClick={onClose} className="btn-secondary btn-xs">Cancel</button><button type="button" onClick={handleApply} disabled={ready.length === 0} className="btn-primary btn-xs">Apply {ready.length} test fixes</button></div>
+              <div className="flex flex-col items-end gap-1.5">
+                {/* Says plainly what the button does. It used to read "Apply N test fixes" while
+                    only rewriting the table — the wording was accurate and the behaviour was the
+                    problem. Both are fixed: this writes to Shopify, and it says so. */}
+                {applyNotice && (
+                  <p role="status" className={`text-[11px] leading-[1.4] ${applyErrorCount > 0 ? 'text-critical-700' : 'text-success-700'}`}>
+                    {applyNotice}
+                  </p>
+                )}
+                {ready.length > writable.length && (
+                  <p className="text-[11px] leading-[1.4] text-surface-500">
+                    {ready.length - writable.length} row{ready.length - writable.length === 1 ? '' : 's'} can't be saved
+                    automatically — press <strong>Draft with AI</strong> first, or update them in Shopify.
+                  </p>
+                )}
+                <div className="flex justify-end gap-1.5">
+                  <button type="button" onClick={onClose} className="btn-secondary btn-xs">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => void handleApply()}
+                    disabled={writable.length === 0 || isApplying}
+                    className="btn-primary btn-xs"
+                  >
+                    {isApplying ? 'Saving to Shopify…' : `Save ${writable.length} to Shopify`}
+                  </button>
+                </div>
+              </div>
             </footer>
           </>
         )}
