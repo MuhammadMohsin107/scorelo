@@ -382,6 +382,25 @@ export async function planAiFixes(
     });
   }
 
+  // ── Targets the model simply never mentioned ──────────────────────
+  // The loop above can only account for refs the model RETURNED. A target it ignored outright
+  // appears in neither `accepted` nor `skipped`, so it used to vanish with no record anywhere: the
+  // merchant saw an empty box beside a row that had been selected, with nothing saying why, and
+  // the count silently read "4 drafted" for 5 selected. Silence is the one answer this flow must
+  // never give, so an omission is now a stated outcome like any other.
+  const answered = new Set([
+    ...accepted.map((row) => `${row.resourceType}:${row.resourceId}`),
+    ...skipped.map((entry) => `${entry.resourceType}:${entry.resourceId}`),
+  ]);
+  for (const target of batch) {
+    if (answered.has(target.ref)) continue;
+    skipped.push({
+      resourceType: target.resourceType,
+      resourceId: target.resourceId,
+      reason: 'The model returned nothing for this one — there was too little of its own wording to build from.',
+    });
+  }
+
   if (accepted.length === 0) {
     return { findingId, planned: false, proposals: [], skipped, model: result.model, unavailableReason: 'unavailable' };
   }

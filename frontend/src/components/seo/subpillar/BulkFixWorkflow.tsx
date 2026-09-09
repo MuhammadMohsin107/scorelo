@@ -58,6 +58,8 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
    * showing an Apply button that would silently do nothing.
    */
   const [proposalIds, setProposalIds] = useState<Record<string, number>>({});
+  /** Why the model left a specific row blank, keyed by row id. Cleared on a fresh draft. */
+  const [skipReasons, setSkipReasons] = useState<Record<string, string>>({});
   /** Per-row failure text from Shopify after an apply, keyed by row id. */
   const [applyErrors, setApplyErrors] = useState<Record<string, string>>({});
   const [applyNotice, setApplyNotice] = useState<string | null>(null);
@@ -96,7 +98,13 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
       }
 
       if (byFinding.size === 0) {
-        return { filled: {} as Record<string, string>, model: null as string | null, reasons: ['nothing_to_plan'] };
+        return {
+          filled: {} as Record<string, string>,
+          ids: {} as Record<string, number>,
+          skips: {} as Record<string, string>,
+          model: null as string | null,
+          reasons: ['nothing_to_plan'],
+        };
       }
 
       const filled: Record<string, string> = {};
@@ -104,6 +112,15 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
       // locally: the apply endpoint identifies the resource and field from the stored proposal,
       // never from this client, so a row with no id has nothing the server would accept.
       const ids: Record<string, number> = {};
+      /**
+       * Why a specific row was left empty, keyed by ref.
+       *
+       * The server has always returned this — a per-resource reason for every row it could not
+       * draft — and this component used to drop it on the floor. The result was the worst possible
+       * answer to "why is this box blank": none at all. A merchant selecting five rows and getting
+       * four had no way to tell whether the fifth failed, was skipped, or was still loading.
+       */
+      const skips: Record<string, string> = {};
       const reasons: string[] = [];
       let model: string | null = null;
 
@@ -118,13 +135,17 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
               ids[ref] = proposal.id;
             }
           }
+          for (const skip of result.skipped) {
+            const ref = `${skip.resourceType}:${skip.resourceId}`;
+            if (resourceIds.includes(ref)) skips[ref] = skip.reason;
+          }
           if (!result.planned && result.unavailableReason) reasons.push(result.unavailableReason);
         } catch {
           reasons.push('unavailable');
         }
       }
 
-      return { filled, ids, model, reasons };
+      return { filled, ids, skips, model, reasons };
     },
     [rows, findingIdByRowId],
   );
@@ -173,11 +194,14 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
     setFillMode('ai');
     setIsDrafting(true);
     setAiNotice(null);
-    const { filled, ids, model, reasons } = await draftWithAi(false, drafts);
+    const { filled, ids, skips, model, reasons } = await draftWithAi(false, drafts);
     const count = Object.keys(filled).length;
     setAiCount(count);
     setAiModel(model);
     setProposalIds((existing) => ({ ...existing, ...ids }));
+    // Replaced wholesale rather than merged: these describe THIS draft attempt, and carrying a
+    // stale reason onto a row the model has since filled would be worse than showing nothing.
+    setSkipReasons(skips);
     if (count > 0) setDrafts((existing) => ({ ...existing, ...filled }));
     else setAiNotice(noticeFor(reasons));
     setIsDrafting(false);
@@ -435,6 +459,18 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
                           <span className={error ? 'text-warning-700' : 'text-success-700'}>{error ?? 'Ready to apply'}</span>
                           <span className="tabular-nums text-surface-400">{mode === 'title-tags' ? `${value.length}/${MAX_TITLE_LENGTH}` : `${value.length} characters`}</span>
                         </div>
+                        {/* WHY THIS ROW IS BLANK, on the row itself. "Recommendation is empty"
+                            describes the box; it does not answer the only question the merchant
+                            has, which is why the model filled four of five. The server sends a
+                            per-resource reason and this is where it belongs — beside the empty box,
+                            not buried in a banner about the batch. Shown only while the row is
+                            still empty, so it disappears the moment they type. */}
+                        {!value && skipReasons[row.id] && (
+                          <p className="mt-1 text-[10.5px] leading-[1.4] text-surface-500">{skipReasons[row.id]}</p>
+                        )}
+                        {applyErrors[row.id] && (
+                          <p className="mt-1 text-[10.5px] leading-[1.4] text-critical-700">{applyErrors[row.id]}</p>
+                        )}
                       </div>
                     </div>
                   </article>
