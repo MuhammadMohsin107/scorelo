@@ -121,6 +121,22 @@ export const enableTwoFactor = (currentPassword: string) =>
 export const disableTwoFactor = (currentPassword: string) =>
   api.post<{ twoFactorEnabled: boolean }>('/security/two-factor/disable', { currentPassword });
 
+/**
+ * What a verification resend actually did.
+ *
+ * More specific than the public /auth/resend-verification, which answers uniformly so a stranger
+ * cannot use it to find out which addresses have accounts. That concern does not apply here: the
+ * caller is authenticated and asking about their own address, which this page already displays.
+ */
+export type VerificationResendResult =
+  | { sent: true }
+  | { sent: false; reason: 'already_verified' | 'delivery_unavailable' | 'delivery_failed' };
+
+/** Re-sends the verification code to the signed-in customer's own address. Takes no address — the
+ * server resolves it from the session, so it cannot be aimed at someone else's inbox. */
+export const resendMyVerificationEmail = () =>
+  api.post<VerificationResendResult>('/security/verify-email/resend', {});
+
 // ─── Recovery codes ──────────────────────────────────────────────────
 
 export interface RecoveryCodeStatus {

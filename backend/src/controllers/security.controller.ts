@@ -4,6 +4,7 @@ import { requestMetadata } from '../lib/requestMetadata.js';
 import { listSessions, revokeOtherSessions, revokeSession } from '../services/session.service.js';
 import { listSecurityEvents, recordSecurityEvent } from '../services/security-event.service.js';
 import { changePassword } from '../services/security.service.js';
+import { resendVerificationForUser } from '../services/auth.service.js';
 import {
   disableTwoFactor,
   enableTwoFactor,
@@ -106,6 +107,18 @@ export async function postEnableTwoFactor(req: Request, res: Response) {
 export async function postDisableTwoFactor(req: Request, res: Response) {
   await disableTwoFactor(requireUserId(req), req.body.currentPassword, requestMetadata(req));
   res.json({ data: { twoFactorEnabled: false } });
+}
+
+/**
+ * Re-sends the verification code to the signed-in customer's own address, and says what happened.
+ *
+ * ALWAYS 200 — every outcome here is a fact about the caller's own account, not a failure of the
+ * request. The body carries the truth so the Settings page can stop claiming a delivery that may
+ * never have been attempted. The address is resolved from the authenticated session, never from
+ * the request, so this cannot mail an inbox the caller does not own.
+ */
+export async function postResendMyVerification(req: Request, res: Response) {
+  res.json({ data: await resendVerificationForUser(requireUserId(req)) });
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   postDisableTwoFactor,
   postEnableTwoFactor,
   postRegenerateRecoveryCodes,
+  postResendMyVerification,
   postRevokeOtherSessions,
   postRevokeSession,
 } from '../controllers/security.controller.js';
@@ -77,6 +78,16 @@ securityRouter.post(
   rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many attempts. Please wait a few minutes and try again.' }),
   validateRequest({ body: twoFactorToggleSchema }),
   asyncHandler(postDisableTwoFactor),
+);
+
+// Re-sends the verification code that unblocks 2FA, to the caller's own address only.
+//
+// Tight limit because each successful call sends real mail. Keyed on IP alone — the body is empty
+// and the target address comes from the session, so there is nothing else to key on.
+securityRouter.post(
+  '/verify-email/resend',
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 3, message: 'Too many requests. Please wait a few minutes before requesting another code.' }),
+  asyncHandler(postResendMyVerification),
 );
 
 // ─── Recovery codes ──────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AlertCircle, Check, Copy, Download, KeyRound, Laptop, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ApiError } from '../../lib/api';
 import {
   changePassword,
@@ -12,6 +13,7 @@ import {
   fetchSessions,
   formatSecurityDate,
   regenerateRecoveryCodes,
+  resendMyVerificationEmail,
   revokeOtherSessions,
   revokeSession,
   type RecoveryCodeStatus,
@@ -19,7 +21,6 @@ import {
   type SecurityProfile,
   type SessionRecord,
 } from '../../data/security.repository';
-import { resendVerification } from '../../data/auth.repository';
 import { Button } from '../workflows/WorkflowPrimitives';
 import { Field, SettingsCard, TextInput, ToggleRow } from './SettingsPrimitives';
 
@@ -61,6 +62,8 @@ export default function SecuritySection() {
   const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
   const [sendingVerification, setSendingVerification] = useState(false);
   const [verificationNotice, setVerificationNotice] = useState('');
+  /** Kept separate from the notice so a failure can never be rendered in the success style. */
+  const [verificationProblem, setVerificationProblem] = useState('');
 
   /**
    * Which confirmation the toggle (or the regenerate button) is waiting on, if any.
@@ -85,22 +88,49 @@ export default function SecuritySection() {
   const [copied, setCopied] = useState(false);
 
   /**
-   * Sends the verification email that unblocks 2FA.
+   * Sends the verification code that unblocks 2FA, and reports what actually happened.
    *
-   * The endpoint answers identically for every address by design, so there is no failure worth
-   * distinguishing here — a success message either way is what the API already guarantees, and
-   * anything more specific would confirm which addresses exist.
+   * THIS USED TO CLAIM SUCCESS UNCONDITIONALLY — the notice was set in a `finally`, so a request
+   * that threw, or one the server never even attempted because SMTP was unconfigured, still told
+   * the customer mail was on its way. That is the single worst thing this panel can do: it sends
+   * someone to an inbox that will never receive anything, with no way to tell whether they should
+   * keep waiting.
+   *
+   * The uniform-answer reasoning that justified it belongs to the PUBLIC endpoint, which must not
+   * reveal which addresses have accounts. It never applied here: this caller is authenticated,
+   * asking about their own address, which the page displays two lines above.
    */
   async function handleResendVerification() {
-    if (!profile?.email) return;
     setSendingVerification(true);
+    setVerificationNotice('');
+    setVerificationProblem('');
     try {
-      await resendVerification(profile.email);
-    } catch {
-      // Deliberately not surfaced separately — see above.
+      const result = await resendMyVerificationEmail();
+      if (result.sent) {
+        setVerificationNotice(
+          `Code sent to ${profile?.email ?? 'your address'}. Enter it on the verification page, then reload this page.`,
+        );
+      } else if (result.reason === 'already_verified') {
+        // Nothing was wrong and nothing was sent — just reload to pick up the new state.
+        setVerificationNotice('Your email address is already verified. Reload this page to turn on two-factor authentication.');
+      } else {
+        // Named plainly rather than dressed as a success. 'delivery_unavailable' means the server
+        // has no mail transport configured at all, which is an operator problem the customer
+        // cannot solve by trying again — so it must not read like a transient glitch.
+        setVerificationProblem(
+          result.reason === 'delivery_unavailable'
+            ? 'Scorelo cannot send email right now, so no code was sent. Please contact support — retrying will not help until this is fixed.'
+            : 'We could not deliver the code. Please try again in a few minutes.',
+        );
+      }
+    } catch (error) {
+      setVerificationProblem(
+        error instanceof ApiError && error.status === 429
+          ? error.message
+          : 'We could not send the code right now. Please try again.',
+      );
     } finally {
       setSendingVerification(false);
-      setVerificationNotice('Verification email sent. Open the link in it, then reload this page to turn on two-factor authentication.');
     }
   }
 
@@ -422,16 +452,37 @@ export default function SecuritySection() {
                 Verify your email address first — the codes are sent there, so turning this on before
                 then would lock you out.
               </p>
+              {/* A FAILURE IS NEVER RENDERED IN THE SUCCESS STYLE. These are separate states, and
+                  the button stays available after a failure so a transient problem can be retried
+                  — the old version replaced the button with a success line whatever happened. */}
+              {verificationProblem && (
+                <p role="alert" className="mt-1 text-[11.5px] font-semibold text-critical-800">
+                  {verificationProblem}
+                </p>
+              )}
+
               {verificationNotice ? (
-                <p className="mt-1 text-[11.5px] font-medium text-warning-900">{verificationNotice}</p>
+                <p className="mt-1 text-[11.5px] font-medium text-warning-900">
+                  {verificationNotice}{' '}
+                  {/* The email carries a 6-DIGIT CODE, not a link. The old copy said "open the link
+                      in it", which sent people hunting through an email for something that was
+                      never there. This points at the page that actually takes the code. */}
+                  <Link
+                    to="/verify-email"
+                    state={{ email: profile?.email }}
+                    className="font-semibold underline underline-offset-2 hover:opacity-80"
+                  >
+                    Enter your code
+                  </Link>
+                </p>
               ) : (
                 <button
                   type="button"
                   onClick={handleResendVerification}
-                  disabled={sendingVerification || !profile?.email}
+                  disabled={sendingVerification}
                   className="mt-1 cursor-pointer rounded text-[11.5px] font-semibold text-warning-900 underline underline-offset-2 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {sendingVerification ? 'Sending…' : `Send a verification email to ${profile?.email ?? 'your address'}`}
+                  {sendingVerification ? 'Sending…' : `Email a verification code to ${profile?.email ?? 'your address'}`}
                 </button>
               )}
             </div>

@@ -83,6 +83,46 @@ async function deliverVerificationCode(
   }
 }
 
+/**
+ * Why a verification resend did or did not go out.
+ *
+ * DELIBERATELY MORE HONEST THAN THE PUBLIC ENDPOINT, and it is safe to be. The uniform 202 on
+ * /auth/resend-verification exists so a stranger cannot use it to discover which addresses have
+ * accounts. That reasoning does not apply to an authenticated caller asking about THEIR OWN
+ * address — the page already knows who they are and already displays the address, so there is
+ * nothing left to disclose. What is left is a customer staring at "email sent" beside an empty
+ * inbox, which is the failure this type exists to end.
+ */
+export type VerificationResendOutcome =
+  | { sent: true }
+  | { sent: false; reason: 'already_verified' | 'delivery_unavailable' | 'delivery_failed' };
+
+/**
+ * Re-sends the verification code to the SIGNED-IN customer's own address.
+ *
+ * The user id comes from the authenticated request, never from a body — there is no address
+ * parameter here precisely so this cannot be pointed at an inbox the caller does not own.
+ *
+ * Reports what actually happened. `mailerConfigured()` is checked BEFORE anything is minted,
+ * because "no transport exists" is a different fact from "the send failed", and an operator
+ * reading a support ticket needs to be able to tell them apart.
+ */
+export async function resendVerificationForUser(userId: number): Promise<VerificationResendOutcome> {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new ApiError(404, 'User not found', 'USER_NOT_FOUND');
+
+  // Not an error: a customer who verified in another tab has nothing left to do here.
+  if (user.emailVerifiedAt !== null) return { sent: false, reason: 'already_verified' };
+
+  if (!mailerConfigured()) {
+    console.error(`[scorelo-auth] verification resend impossible: SMTP is not configured (user ${user.id})`);
+    return { sent: false, reason: 'delivery_unavailable' };
+  }
+
+  const delivered = await deliverVerificationCode(user, 'signup');
+  return delivered ? { sent: true } : { sent: false, reason: 'delivery_failed' };
+}
+
 /** Re-sends a signup verification code, superseding whatever was outstanding. */
 export async function resendEmailVerification(email: string): Promise<void> {
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
