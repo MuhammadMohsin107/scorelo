@@ -231,6 +231,45 @@ async function storeIdForFinding(findingId: number): Promise<number | null> {
  * Tenancy is enforced by delegating the lookup to `getFinding`, which resolves the caller's own
  * store and 404s otherwise — the same guard the manual flow uses. Nothing is applied here.
  */
+/**
+ * Resolves ONE resource of a finding for a value the merchant typed themselves.
+ *
+ * WHY THIS EXISTS. A proposal row is what the apply path needs — it carries the resource, the field
+ * and the authorization that the audit really saw this resource. AI drafting creates one as a side
+ * effect; typing a value by hand created nothing, so a hand-written description had no way to reach
+ * Shopify at all. That made "manual" a second-class path in a feature whose whole point is that the
+ * merchant's own wording wins.
+ *
+ * THE AUTHORIZATION IS IDENTICAL TO planAiFixes, deliberately and by reuse rather than by
+ * resemblance: the same `getFinding` ownership check, the same `candidateRows`, the same
+ * `extractTargets`. A resourceRef that the audit did not record for this finding is not found here,
+ * so a hand-typed value cannot be aimed at a resource — or a tenant — the caller has no claim to.
+ *
+ * Returns null when the finding is not fixable or the resource is not one of its own.
+ */
+export async function resolveManualTarget(
+  userId: number,
+  findingId: number,
+  resourceRef: string,
+  storeId?: number,
+): Promise<{ rule: FieldRule; resourceType: FixableResourceType; resourceId: string; currentValue: string } | null> {
+  // Throws 404 unless this finding belongs to a store the caller owns.
+  const finding = await getFinding(userId, findingId, storeId);
+
+  const rule = fieldForSubPillar(finding.subPillar);
+  if (!rule) return null;
+
+  const target = extractTargets(await candidateRows(finding), rule).find((item) => item.ref === resourceRef);
+  if (!target) return null;
+
+  return {
+    rule,
+    resourceType: target.resourceType,
+    resourceId: target.resourceId,
+    currentValue: target.currentValue,
+  };
+}
+
 export async function planAiFixes(
   userId: number,
   findingId: number,

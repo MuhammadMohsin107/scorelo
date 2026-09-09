@@ -155,6 +155,8 @@ export function planAiFixes(findingId: string, resourceIds: string[]): Promise<P
 /** What one resource's write actually did. */
 export interface ApplyFixResult {
   proposalId: number;
+  /** The evidence-row ref this outcome belongs to — how a result is matched back to its row. */
+  resourceRef: string;
   status: 'applied' | 'failed' | 'skipped';
   /** Why it failed or was skipped — Shopify's own wording, or the reason it was refused. */
   detail?: string;
@@ -181,7 +183,20 @@ export interface ApplyFixesResult {
  * merchant's EDITED text when they changed the draft; the server validates it against the same
  * length and content rules the model's own value had to pass.
  */
-export function applyFixes(fixes: Array<{ proposalId: number; value?: string }>): Promise<ApplyFixesResult> {
+export type ApplyFixInput =
+  /** An AI-drafted row: the proposal exists, `value` carries any edit the merchant made to it. */
+  | { proposalId: number; value?: string }
+  /**
+   * A row the merchant wrote themselves and never drafted, so no proposal exists yet.
+   *
+   * `findingId` + `resourceRef` are the authorization: the server re-derives that finding's own
+   * evidence rows and refuses a ref that is not among them — the same anchor AI planning uses. It
+   * creates the proposal, then writes it, so a hand-typed value reaches Shopify by exactly the
+   * same path as a drafted one.
+   */
+  | { findingId: number; resourceRef: string; value: string };
+
+export function applyFixes(fixes: ApplyFixInput[]): Promise<ApplyFixesResult> {
   return api.post<ApplyFixesResult>('/ai-fixes/apply', { fixes });
 }
 

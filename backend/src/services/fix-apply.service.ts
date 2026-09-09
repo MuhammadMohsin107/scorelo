@@ -13,6 +13,7 @@ import {
   type FixableResourceType,
 } from '../lib/ai/fix-policy.js';
 import { getFixContext } from './fixability.service.js';
+import { resolveManualTarget } from './ai-fix.service.js';
 
 /**
  * ─── Applying an approved fix to the merchant's store ────────────────
@@ -49,9 +50,25 @@ import { getFixContext } from './fixability.service.js';
  * a live storefront.
  */
 
+/**
+ * One requested fix. Either an existing proposal (the AI-drafted path) or a resource plus the
+ * merchant's own text (the manual path). The schema guarantees exactly one shape per entry.
+ */
+export type ApplyFixInput =
+  | { proposalId: number; value?: string; findingId?: undefined; resourceRef?: undefined }
+  | { proposalId?: undefined; findingId: number; resourceRef: string; value: string };
+
 /** One resource's outcome. Returned to the caller and mirrored into the proposal row. */
 export interface ApplyResult {
   proposalId: number;
+  /**
+   * The evidence-row ref (`product:123`) this outcome belongs to.
+   *
+   * Present so the caller can match results back to the rows it submitted. A manual fix has no
+   * proposal id until the server creates one, so the id alone cannot identify it — without this the
+   * UI could not tell which hand-typed row Shopify refused.
+   */
+  resourceRef: string;
   status: 'applied' | 'failed' | 'skipped';
   /** Why it failed or was skipped. Never contains a credential or a raw API payload. */
   detail?: string;
@@ -89,6 +106,39 @@ const SEO_INPUT_KEY: Partial<Record<FixableField, 'title' | 'description'>> = {
   'seo.title': 'title',
   'seo.description': 'description',
 };
+
+/** The GraphQL type name behind each resource kind, for rebuilding a gid. */
+const GID_TYPE: Record<FixableResourceType, string> = {
+  product: 'Product',
+  collection: 'Collection',
+  page: 'Page',
+  article: 'Article',
+};
+
+/** The evidence-row ref a stored proposal corresponds to — the id the UI knows a row by. */
+function ref(row: { resourceType: string; resourceId: string }): string {
+  return `${row.resourceType}:${row.resourceId}`;
+}
+
+/**
+ * Rebuilds the full `gid://shopify/Type/123` a mutation's `ID!` argument requires.
+ *
+ * WHY THIS IS NEEDED AT ALL. The snapshot deliberately stores the NUMERIC SUFFIX rather than the
+ * gid — see `id()` in shopify.provider.ts, which strips it because "the numeric suffix is what
+ * merchants see in admin URLs, so it is what evidence rows should reference". That is the right
+ * call for evidence a person reads, and it means every id reaching this service is `123`, not a
+ * gid. Passing the bare number straight to `$id: ID!` is rejected by Shopify at variable coercion
+ * — `Variable $id of type ID! was provided invalid value` — before the mutation ever runs.
+ *
+ * An id that ALREADY looks like a gid is passed through untouched: `id()` returns its input
+ * unchanged when the tail is not numeric, so both shapes can legitimately arrive here and only one
+ * of them needs building.
+ */
+export function toGid(resourceType: FixableResourceType, resourceId: string): string {
+  const raw = resourceId.trim();
+  if (raw.startsWith('gid://')) return raw;
+  return `gid://shopify/${GID_TYPE[resourceType]}/${raw}`;
+}
 
 const PRODUCT_MUTATION = `
   mutation ScoreloApplyProductSeo($id: ID!, $seo: SEOInput!) {
@@ -156,13 +206,17 @@ async function writeField(
     { namespace: SEO_METAFIELD_NAMESPACE, key: metafieldKey, value, type: SEO_METAFIELD_TYPE },
   ];
 
+  // The stored id is the numeric suffix, not a gid — rebuilt here, or Shopify rejects the variable
+  // before the mutation runs. See toGid().
+  const gid = toGid(resourceType, resourceId);
+
   // Only the ONE key being fixed is sent. Shopify leaves an omitted SEOInput key unchanged, so a
   // description fix cannot blank a title the merchant wrote.
   const plan = {
-    product: { query: PRODUCT_MUTATION, variables: { id: resourceId, seo: { [seoKey]: value } }, root: 'productUpdate' },
-    collection: { query: COLLECTION_MUTATION, variables: { id: resourceId, seo: { [seoKey]: value } }, root: 'collectionUpdate' },
-    page: { query: PAGE_MUTATION, variables: { id: resourceId, metafields }, root: 'pageUpdate' },
-    article: { query: ARTICLE_MUTATION, variables: { id: resourceId, metafields }, root: 'articleUpdate' },
+    product: { query: PRODUCT_MUTATION, variables: { id: gid, seo: { [seoKey]: value } }, root: 'productUpdate' },
+    collection: { query: COLLECTION_MUTATION, variables: { id: gid, seo: { [seoKey]: value } }, root: 'collectionUpdate' },
+    page: { query: PAGE_MUTATION, variables: { id: gid, metafields }, root: 'pageUpdate' },
+    article: { query: ARTICLE_MUTATION, variables: { id: gid, metafields }, root: 'articleUpdate' },
   }[resourceType];
 
   try {
@@ -200,13 +254,22 @@ async function writeField(
  */
 export async function applyApprovedProposals(
   storeId: number,
-  fixes: Array<{ proposalId: number; value?: string }>,
+  fixes: ApplyFixInput[],
   userId: number,
 ): Promise<ApplySummary> {
-  const proposalIds = fixes.map((fix) => fix.proposalId);
-  const overrideById = new Map(
-    fixes.filter((fix) => typeof fix.value === 'string').map((fix) => [fix.proposalId, fix.value as string]),
-  );
+  // A hand-typed value has no proposal row yet, so one is created before anything is written. This
+  // runs first and separately because it is the step that can legitimately reject an entry outright
+  // — a ref the audit never recorded is refused here rather than reaching Shopify.
+  const { proposalIds, overrideById, rejected } = await materializeFixes(storeId, fixes, userId);
+
+  if (proposalIds.length === 0 && rejected.length > 0) {
+    return {
+      applied: 0,
+      failed: 0,
+      skipped: rejected.length,
+      results: rejected,
+    };
+  }
   // STORE ID IS PART OF THE PREDICATE, not a check performed after loading. A proposal belonging to
   // another store is not found at all, so this endpoint cannot be used to write to a catalogue the
   // caller does not own even with a valid proposal id.
@@ -232,7 +295,7 @@ export async function applyApprovedProposals(
     const rule = FIELD_RULES[field];
 
     if (!rule) {
-      results.push({ proposalId: row.id, status: 'skipped', detail: 'Unknown field.' });
+      results.push({ proposalId: row.id, resourceRef: ref(row), status: 'skipped', detail: 'Unknown field.' });
       continue;
     }
 
@@ -243,13 +306,14 @@ export async function applyApprovedProposals(
     // `applied` is refused because it is already done; `rejected` because someone said no. Both
     // would be a second write for no change.
     if (row.status !== 'approved' && row.status !== 'proposed' && row.status !== 'failed') {
-      results.push({ proposalId: row.id, status: 'skipped', detail: `Cannot apply a ${row.status} fix.` });
+      results.push({ proposalId: row.id, resourceRef: ref(row), status: 'skipped', detail: `Cannot apply a ${row.status} fix.` });
       continue;
     }
 
     if (!grantedScopes.includes(rule.writeScope)) {
       results.push({
         proposalId: row.id,
+        resourceRef: ref(row),
         status: 'skipped',
         detail: 'Reconnect your Shopify store to grant Scorelo permission to save changes.',
       });
@@ -257,7 +321,7 @@ export async function applyApprovedProposals(
     }
 
     if (!isFixableResourceType(row.resourceType)) {
-      results.push({ proposalId: row.id, status: 'skipped', detail: 'Unsupported resource type.' });
+      results.push({ proposalId: row.id, resourceRef: ref(row), status: 'skipped', detail: 'Unsupported resource type.' });
       continue;
     }
 
@@ -273,7 +337,7 @@ export async function applyApprovedProposals(
     const check = validateProposedValue(rule, intended, row.currentValue);
     if (!check.ok) {
       await markFailed(row.id, check.detail);
-      results.push({ proposalId: row.id, status: 'failed', detail: check.detail });
+      results.push({ proposalId: row.id, resourceRef: ref(row), status: 'failed', detail: check.detail });
       continue;
     }
 
@@ -303,13 +367,13 @@ export async function applyApprovedProposals(
           decidedBy: userId,
         })
         .where(eq(aiFixProposals.id, row.id));
-      results.push({ proposalId: row.id, status: 'applied' });
+      results.push({ proposalId: row.id, resourceRef: ref(row), status: 'applied' });
       // The resource and the field, never the value — a log is read by more people than the
       // database is, and a proposed value can quote merchant copy.
       console.log(`[scorelo-fix] applied ${field} to ${row.resourceType} (store ${storeId})`);
     } else {
       await markFailed(row.id, outcome.detail);
-      results.push({ proposalId: row.id, status: 'failed', detail: outcome.detail });
+      results.push({ proposalId: row.id, resourceRef: ref(row), status: 'failed', detail: outcome.detail });
       console.warn(`[scorelo-fix] failed ${field} on ${row.resourceType} (store ${storeId}): ${outcome.detail}`);
     }
   }
@@ -320,6 +384,103 @@ export async function applyApprovedProposals(
     skipped: results.filter((result) => result.status === 'skipped').length,
     results,
   };
+}
+
+/**
+ * Turns every requested fix into a proposal id, creating rows for hand-typed values.
+ *
+ * WHY A MANUAL VALUE GETS A ROW AT ALL, rather than being written directly: the proposal row is the
+ * record of what was changed, by whom, and to what. A fix that bypassed it would leave the
+ * storefront altered with nothing in Scorelo to show for it — no history, no status, nothing for
+ * the next audit's reader to reconcile against. Both paths converge on the same table on purpose.
+ *
+ * The resource and field are taken from `resolveManualTarget`, which re-derives them from the
+ * finding's own evidence. Nothing about WHICH resource is written comes from the request body.
+ *
+ * `onDuplicateKeyUpdate` matches `ai_fix_proposals_target_idx` (one live proposal per
+ * finding+resource+field): re-typing a value for a row that was already drafted updates that row
+ * rather than failing, which is exactly what a merchant editing a draft expects.
+ */
+async function materializeFixes(
+  storeId: number,
+  fixes: ApplyFixInput[],
+  userId: number,
+): Promise<{ proposalIds: number[]; overrideById: Map<number, string>; rejected: ApplyResult[] }> {
+  const proposalIds: number[] = [];
+  const overrideById = new Map<number, string>();
+  const rejected: ApplyResult[] = [];
+
+  for (const fix of fixes) {
+    if (fix.proposalId !== undefined) {
+      proposalIds.push(fix.proposalId);
+      if (typeof fix.value === 'string') overrideById.set(fix.proposalId, fix.value);
+      continue;
+    }
+
+    const target = await resolveManualTarget(userId, fix.findingId, fix.resourceRef, storeId);
+    if (!target) {
+      // Not found and not-part-of-this-finding are one answer, so the response cannot be used to
+      // probe which resources exist on a store the caller does not own.
+      rejected.push({ proposalId: 0, resourceRef: fix.resourceRef, status: 'skipped', detail: 'That resource is not part of this finding.' });
+      continue;
+    }
+
+    const [header] = await db
+      .insert(aiFixProposals)
+      .values({
+        findingId: fix.findingId,
+        storeId,
+        resourceType: target.resourceType,
+        resourceId: target.resourceId,
+        field: target.rule.field,
+        currentValue: target.currentValue,
+        proposedValue: fix.value,
+        // Named honestly. This is the merchant's own wording, and `aiModel` stays null so the row
+        // never implies a model wrote something a person typed.
+        reason: 'Written by the merchant.',
+        status: 'approved',
+        decidedAt: new Date(),
+        decidedBy: userId,
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          proposedValue: fix.value,
+          currentValue: target.currentValue,
+          reason: 'Written by the merchant.',
+          status: 'approved',
+          statusDetail: null,
+          decidedAt: new Date(),
+          decidedBy: userId,
+        },
+      });
+
+    // insertId is 0 on a pure update, so the row is re-read by its unique target rather than
+    // trusted from the header — otherwise editing an existing draft would apply nothing.
+    let id = header.insertId;
+    if (!id) {
+      const [existing] = await db
+        .select({ id: aiFixProposals.id })
+        .from(aiFixProposals)
+        .where(and(
+          eq(aiFixProposals.findingId, fix.findingId),
+          eq(aiFixProposals.resourceType, target.resourceType),
+          eq(aiFixProposals.resourceId, target.resourceId),
+          eq(aiFixProposals.field, target.rule.field),
+        ))
+        .limit(1);
+      id = existing?.id ?? 0;
+    }
+
+    if (!id) {
+      rejected.push({ proposalId: 0, resourceRef: fix.resourceRef, status: 'failed', detail: 'Could not record this change.' });
+      continue;
+    }
+
+    proposalIds.push(id);
+    overrideById.set(id, fix.value);
+  }
+
+  return { proposalIds, overrideById, rejected };
 }
 
 /** Records why a write did not happen, so the UI can show a reason instead of a silent failure. */

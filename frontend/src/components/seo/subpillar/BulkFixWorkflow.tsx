@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, ClipboardCheck, History, Loader2, RotateCcw, Sparkles, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ClipboardCheck, History, Loader2, Sparkles, X } from 'lucide-react';
 import type { EvidenceRow, RowStatus } from '../../../data/seo/subpillar.model';
 import { applyFixes, planAiFixes } from '../../../data/findings.repository';
 import { ApiError } from '../../../lib/api';
@@ -200,8 +200,17 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
 
   const updateDraft = (id: string, value: string) => setDrafts((current) => ({ ...current, [id]: value }));
 
-  /** Rows that carry a proposal id — the only ones Shopify can actually be asked to save. */
-  const writable = ready.filter(({ row }) => proposalIds[row.id] !== undefined);
+  /**
+   * Rows Shopify can actually be asked to save.
+   *
+   * A row qualifies two ways, and BOTH matter: it was drafted by AI (so a proposal exists), or it
+   * belongs to a real finding (so the server can create one from the merchant's own text). Gating
+   * on the proposal alone made "write it yourself" a dead end — the value could be typed and
+   * validated and then had nowhere to go, which is the opposite of what an editable preview is for.
+   */
+  const writable = ready.filter(
+    ({ row }) => proposalIds[row.id] !== undefined || isPersistedFinding(findingIdByRowId[row.id]),
+  );
   const applyErrorCount = Object.keys(applyErrors).length;
 
   /**
@@ -226,15 +235,23 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
       // The EDITED text is sent, not the drafted text — the merchant's correction is the point of
       // an editable preview. The server re-checks it against the same bounds either way.
       const result = await applyFixes(
-        writable.map(({ row, value }) => ({ proposalId: proposalIds[row.id]!, value: value.trim() })),
+        writable.map(({ row, value }) =>
+          proposalIds[row.id] !== undefined
+            ? { proposalId: proposalIds[row.id]!, value: value.trim() }
+            // No proposal yet — the server creates one from this text, anchored to the finding's
+            // own evidence so the ref cannot point at a resource the audit never saw.
+            : { findingId: Number(findingIdByRowId[row.id]), resourceRef: row.id, value: value.trim() },
+        ),
       );
 
-      const byId = new Map(result.results.map((entry) => [entry.proposalId, entry]));
+      // Matched by REF, not by proposal id: a manual fix has no id until the server creates one, so
+      // the id alone could not identify which row an outcome belongs to.
+      const byRef = new Map(result.results.map((entry) => [entry.resourceRef, entry]));
       const failures: Record<string, string> = {};
       const updates: AppliedUpdate[] = [];
 
       for (const { row, value } of writable) {
-        const outcome = byId.get(proposalIds[row.id]!);
+        const outcome = byRef.get(row.id);
         if (outcome?.status === 'applied') {
           updates.push({
             id: row.id,
@@ -287,10 +304,10 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
     }
   };
 
-  const handleUndo = () => {
-    onApply(applied.map((item) => ({ ...item, before: item.after, after: item.before, status: item.beforeStatus })));
-    setApplied([]);
-  };
+  // handleUndo is deliberately gone. It swapped the before/after values back in this table and
+  // touched nothing else, which was honest while the whole flow was in-memory. Now that Save writes
+  // to Shopify, a local undo would revert only the display and leave the storefront changed — worse
+  // than having no undo at all, because the merchant would believe they had rolled it back.
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="presentation">
@@ -298,9 +315,13 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
       <section role="dialog" aria-modal="true" aria-labelledby="bulk-fix-title" className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-xl bg-surface-0 shadow-2xl sm:rounded-xl">
         <header className="flex items-start justify-between gap-3 border-b border-surface-200 px-4 py-2.5">
           <div>
-            <p className={eyebrow}>Test mode · review before apply</p>
+            {/* The copy here described a sandbox because that is what this screen used to be. It
+                now writes to the merchant's live store, so it says so BEFORE the button is
+                pressed — "test mode" above a control that edits a real storefront is the most
+                expensive kind of wrong wording. */}
+            <p className={eyebrow}>Review before saving to Shopify</p>
             <h2 id="bulk-fix-title" className="mt-0.5 text-[15px] font-semibold tracking-tight text-surface-950">Review {mode === 'title-tags' ? 'title tag' : 'recommended'} fixes</h2>
-            <p className="text-[11px] text-surface-500">Recommendations stay isolated until you approve validated changes.</p>
+            <p className="text-[11px] text-surface-500">Nothing changes until you press Save. Saved values are written to your live store.</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-md text-surface-500 hover:bg-surface-100 hover:text-surface-900" aria-label="Close review">
             <X size={15} />
@@ -315,14 +336,23 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
         ) : applied.length > 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
             <CheckCircle2 size={24} className="text-success-600" />
-            <h3 className="text-[15px] font-semibold text-surface-950">{applied.length} test fixes applied</h3>
-            <p className="max-w-md text-[12.5px] text-surface-600">Only validated recommendations were applied to the in-memory test data.</p>
+            <h3 className="text-[15px] font-semibold text-surface-950">
+              {applied.length} change{applied.length === 1 ? '' : 's'} saved to Shopify
+            </h3>
+            {/* THE UNDO BUTTON IS GONE, and its absence is the point. It only ever reverted this
+                table; now that the value is genuinely on the storefront, a control labelled "Undo"
+                that leaves Shopify untouched would tell a merchant they had rolled back a change
+                that is still live. There is no safe local undo for a remote write, so the screen
+                says where the real one is instead of faking one. */}
+            <p className="max-w-md text-[12.5px] text-surface-600">
+              These values are now live on your store. A fresh audit is running — scores update when
+              it finishes. To change one back, edit it in Shopify admin under Search engine listing.
+            </p>
             <div className="mt-1 flex flex-wrap justify-center gap-1.5">
-              <button type="button" onClick={handleUndo} className="btn-secondary btn-xs"><RotateCcw size={12} /> Undo test fixes</button>
-              <button type="button" onClick={() => setShowHistory((value) => !value)} className="btn-ghost btn-xs"><History size={12} /> Fix history</button>
+              <button type="button" onClick={() => setShowHistory((value) => !value)} className="btn-ghost btn-xs"><History size={12} /> What changed</button>
               <button type="button" onClick={onClose} className="btn-primary btn-xs">Done</button>
             </div>
-            {showHistory && <p className={`${card} mt-2 px-3 py-2 text-left text-[11.5px] text-surface-600`}>{applied.length} records changed in this test session.</p>}
+            {showHistory && <p className={`${card} mt-2 px-3 py-2 text-left text-[11.5px] text-surface-600`}>{applied.length} resource{applied.length === 1 ? '' : 's'} updated on Shopify.</p>}
           </div>
         ) : (
           <>
@@ -412,7 +442,7 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
               </div>
             </div>
             <footer className="flex flex-col-reverse gap-2 border-t border-surface-200 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="inline-flex items-center gap-1.5 text-[11.5px] text-surface-500"><ClipboardCheck size={13} /> Validation runs before apply</div>
+              <div className="inline-flex items-center gap-1.5 text-[11.5px] text-surface-500"><ClipboardCheck size={13} /> Validated before saving to your live store</div>
               <div className="flex flex-col items-end gap-1.5">
                 {/* Says plainly what the button does. It used to read "Apply N test fixes" while
                     only rewriting the table — the wording was accurate and the behaviour was the
@@ -425,7 +455,7 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
                 {ready.length > writable.length && (
                   <p className="text-[11px] leading-[1.4] text-surface-500">
                     {ready.length - writable.length} row{ready.length - writable.length === 1 ? '' : 's'} can't be saved
-                    automatically — press <strong>Draft with AI</strong> first, or update them in Shopify.
+                    from here — Scorelo has no stored evidence linking them to a finding. Update those in Shopify admin.
                   </p>
                 )}
                 <div className="flex justify-end gap-1.5">

@@ -86,9 +86,31 @@ export const decideFixProposalSchema = z.object({
  */
 export const applyFixProposalsSchema = z.object({
   fixes: z.array(z.object({
-    proposalId: z.coerce.number().int().positive(),
+    /** An existing proposal (the AI-drafted path). */
+    proposalId: z.coerce.number().int().positive().optional(),
+    /**
+     * The manual path: a value the merchant typed for a resource that was never drafted.
+     *
+     * `findingId` + `resourceRef` are the authorization, not a convenience — the server re-derives
+     * the finding's own evidence rows and refuses a ref that is not among them, exactly as AI
+     * planning does. Without this pair a hand-written value had no way to reach Shopify at all,
+     * which made "write it yourself" a dead end in a feature built around the merchant's wording.
+     */
+    findingId: z.coerce.number().int().positive().optional(),
+    /** An evidence-row ref, e.g. `product:123`. */
+    resourceRef: z.string().trim().min(1).max(200).optional(),
     value: z.string().trim().min(1).max(2000).optional(),
-  })).min(1).max(100),
+  }).strict().refine(
+    // Exactly one shape per entry. A body carrying both is ambiguous about which resource it means,
+    // and guessing between them is the kind of shortcut that turns into writing the wrong thing.
+    (entry) => (entry.proposalId !== undefined) !== (entry.findingId !== undefined && entry.resourceRef !== undefined),
+    { message: 'Provide either proposalId, or findingId with resourceRef' },
+  ).refine(
+    // A manual entry has nothing to write without its text; a proposal entry can fall back to the
+    // value already stored on the row.
+    (entry) => entry.proposalId !== undefined || typeof entry.value === 'string',
+    { message: 'A manual fix needs a value', path: ['value'] },
+  )).min(1).max(100),
 }).strict();
 
 /** Approving several previewed proposals in one request — what the Fix Center preview submits. */
