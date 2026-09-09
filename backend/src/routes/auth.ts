@@ -9,6 +9,7 @@ import {
   postSignup,
   postTwoFactorLogin,
   postTwoFactorResend,
+  postTwoFactorSend,
   postVerifyEmail,
   postVerifyResetCode,
 } from '../controllers/auth.controller.js';
@@ -20,6 +21,7 @@ import {
   loginSchema,
   twoFactorLoginSchema,
   twoFactorResendSchema,
+  twoFactorSendSchema,
   refreshSchema,
   logoutSchema,
   resendVerificationSchema,
@@ -48,9 +50,26 @@ authRouter.post(
 // Unauthenticated by necessity: a sign-in paused for 2FA has no session yet. The ticket is the
 // only thing standing in for one, which is why both endpoints are rate limited.
 
+// Step 2a: the customer confirms the destination address and the code goes out.
+//
+// Tighter than the verify endpoint because each successful call sends real mail. Keyed on IP + the
+// submitted email, exactly like the reset endpoints, so neither one address nor one IP can be used
+// to fan out delivery attempts. The address is validated against the account server-side, so this
+// cannot be pointed at an inbox the caller does not own.
+authRouter.post(
+  '/login/2fa/send',
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 5, keyFor: ipAndEmailKey, message: 'Too many requests. Please wait a few minutes before requesting another code.' }),
+  validateRequest({ body: twoFactorSendSchema }),
+  asyncHandler(postTwoFactorSend),
+);
+
 // Same limit as the other code-entry endpoints: the six-digit code has a five-attempt budget of
 // its own, and this bounds how many fresh tickets an attacker can burn through guessing across.
 // Keyed on IP alone — the body carries a ticket, not an email.
+//
+// This is ALSO where a recovery code is presented, and the same limit covers it. Each attempt
+// consumes the ticket, so a guessing run costs a full password round-trip per try on top of a
+// credential with 80 bits of entropy.
 authRouter.post(
   '/login/2fa',
   rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many attempts. Please wait a few minutes and try again.' }),

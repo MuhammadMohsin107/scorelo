@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import {
+  getRecoveryCodes,
   getSecurityEvents,
   getSessions,
   postChangePassword,
   postDisableTwoFactor,
   postEnableTwoFactor,
+  postRegenerateRecoveryCodes,
   postRevokeOtherSessions,
   postRevokeSession,
 } from '../controllers/security.controller.js';
@@ -15,6 +17,7 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import {
   changePasswordSchema,
   eventsQuerySchema,
+  regenerateRecoveryCodesSchema,
   revokeOthersSchema,
   revokeSessionSchema,
   sessionIdParamSchema,
@@ -74,4 +77,20 @@ securityRouter.post(
   rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many attempts. Please wait a few minutes and try again.' }),
   validateRequest({ body: twoFactorToggleSchema }),
   asyncHandler(postDisableTwoFactor),
+);
+
+// ─── Recovery codes ──────────────────────────────────────────────────
+// A COUNT, not the codes. Unlimited by design: it reads one number about the caller's own account
+// and exposes nothing that could be ground for.
+securityRouter.get('/two-factor/recovery-codes', asyncHandler(getRecoveryCodes));
+
+// Regeneration carries a password like the toggles above, so it gets the same limit — and it earns
+// it for a second reason: this endpoint MINTS second-factor bypasses. Someone who could call it
+// freely with a stolen access token would be manufacturing spare keys, quietly, without ever
+// tripping the "2FA was turned off" event an owner would notice.
+securityRouter.post(
+  '/two-factor/recovery-codes/regenerate',
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many attempts. Please wait a few minutes and try again.' }),
+  validateRequest({ body: regenerateRecoveryCodesSchema }),
+  asyncHandler(postRegenerateRecoveryCodes),
 );

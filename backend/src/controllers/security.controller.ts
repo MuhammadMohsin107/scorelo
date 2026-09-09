@@ -4,7 +4,12 @@ import { requestMetadata } from '../lib/requestMetadata.js';
 import { listSessions, revokeOtherSessions, revokeSession } from '../services/session.service.js';
 import { listSecurityEvents, recordSecurityEvent } from '../services/security-event.service.js';
 import { changePassword } from '../services/security.service.js';
-import { disableTwoFactor, enableTwoFactor } from '../services/two-factor.service.js';
+import {
+  disableTwoFactor,
+  enableTwoFactor,
+  getRecoveryCodeStatus,
+  regenerateRecoveryCodes,
+} from '../services/two-factor.service.js';
 
 /**
  * ─── Settings → Security ─────────────────────────────────────────────
@@ -80,15 +85,47 @@ export async function getSecurityEvents(req: Request, res: Response) {
  * The response carries how many other sessions were ended so the UI can tell the customer plainly
  * what just happened to their other devices. It never carries a password or a hash.
  */
-/** Turns email 2FA on. Refuses when the address is unverified — the codes go there. */
+/**
+ * Turns email 2FA on. Refuses when the address is unverified — the codes go there.
+ *
+ * THE ONE RESPONSE IN THIS API THAT CARRIES RECOVERY CODES IN PLAINTEXT, and the only time they can
+ * ever be read: after this returns, only their SHA-256 hashes exist. `alreadyEnabled` distinguishes
+ * "nothing changed" from a fresh enable, so the UI never presents an empty list as a code set.
+ */
 export async function postEnableTwoFactor(req: Request, res: Response) {
-  await enableTwoFactor(requireUserId(req), req.body.currentPassword, requestMetadata(req));
-  res.json({ data: { twoFactorEnabled: true } });
+  const result = await enableTwoFactor(requireUserId(req), req.body.currentPassword, requestMetadata(req));
+  res.json({
+    data: {
+      twoFactorEnabled: true,
+      alreadyEnabled: result.alreadyEnabled,
+      recoveryCodes: result.recoveryCodes,
+    },
+  });
 }
 
 export async function postDisableTwoFactor(req: Request, res: Response) {
   await disableTwoFactor(requireUserId(req), req.body.currentPassword, requestMetadata(req));
   res.json({ data: { twoFactorEnabled: false } });
+}
+
+/**
+ * How many recovery codes are left.
+ *
+ * A COUNT ONLY. There is deliberately no endpoint anywhere that reads a stored recovery code back —
+ * the hashes are one-way and nothing in this API attempts to present them.
+ */
+export async function getRecoveryCodes(req: Request, res: Response) {
+  res.json({ data: await getRecoveryCodeStatus(requireUserId(req)) });
+}
+
+/** Mints a fresh set and voids the previous one. Password-gated; see the service for why. */
+export async function postRegenerateRecoveryCodes(req: Request, res: Response) {
+  const recoveryCodes = await regenerateRecoveryCodes(
+    requireUserId(req),
+    req.body.currentPassword,
+    requestMetadata(req),
+  );
+  res.json({ data: { recoveryCodes } });
 }
 
 export async function postChangePassword(req: Request, res: Response) {

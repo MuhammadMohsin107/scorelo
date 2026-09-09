@@ -12,7 +12,12 @@ import { buildVerificationEmail } from '../lib/emails/emailVerification.js';
 import { CHALLENGE_TTL_MS, issueOtpChallenge, recordDelivery, redeemOtpChallenge } from './auth-challenge.service.js';
 import { createSession, revokeAllSessions, revokeSessionByToken, rotateSession } from './session.service.js';
 import { recordSecurityEvent } from './security-event.service.js';
-import { beginTwoFactorChallenge, completeTwoFactorChallenge } from './two-factor.service.js';
+import {
+  beginTwoFactorChallenge,
+  completeTwoFactorChallenge,
+  completeTwoFactorWithRecoveryCode,
+} from './two-factor.service.js';
+import { countUnusedRecoveryCodes } from './recovery-code.service.js';
 import type { RequestMetadata } from '../lib/requestMetadata.js';
 import type { LoginInput, SignupInput } from '../schemas/auth.schema.js';
 
@@ -236,12 +241,15 @@ export async function login(input: LoginInput, metadata: RequestMetadata) {
   // nothing they did not already know — they hold the credential. No session and no token is
   // issued here: the sign-in is not finished, and treating it as finished would make the second
   // factor decorative.
+  //
+  // NO CODE IS SENT YET. The customer next confirms which address the code should go to, and only
+  // that step mints and mails one — see sendTwoFactorCode(). The ticket returned here is the only
+  // thing carried forward, and it grants nothing on its own.
   if (user.twoFactorEnabledAt !== null) {
     const challenge = await beginTwoFactorChallenge(user);
     return {
       twoFactorRequired: true as const,
       ticket: challenge.ticket,
-      codeSent: challenge.codeSent,
     };
   }
 
@@ -260,8 +268,22 @@ export async function login(input: LoginInput, metadata: RequestMetadata) {
  * Every failure returns the same 401. Wrong code, expired code, spent code, exhausted attempts and
  * an unknown ticket are indistinguishable from outside, so nothing here can be probed.
  */
-export async function completeTwoFactorLogin(ticket: string, code: string, metadata: RequestMetadata) {
-  const userId = await completeTwoFactorChallenge(ticket, code);
+export async function completeTwoFactorLogin(
+  ticket: string,
+  credential: { code: string; recoveryCode?: undefined } | { code?: undefined; recoveryCode: string },
+  metadata: RequestMetadata,
+) {
+  // EXACTLY ONE of the two is present — the schema enforces that, so this is a branch, not a
+  // fallback chain. A request that tried both would be ambiguous about which credential it is
+  // actually claiming, and trying each in turn would hand an attacker two guesses per ticket.
+  const usedRecoveryCode = credential.recoveryCode !== undefined;
+  const userId = usedRecoveryCode
+    ? await completeTwoFactorWithRecoveryCode(ticket, credential.recoveryCode)
+    : await completeTwoFactorChallenge(ticket, credential.code);
+
+  // ONE UNIFORM 401 for both paths and every reason within them. Wrong code, expired code, spent
+  // code, exhausted attempts, unknown ticket, already-used recovery code — all indistinguishable
+  // from outside, so nothing here can be probed.
   if (userId === null) throw new ApiError(401, 'That code is invalid or has expired.', 'TWO_FACTOR_INVALID');
 
   const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -271,7 +293,20 @@ export async function completeTwoFactorLogin(ticket: string, code: string, metad
   // usable credential behind.
   const tokens = await issueTokenPair(user.id, metadata);
   await recordSecurityEvent({ userId: user.id, type: 'login_success', metadata });
-  return { user: toPublicUser(user), ...tokens };
+
+  // Recorded IN ADDITION to login_success, never instead of it. "You signed in" and "you signed in
+  // without your second factor" are two different facts, and an owner scanning their history for
+  // something that was not them needs to see the second one.
+  if (usedRecoveryCode) {
+    await recordSecurityEvent({ userId: user.id, type: 'two_factor_recovery_used', metadata });
+  }
+
+  return {
+    user: toPublicUser(user),
+    ...tokens,
+    /** Drives the "you have N codes left" warning the UI shows straight after this sign-in. */
+    recoveryCodesRemaining: usedRecoveryCode ? await countUnusedRecoveryCodes(user.id) : null,
+  };
 }
 
 /**

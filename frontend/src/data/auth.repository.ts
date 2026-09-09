@@ -96,13 +96,16 @@ export async function resendVerification(email: string): Promise<string> {
 
 /** The two shapes /auth/login can return, discriminated by `twoFactorRequired`. */
 type LoginPayload =
-  | { twoFactorRequired: true; ticket: string; codeSent: boolean }
+  | { twoFactorRequired: true; ticket: string }
   | ({ twoFactorRequired: false } & AuthPayload);
 
 export type LoginResult =
   | { status: 'authenticated'; user: UserRow }
-  /** The password was right, but the sign-in is not finished. NO session exists yet. */
-  | { status: 'two-factor'; ticket: string; codeSent: boolean };
+  /**
+   * The password was right, but the sign-in is not finished. NO session exists yet, and no code has
+   * been sent — the next step is confirming the address it should go to.
+   */
+  | { status: 'two-factor'; ticket: string };
 
 /**
  * Signs in, or reports that a second factor is still required.
@@ -120,7 +123,7 @@ export async function login({ rememberMe, ...credentials }: LoginInput): Promise
   const payload = await api.post<LoginPayload>('/auth/login', credentials, { skipAuth: true });
 
   if (payload.twoFactorRequired) {
-    return { status: 'two-factor', ticket: payload.ticket, codeSent: payload.codeSent };
+    return { status: 'two-factor', ticket: payload.ticket };
   }
 
   setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken }, { remember: rememberMe });
@@ -128,19 +131,51 @@ export async function login({ rememberMe, ...credentials }: LoginInput): Promise
 }
 
 /**
- * Completes a sign-in that paused for a second factor.
+ * Step 2a: confirms which address the sign-in code should go to, and sends it.
  *
- * Sends the ticket and the code — never the password again. The ticket already proves the password
- * step succeeded, so re-transmitting the credential would hand over more than the step needs.
+ * THE ADDRESS IS CHECKED SERVER-SIDE against the account's own registered address, and the mail is
+ * addressed from the database row rather than from this request. A caller cannot point the code at
+ * an inbox they do not own — if they could, anyone holding a stolen password could have the second
+ * factor delivered to themselves.
+ *
+ * `codeSent: false` is honest rather than a failure: the sign-in is genuinely paused and the mail
+ * did not get out, so the UI offers a resend instead of claiming a delivery that never happened.
+ */
+export async function sendTwoFactorCode(ticket: string, email: string): Promise<boolean> {
+  const payload = await api.post<{ codeSent: boolean }>('/auth/login/2fa/send', { ticket, email }, { skipAuth: true });
+  return payload.codeSent;
+}
+
+/** What a completed 2FA sign-in returns. */
+export interface TwoFactorLoginResult {
+  user: UserRow;
+  /**
+   * How many recovery codes are left — present ONLY when this sign-in spent one, so the UI can warn
+   * the customer to generate a new set. Null on a normal emailed-code sign-in.
+   */
+  recoveryCodesRemaining: number | null;
+}
+
+/**
+ * Completes a sign-in that paused for a second factor, with either the emailed code or a recovery
+ * code.
+ *
+ * Sends the ticket and exactly one credential — never the password again. The ticket already proves
+ * the password step succeeded, so re-transmitting the credential would hand over more than the step
+ * needs. Sending both would be ambiguous and the server rejects it.
  */
 export async function completeTwoFactorLogin(
   ticket: string,
-  code: string,
+  credential: { code: string } | { recoveryCode: string },
   rememberMe?: boolean,
-): Promise<UserRow> {
-  const payload = await api.post<AuthPayload>('/auth/login/2fa', { ticket, code }, { skipAuth: true });
+): Promise<TwoFactorLoginResult> {
+  const payload = await api.post<AuthPayload & { recoveryCodesRemaining: number | null }>(
+    '/auth/login/2fa',
+    { ticket, ...credential },
+    { skipAuth: true },
+  );
   setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken }, { remember: rememberMe });
-  return payload.user;
+  return { user: payload.user, recoveryCodesRemaining: payload.recoveryCodesRemaining };
 }
 
 /**

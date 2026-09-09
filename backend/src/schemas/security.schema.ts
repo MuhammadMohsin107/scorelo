@@ -59,6 +59,18 @@ export const twoFactorToggleSchema = z.object({
   currentPassword: z.string().min(1).max(200),
 }).strict();
 
+/**
+ * Minting a fresh set of recovery codes, which VOIDS every previous one.
+ *
+ * Password-gated for the same reason as the toggle above, and it is worth naming why this is not a
+ * lesser operation: a stolen access token that could mint recovery codes would produce working
+ * second-factor bypasses for an attacker to keep and use later. That is a quieter way of switching
+ * 2FA off, so it costs the same credential to do.
+ */
+export const regenerateRecoveryCodesSchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+}).strict();
+
 /** Bounded so a caller cannot ask for an unbounded scan of their own history. */
 export const eventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),

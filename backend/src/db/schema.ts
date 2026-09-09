@@ -193,7 +193,10 @@ export const securityEvents = mysqlTable(
       // rather than reuses of `two_factor_disabled`: "you switched this off" and "an operator
       // switched this off for you" are different facts, and collapsing them would leave the
       // account owner unable to tell from their own history which one happened.
-      sql`${table.type} IN ('login_success', 'login_failed', 'logout', 'password_changed', 'password_reset', 'email_verified', 'session_revoked', 'sessions_revoked', 'two_factor_enabled', 'two_factor_disabled', 'two_factor_admin_disabled', 'two_factor_challenges_revoked')`,
+      // `two_factor_recovery_used` is its own member and not a flavour of 'login_success': signing
+      // in with a recovery code means the second factor itself was unreachable, which is precisely
+      // the line in a history an owner needs to spot if it was not them.
+      sql`${table.type} IN ('login_success', 'login_failed', 'logout', 'password_changed', 'password_reset', 'email_verified', 'session_revoked', 'sessions_revoked', 'two_factor_enabled', 'two_factor_disabled', 'two_factor_admin_disabled', 'two_factor_challenges_revoked', 'two_factor_recovery_used', 'recovery_codes_generated')`,
     ),
   ],
 );
@@ -325,6 +328,59 @@ export const authChallenges = mysqlTable(
       // is what the second step actually redeems. The code alone never completes a login.
       sql`${table.purpose} IN ('email_verification', 'password_reset', 'password_reset_ticket', 'login_2fa', 'login_2fa_ticket')`,
     ),
+  ],
+);
+
+// ─── user_recovery_codes ─────────────────────────────────────────────
+// The way back in when the second factor itself is unreachable.
+//
+// WHY THIS EXISTS. Email 2FA's factor is control of the verified inbox, and an inbox can be lost —
+// a closed work address, a provider lockout, a domain that stopped renewing. Before this table the
+// Security page said so outright ("if you lose access to your email you will not be able to sign
+// in"), and the only remedy was an operator running an admin disable. That is a support ticket
+// standing in for a feature, and it is the single most common reason customers refuse to turn 2FA
+// on at all.
+//
+// SECURITY: `code_hash` is SHA-256 of the normalized code — never the code itself.
+//
+// SHA-256 RATHER THAN BCRYPT, deliberately, and it is the same rule lib/otp.ts states: bcrypt is
+// for LOW-entropy secrets, because a six-digit code has only a million values and the hash must be
+// slow enough to make dumping the table useless. A recovery code carries 80 bits from the OS
+// CSPRNG, so there is nothing for a slow hash to buy — and bcrypt here would cost one slow hash per
+// unused code per attempt, which is a denial-of-service lever aimed at our own login endpoint.
+// A fast digest over a high-entropy input is the correct construction, and it keeps verification an
+// indexed point-read on (user_id, code_hash).
+//
+// ONE ROW PER CODE, rather than a JSON array on `users`, because each code has its own lifecycle:
+// used or unused, and used is forever. An array column could not express "this one is spent" without
+// rewriting the whole set on every login, and "how many are left" is a COUNT here rather than a
+// parse-and-filter.
+export const userRecoveryCodes = mysqlTable(
+  'user_recovery_codes',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    userId: int('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** SHA-256 hex of the normalized code. 64 characters, always. Never a raw code. */
+    codeHash: varchar('code_hash', { length: 64 }).notNull(),
+    /**
+     * Set the instant the code is redeemed. Non-null == spent, and spent is forever.
+     *
+     * REDEEMING MARKS, IT DOES NOT DELETE. A spent row still matches the hash, so a replayed code
+     * is rejected as "already used" rather than falling through the not-found path — and the
+     * "3 of 10 remaining" the customer is shown stays a real count. Regeneration is the one thing
+     * that removes rows, because there the whole previous set is genuinely void.
+     */
+    usedAt: datetime('used_at', { mode: 'date' }),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+  },
+  (table) => [
+    // Verification looks up by (user, hash) and then checks used_at, so the index carries both
+    // columns of the predicate. Scoping to the user is what stops one account's code matching
+    // another's row, however improbable a collision would be.
+    index('user_recovery_codes_lookup_idx').on(table.userId, table.codeHash),
+    index('user_recovery_codes_user_idx').on(table.userId, table.usedAt),
   ],
 );
 

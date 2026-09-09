@@ -73,7 +73,34 @@ export const verifyResetCodeSchema = z.object({
  */
 export const twoFactorLoginSchema = z.object({
   ticket: z.string().min(1).max(200),
-  code: otpCodeSchema,
+  code: otpCodeSchema.optional(),
+  /**
+   * A recovery code, presented INSTEAD of the emailed one when the inbox is unreachable.
+   *
+   * Bounded loosely rather than shaped here on purpose: customers paste these with dashes, without
+   * them, lower-cased, and with a stray space from a PDF. Canonicalising is
+   * normalizeRecoveryCode()'s job, and rejecting a real code at the edge for a formatting
+   * difference would be a self-inflicted lockout on the one day the code matters.
+   */
+  recoveryCode: z.string().trim().min(1).max(64).optional(),
+}).strict()
+  // EXACTLY ONE, never both. A request carrying both is ambiguous about which credential it is
+  // claiming, and accepting it would hand the caller two guesses against a single ticket.
+  .refine((value) => Boolean(value.code) !== Boolean(value.recoveryCode), {
+    message: 'Provide exactly one of code or recoveryCode',
+    path: ['code'],
+  });
+
+/**
+ * Step 2a: the address the sign-in code should be sent to.
+ *
+ * The address is a CONFIRMATION, not a choice — the server checks it against the account's own
+ * registered address and mails the row, never the request body. See sendTwoFactorCode() for why
+ * that distinction is the entire security of this step.
+ */
+export const twoFactorSendSchema = z.object({
+  ticket: z.string().min(1).max(200),
+  email: emailSchema,
 }).strict();
 
 /** Re-sends a sign-in code. The ticket is read, not spent — see resendTwoFactorCode(). */

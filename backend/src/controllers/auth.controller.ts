@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { completeTwoFactorLogin, login, logout, refresh, resendEmailVerification, signup, verifyEmail } from '../services/auth.service.js';
-import { resendTwoFactorCode } from '../services/two-factor.service.js';
+import { resendTwoFactorCode, sendTwoFactorCode } from '../services/two-factor.service.js';
 import { requestPasswordReset, resetPassword, verifyResetCode } from '../services/password-reset.service.js';
 import { challengeRejected } from '../services/auth-challenge.service.js';
 import { requireUserId } from '../lib/requestContext.js';
@@ -58,7 +58,7 @@ export async function postLogin(req: Request, res: Response) {
   const result = await login(req.body, requestMetadata(req));
 
   if (result.twoFactorRequired) {
-    res.json({ data: { twoFactorRequired: true, ticket: result.ticket, codeSent: result.codeSent } });
+    res.json({ data: { twoFactorRequired: true, ticket: result.ticket } });
     return;
   }
 
@@ -66,14 +66,37 @@ export async function postLogin(req: Request, res: Response) {
   res.json({ data: { twoFactorRequired: false, user, accessToken, refreshToken } });
 }
 
-/** Completes a 2FA sign-in. One uniform 401 covers every rejection. */
+/**
+ * Step 2a: confirms the destination address and sends the code.
+ *
+ * `codeSent: false` is honest rather than an error — the sign-in genuinely paused and the mail did
+ * not get out, so the UI offers a resend instead of claiming a delivery that never happened. The
+ * code itself is never in this response.
+ *
+ * A MISMATCHED ADDRESS IS A 400 with a clear message, unlike the deliberately uniform answers on
+ * /auth/forgot-password. The caller already passed the password step and holds a live ticket, so
+ * naming the problem tells them nothing they did not already know — and leaving them to stare at an
+ * inbox that will never receive anything is the worse outcome.
+ */
+export async function postTwoFactorSend(req: Request, res: Response) {
+  const { codeSent } = await sendTwoFactorCode(req.body.ticket, req.body.email);
+  res.json({ data: { codeSent } });
+}
+
+/**
+ * Completes a 2FA sign-in with either the emailed code or a recovery code.
+ *
+ * The schema guarantees exactly one is present. One uniform 401 covers every rejection of either.
+ */
 export async function postTwoFactorLogin(req: Request, res: Response) {
-  const { user, accessToken, refreshToken } = await completeTwoFactorLogin(
+  const { user, accessToken, refreshToken, recoveryCodesRemaining } = await completeTwoFactorLogin(
     req.body.ticket,
-    req.body.code,
+    req.body.recoveryCode === undefined
+      ? { code: req.body.code }
+      : { recoveryCode: req.body.recoveryCode },
     requestMetadata(req),
   );
-  res.json({ data: { user, accessToken, refreshToken } });
+  res.json({ data: { user, accessToken, refreshToken, recoveryCodesRemaining } });
 }
 
 /**

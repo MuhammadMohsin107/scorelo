@@ -19,7 +19,11 @@ export type SecurityEventType =
   | 'session_revoked'
   | 'sessions_revoked'
   | 'two_factor_enabled'
-  | 'two_factor_disabled';
+  | 'two_factor_disabled'
+  | 'two_factor_admin_disabled'
+  | 'two_factor_challenges_revoked'
+  | 'two_factor_recovery_used'
+  | 'recovery_codes_generated';
 
 export interface SessionRecord {
   id: number;
@@ -100,11 +104,44 @@ export function changePassword(input: { currentPassword: string; newPassword: st
  * a protection, which is the first thing an attacker holding a session would try. The password is
  * sent once, over TLS, and never held in client state beyond the request.
  */
+export interface EnableTwoFactorResult {
+  twoFactorEnabled: boolean;
+  /** True when 2FA was already on and nothing changed — no codes were issued. */
+  alreadyEnabled: boolean;
+  /**
+   * The plaintext recovery codes, present ONLY in this one response and never retrievable again.
+   * After this the server holds hashes only, so a set the customer does not save is gone.
+   */
+  recoveryCodes: string[] | null;
+}
+
 export const enableTwoFactor = (currentPassword: string) =>
-  api.post<{ twoFactorEnabled: boolean }>('/security/two-factor/enable', { currentPassword });
+  api.post<EnableTwoFactorResult>('/security/two-factor/enable', { currentPassword });
 
 export const disableTwoFactor = (currentPassword: string) =>
   api.post<{ twoFactorEnabled: boolean }>('/security/two-factor/disable', { currentPassword });
+
+// ─── Recovery codes ──────────────────────────────────────────────────
+
+export interface RecoveryCodeStatus {
+  /** How many are still unused. */
+  remaining: number;
+  /** How many are issued in a full set, so the UI can render "3 of 10 left". */
+  total: number;
+}
+
+/** A COUNT only. No endpoint anywhere can read a stored recovery code back — they are hashed. */
+export const fetchRecoveryCodeStatus = () =>
+  api.get<RecoveryCodeStatus>('/security/two-factor/recovery-codes');
+
+/**
+ * Mints a fresh set, voiding every previous one.
+ *
+ * Password-gated: minting recovery codes creates working second-factor bypasses, so a stolen
+ * access token must not be enough to do it quietly.
+ */
+export const regenerateRecoveryCodes = (currentPassword: string) =>
+  api.post<{ recoveryCodes: string[] }>('/security/two-factor/recovery-codes/regenerate', { currentPassword });
 
 /** Wording for each event type. Describes the action; never mentions a credential. */
 const EVENT_LABELS: Record<SecurityEventType, string> = {
@@ -118,6 +155,14 @@ const EVENT_LABELS: Record<SecurityEventType, string> = {
   sessions_revoked: 'Other devices signed out',
   two_factor_enabled: 'Two-factor authentication turned on',
   two_factor_disabled: 'Two-factor authentication turned off',
+  // Kept distinct from the line above: "you switched this off" and "an operator switched this off
+  // for you" are different facts, and an owner reading their own history needs to tell them apart.
+  two_factor_admin_disabled: 'Two-factor authentication turned off by support',
+  two_factor_challenges_revoked: 'Sign-in codes cancelled by support',
+  // Worth its own line rather than folding into "Signed in": it says the second factor itself was
+  // unreachable, which is exactly what an owner scans this list for.
+  two_factor_recovery_used: 'Signed in with a recovery code',
+  recovery_codes_generated: 'New recovery codes generated',
 };
 
 export function eventLabel(type: SecurityEventType): string {

@@ -1,24 +1,27 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, Check, Laptop, RefreshCw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Check, Copy, Download, KeyRound, Laptop, RefreshCw, ShieldCheck } from 'lucide-react';
 import { ApiError } from '../../lib/api';
 import {
   changePassword,
   disableTwoFactor,
   enableTwoFactor,
   eventLabel,
+  fetchRecoveryCodeStatus,
   fetchSecurityEvents,
   fetchSecurityProfile,
   fetchSessions,
   formatSecurityDate,
+  regenerateRecoveryCodes,
   revokeOtherSessions,
   revokeSession,
+  type RecoveryCodeStatus,
   type SecurityEventRecord,
   type SecurityProfile,
   type SessionRecord,
 } from '../../data/security.repository';
 import { resendVerification } from '../../data/auth.repository';
 import { Button } from '../workflows/WorkflowPrimitives';
-import { Field, SettingsCard, TextInput } from './SettingsPrimitives';
+import { Field, SettingsCard, TextInput, ToggleRow } from './SettingsPrimitives';
 
 /** Mirrors the backend policy. The server enforces the same minimum, so this is a convenience. */
 const MIN_PASSWORD_LENGTH = 8;
@@ -60,6 +63,28 @@ export default function SecuritySection() {
   const [verificationNotice, setVerificationNotice] = useState('');
 
   /**
+   * Which confirmation the toggle (or the regenerate button) is waiting on, if any.
+   *
+   * THE TOGGLE DOES NOT ACT ON ITS OWN. Flipping it opens this panel and nothing has changed yet —
+   * every one of these three operations costs the current password server-side, because an access
+   * token lives fifteen minutes and needs no password to use. A switch that turned 2FA off on one
+   * click would be the single most useful control an attacker holding a stolen session could find.
+   */
+  const [intent, setIntent] = useState<'enable' | 'disable' | 'regenerate' | null>(null);
+
+  /**
+   * A freshly issued set, held in memory for exactly as long as this panel is open.
+   *
+   * NEVER PERSISTED — not to localStorage, not to a cookie, not back to the server. The API returns
+   * these once and stores only hashes, so this array is the only copy in existence; writing it
+   * anywhere durable on the client would undo the reason they are hashed at all.
+   */
+  const [newRecoveryCodes, setNewRecoveryCodes] = useState<string[] | null>(null);
+  const [codesAcknowledged, setCodesAcknowledged] = useState(false);
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryCodeStatus | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  /**
    * Sends the verification email that unblocks 2FA.
    *
    * The endpoint answers identically for every address by design, so there is no failure worth
@@ -82,19 +107,48 @@ export default function SecuritySection() {
   /** Read from the server's record, never from local state — the backend owns whether 2FA is on. */
   const twoFactorOn = Boolean(profile?.twoFactorEnabledAt);
 
-  async function handleToggleTwoFactor(event: FormEvent<HTMLFormElement>) {
+  /** Opens the confirmation panel. Nothing has changed at this point. */
+  function requestIntent(next: 'enable' | 'disable' | 'regenerate') {
+    setIntent(next);
+    setTwoFactorPassword('');
+    setTwoFactorError('');
+    setNewRecoveryCodes(null);
+    setCodesAcknowledged(false);
+    setCopied(false);
+  }
+
+  function cancelIntent() {
+    setIntent(null);
+    setTwoFactorPassword('');
+    setTwoFactorError('');
+  }
+
+  async function handleConfirmIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!intent) return;
     setTwoFactorError('');
     setTogglingTwoFactor(true);
     try {
-      if (twoFactorOn) await disableTwoFactor(twoFactorPassword);
-      else await enableTwoFactor(twoFactorPassword);
+      if (intent === 'disable') {
+        await disableTwoFactor(twoFactorPassword);
+        setIntent(null);
+      } else if (intent === 'enable') {
+        const result = await enableTwoFactor(twoFactorPassword);
+        // `alreadyEnabled` means another tab got there first and no codes were issued. Showing an
+        // empty list as though it were a code set would be worse than saying nothing.
+        setNewRecoveryCodes(result.recoveryCodes);
+        setIntent(null);
+      } else {
+        const result = await regenerateRecoveryCodes(twoFactorPassword);
+        setNewRecoveryCodes(result.recoveryCodes);
+        setIntent(null);
+      }
       setTwoFactorPassword('');
       // Re-read rather than flipping a local boolean: the page shows what the database says.
       await load();
     } catch (error) {
-      // 400 covers a wrong password and an unverified address; 503 means mail is down and
-      // enabling would lock the customer out. All are specific and safe to show.
+      // 400 covers a wrong password and an unverified address; 503 means mail is down and enabling
+      // would lock the customer out. All are specific and safe to show.
       setTwoFactorError(
         error instanceof ApiError && [400, 429, 503].includes(error.status)
           ? error.message
@@ -105,17 +159,59 @@ export default function SecuritySection() {
     }
   }
 
+  /** Copies the set to the clipboard. Best-effort — a denied permission is not an error worth
+   * shouting about when the codes are already on screen to be written down. */
+  async function handleCopyCodes() {
+    if (!newRecoveryCodes) return;
+    try {
+      await navigator.clipboard.writeText(newRecoveryCodes.join('\n'));
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  /**
+   * Offers the set as a .txt download.
+   *
+   * Built from the in-memory array and revoked immediately — the blob never outlives the click, and
+   * nothing about it touches the server.
+   */
+  function handleDownloadCodes() {
+    if (!newRecoveryCodes) return;
+    const body = [
+      'Scorelo recovery codes',
+      `Generated ${new Date().toLocaleString()}`,
+      '',
+      'Each code can be used once, in place of the sign-in code sent to your email.',
+      'Keep these somewhere safe and private. They cannot be shown again.',
+      '',
+      ...newRecoveryCodes,
+    ].join('\r\n');
+
+    const url = URL.createObjectURL(new Blob([body], { type: 'text/plain' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'scorelo-recovery-codes.txt';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const load = useCallback(async () => {
     try {
       setState('loading');
-      const [nextProfile, nextSessions, nextEvents] = await Promise.all([
+      const [nextProfile, nextSessions, nextEvents, nextRecovery] = await Promise.all([
         fetchSecurityProfile(),
         fetchSessions(),
         fetchSecurityEvents(),
+        // A COUNT, never the codes. Kept in the same round as the rest so the page renders one
+        // consistent picture rather than filling in piecemeal.
+        fetchRecoveryCodeStatus(),
       ]);
       setProfile(nextProfile);
       setSessions(nextSessions);
       setEvents(nextEvents);
+      setRecoveryStatus(nextRecovery);
       setState('ready');
     } catch {
       setState('error');
@@ -286,31 +382,30 @@ export default function SecuritySection() {
         title="Two-factor authentication"
         description="When it is on, signing in also needs a 6-digit code sent to your email address."
       >
-        <div className="flex flex-wrap items-start justify-between gap-2.5">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-[12.5px] font-semibold text-surface-800">
-              {twoFactorOn ? (
-                <>
-                  <ShieldCheck size={15} className="text-success-700" aria-hidden="true" />
-                  On since {formatSecurityDate(profile!.twoFactorEnabledAt!)}
-                </>
-              ) : (
-                <>
-                  <ShieldCheck size={15} className="text-surface-400" aria-hidden="true" />
-                  Off
-                </>
-              )}
-            </p>
-            <p className="mt-1 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
-              {/* Stated plainly rather than sold. Email 2FA is a real improvement over a password
-                  alone and is weaker than an authenticator app — a customer deciding whether to
-                  turn it on deserves to know which one this is. */}
-              The second factor is access to your inbox. Scorelo does not support authenticator
-              apps yet, and there are no backup codes — if you lose access to your email you will
-              not be able to sign in.
-            </p>
-          </div>
-        </div>
+        {/* THE TOGGLE OPENS A CONFIRMATION; IT DOES NOT ACT. Every change here costs the current
+            password server-side, so flipping the switch reveals the password panel rather than
+            changing anything. `checked` is read from the server's record, never from local state,
+            so the switch always shows what the database says. */}
+        <ToggleRow
+          id="twoFactorToggle"
+          label="Two-factor authentication"
+          description={
+            twoFactorOn
+              ? `On since ${formatSecurityDate(profile!.twoFactorEnabledAt!)}. Signing in needs a code sent to ${profile?.email ?? 'your email'}.`
+              : 'Add an extra layer of security to your account.'
+          }
+          checked={twoFactorOn}
+          onChange={(next) => (next ? requestIntent('enable') : requestIntent('disable'))}
+          disabled={togglingTwoFactor || (!twoFactorOn && !profile?.emailVerifiedAt)}
+        />
+
+        <p className="mt-1 max-w-xl text-[11.5px] leading-[1.4] text-surface-500">
+          {/* Stated plainly rather than sold. Email 2FA is a real improvement over a password alone
+              and is weaker than an authenticator app — a customer deciding whether to turn it on
+              deserves to know which one this is. */}
+          The second factor is access to your inbox. Scorelo does not support authenticator apps.
+          If you lose access to your email, a recovery code is the only way back into your account.
+        </p>
 
         {/* The email gate is enforced server-side; showing it here explains the refusal before the
             customer runs into it.
@@ -350,50 +445,162 @@ export default function SecuritySection() {
           </div>
         )}
 
-        <form
-          onSubmit={handleToggleTwoFactor}
-          className="mt-2 flex flex-wrap items-end gap-2.5 border-t border-surface-100 pt-2"
-          noValidate
-        >
-          <Field
-            label="Current password"
-            htmlFor="twoFactorPassword"
-            hint={twoFactorOn ? 'Required to turn it off.' : 'Required to turn it on.'}
-            className="min-w-[220px] flex-1"
+        {/* ── Re-authentication ──────────────────────────────────────
+            Shown only once the customer has asked for a change. Turning 2FA OFF and minting new
+            recovery codes are both things an attacker holding a stolen session would want, so the
+            password is required for all three — the server enforces it regardless of this form. */}
+        {intent && (
+          <form
+            onSubmit={handleConfirmIntent}
+            className="mt-2 flex flex-wrap items-end gap-2.5 border-t border-surface-100 pt-2"
+            noValidate
           >
-            <TextInput
-              id="twoFactorPassword"
-              type="password"
-              value={twoFactorPassword}
-              onChange={setTwoFactorPassword}
-              placeholder="Your current password"
-            />
-          </Field>
-          <div className="pb-3">
-            {/* A disabled control has to say why it is disabled where the pointer is, not only in
-                a banner further up the card — typing a correct password into a field beside a
-                button that then does nothing reads as a broken button, not as a precondition. */}
-            <span
-              title={
-                !twoFactorOn && !profile?.emailVerifiedAt
-                  ? 'Verify your email address first — the sign-in codes are sent there.'
-                  : !twoFactorPassword
-                    ? 'Enter your current password to confirm this change.'
-                    : undefined
+            <Field
+              label="Current password"
+              htmlFor="twoFactorPassword"
+              hint={
+                intent === 'disable'
+                  ? 'Required to turn two-factor authentication off.'
+                  : intent === 'enable'
+                    ? 'Required to turn two-factor authentication on.'
+                    : 'Required to replace your recovery codes.'
               }
+              className="min-w-[220px] flex-1"
             >
-              <Button
-                type="submit"
-                variant={twoFactorOn ? 'danger' : 'primary'}
-                disabled={
-                  togglingTwoFactor || !twoFactorPassword || (!twoFactorOn && !profile?.emailVerifiedAt)
-                }
+              <TextInput
+                id="twoFactorPassword"
+                type="password"
+                value={twoFactorPassword}
+                onChange={setTwoFactorPassword}
+                placeholder="Your current password"
+              />
+            </Field>
+            <div className="flex items-center gap-2 pb-3">
+              {/* A disabled control has to say why it is disabled where the pointer is, not only in
+                  a banner further up the card — typing a correct password into a field beside a
+                  button that then does nothing reads as a broken button, not as a precondition. */}
+              <span title={!twoFactorPassword ? 'Enter your current password to confirm this change.' : undefined}>
+                <Button
+                  type="submit"
+                  variant={intent === 'disable' ? 'danger' : 'primary'}
+                  disabled={togglingTwoFactor || !twoFactorPassword}
+                >
+                  {togglingTwoFactor
+                    ? 'Saving…'
+                    : intent === 'disable'
+                      ? 'Turn off'
+                      : intent === 'enable'
+                        ? 'Turn on'
+                        : 'Generate new codes'}
+                </Button>
+              </span>
+              <button
+                type="button"
+                onClick={cancelIntent}
+                disabled={togglingTwoFactor}
+                className="cursor-pointer rounded px-1 text-[12px] font-semibold text-surface-600 underline-offset-2 transition-colors hover:text-surface-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {togglingTwoFactor ? 'Saving…' : twoFactorOn ? 'Turn off' : 'Turn on'}
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ── The codes themselves, shown exactly once ────────────────
+            THIS IS THE ONLY TIME THESE EXIST IN READABLE FORM. The server stores SHA-256 hashes, so
+            once this panel is dismissed nobody — not the customer, not an operator, not us — can
+            display them again. That is why the warning is stated before the codes rather than under
+            them, and why dismissing takes a deliberate acknowledgement. */}
+        {newRecoveryCodes && (
+          <div className="mt-2.5 rounded-md border border-brand-200 bg-brand-50 px-3 py-2.5">
+            <p className="flex items-center gap-2 text-[12.5px] font-semibold text-brand-900">
+              <KeyRound size={15} aria-hidden="true" />
+              Save your recovery codes now
+            </p>
+            <p className="mt-1 text-[11.5px] leading-[1.45] text-brand-800">
+              Each code signs you in once if you cannot read your email. Store them somewhere safe
+              and private — <strong>they cannot be shown again</strong>. Generating a new set
+              replaces every code below.
+            </p>
+
+            <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 rounded border border-brand-200 bg-surface-0 px-3 py-2 font-mono text-[12px] tabular-nums text-surface-800 sm:grid-cols-2">
+              {newRecoveryCodes.map((recoveryCode) => (
+                <li key={recoveryCode} className="tracking-wide">{recoveryCode}</li>
+              ))}
+            </ul>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyCodes}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-brand-300 bg-surface-0 px-2 py-1 text-[11.5px] font-semibold text-brand-800 transition-colors hover:bg-brand-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                {copied ? 'Copied' : 'Copy codes'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadCodes}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-brand-300 bg-surface-0 px-2 py-1 text-[11.5px] font-semibold text-brand-800 transition-colors hover:bg-brand-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                <Download size={13} aria-hidden="true" />
+                Download .txt
+              </button>
+            </div>
+
+            <label className="mt-2.5 flex cursor-pointer items-start gap-2 text-[11.5px] leading-[1.4] text-brand-900">
+              <input
+                type="checkbox"
+                checked={codesAcknowledged}
+                onChange={(event) => setCodesAcknowledged(event.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 cursor-pointer accent-brand-600"
+              />
+              I have saved these codes somewhere safe.
+            </label>
+
+            <div className="mt-2">
+              <Button
+                onClick={() => { setNewRecoveryCodes(null); setCodesAcknowledged(false); setCopied(false); }}
+                disabled={!codesAcknowledged}
+              >
+                Done
               </Button>
-            </span>
+            </div>
           </div>
-        </form>
+        )}
+
+        {/* ── Remaining codes ────────────────────────────────────────
+            A COUNT, never the codes — there is no endpoint that can read a stored one back. Shown
+            only while 2FA is on, because codes that bypass a factor you do not have are meaningless. */}
+        {twoFactorOn && !newRecoveryCodes && recoveryStatus && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-surface-100 pt-2">
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-semibold text-surface-800">Recovery codes</p>
+              <p className="mt-0.5 text-[11.5px] leading-[1.4] text-surface-500">
+                {recoveryStatus.remaining === 0 ? (
+                  <span className="font-semibold text-critical-700">
+                    No codes left — generate a new set so you are not locked out if you lose your email.
+                  </span>
+                ) : recoveryStatus.remaining <= 3 ? (
+                  <span className="font-semibold text-warning-700">
+                    Only {recoveryStatus.remaining} of {recoveryStatus.total} left. Generate a new set soon.
+                  </span>
+                ) : (
+                  `${recoveryStatus.remaining} of ${recoveryStatus.total} unused.`
+                )}
+              </p>
+            </div>
+            {intent !== 'regenerate' && (
+              <button
+                type="button"
+                onClick={() => requestIntent('regenerate')}
+                className="cursor-pointer rounded-md border border-surface-200 px-2 py-1 text-[11px] font-semibold text-surface-700 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                Generate new codes
+              </button>
+            )}
+          </div>
+        )}
       </SettingsCard>
 
       {/* ── Sessions ─────────────────────────────────────────────── */}

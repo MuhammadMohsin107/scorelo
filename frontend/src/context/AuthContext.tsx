@@ -14,7 +14,15 @@ interface AuthContextValue {
   signup: (input: authRepository.SignupInput) => Promise<authRepository.SignupResult>;
   /** Resolves with whether the sign-in completed or is waiting on a second factor. */
   login: (input: authRepository.LoginInput) => Promise<authRepository.LoginResult>;
-  completeTwoFactorLogin: (ticket: string, code: string, rememberMe?: boolean) => Promise<void>;
+  /**
+   * Finishes a 2FA sign-in with either the emailed code or a recovery code. Resolves with how many
+   * recovery codes are left when one was spent, so the page can warn the customer.
+   */
+  completeTwoFactorLogin: (
+    ticket: string,
+    credential: { code: string } | { recoveryCode: string },
+    rememberMe?: boolean,
+  ) => Promise<number | null>;
   logout: () => Promise<void>;
 }
 
@@ -90,8 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Finishes a 2FA sign-in. This is where the session begins for a customer with 2FA on. */
   const completeTwoFactorLogin = useCallback(
-    async (ticket: string, code: string, rememberMe?: boolean) =>
-      adoptSession(await authRepository.completeTwoFactorLogin(ticket, code, rememberMe)),
+    async (
+      ticket: string,
+      credential: { code: string } | { recoveryCode: string },
+      rememberMe?: boolean,
+    ) => {
+      const result = await authRepository.completeTwoFactorLogin(ticket, credential, rememberMe);
+      adoptSession(result.user);
+      return result.recoveryCodesRemaining;
+    },
     [adoptSession],
   );
 

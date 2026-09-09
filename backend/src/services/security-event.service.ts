@@ -42,7 +42,14 @@ export type SecurityEventType =
   | 'two_factor_admin_disabled'
   // An operator invalidated the sign-in codes/tickets in flight on this account, ending any 2FA
   // step already under way.
-  | 'two_factor_challenges_revoked';
+  | 'two_factor_challenges_revoked'
+  // A sign-in completed with a RECOVERY CODE rather than the emailed code. Its own member and not
+  // a flavour of 'login_success', because it says something 'login_success' cannot: the second
+  // factor itself was unreachable. That is the line an owner needs to spot if it was not them.
+  | 'two_factor_recovery_used'
+  // A fresh set of recovery codes was issued, which VOIDS the previous set. Recorded on the first
+  // issue and on every regeneration, so "my old codes stopped working" always has an answer.
+  | 'recovery_codes_generated';
 
 /**
  * The 2FA slice of the vocabulary above. Exported because the admin monitoring endpoints filter
@@ -53,6 +60,11 @@ export const TWO_FACTOR_EVENT_TYPES = [
   'two_factor_disabled',
   'two_factor_admin_disabled',
   'two_factor_challenges_revoked',
+  // Both belong here rather than only in the owner's own history: a spike in recovery-code
+  // sign-ins across accounts is what a lockout incident looks like from the operator side, and a
+  // regeneration is the action that voids a set someone may be about to report as leaked.
+  'two_factor_recovery_used',
+  'recovery_codes_generated',
 ] as const satisfies readonly SecurityEventType[];
 
 export type TwoFactorEventType = (typeof TWO_FACTOR_EVENT_TYPES)[number];
