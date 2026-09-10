@@ -43,6 +43,47 @@ function formatPosition(position: number): string {
   return position > 0 ? position.toFixed(1) : '—';
 }
 
+/**
+ * Why the status read failed, in words that point at the fix.
+ *
+ * The card used to answer every failure with one line — "Could not read the connection state" —
+ * and that line covered a stopped API, an unmigrated database, an expired session and an account
+ * with no store. None of those has the same remedy, and the card also renders NOTHING else in the
+ * error state, so the Connect button disappears too: the merchant is left with a dead card and a
+ * Retry that will fail identically until someone reads a server log.
+ *
+ * The server already sends a message and a status. Showing them is strictly more useful than
+ * hiding them, and none of these paths carries a credential — the Google service deliberately
+ * returns codes rather than Google's own error text for exactly that reason.
+ */
+function describeLoadFailure(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    // fetch() itself rejected: wrong origin, API process down, or no network at all.
+    return 'Could not reach the Scorelo API. Check that the backend is running and that the app is pointed at it.';
+  }
+
+  // Two different 404s reach here and they have opposite fixes, so the CODE decides rather than
+  // the status: getCurrentStoreId() throws STORE_NOT_FOUND for an account that owns no store,
+  // while a bare 404 means the route itself is absent — an API still serving a build from before
+  // /api/google existed. The second is an operator's deploy step, not anything a merchant can do.
+  if (error.status === 404) {
+    return error.code === 'STORE_NOT_FOUND'
+      ? 'This account has no store yet. Create or connect a store first — Search Console is read per store.'
+      : 'This server has no Google Search Console endpoint. The API is running an older build — redeploy and restart it.';
+  }
+
+  switch (error.status) {
+    case 401:
+      return 'Your session has expired. Sign in again, then reopen this page.';
+    case 503:
+      return 'Google Search Console is not configured on this server yet.';
+    default:
+      return error.status >= 500
+        ? `The server could not read the connection state (HTTP ${error.status}). ${error.message}`
+        : error.message;
+  }
+}
+
 export default function GoogleSearchConsoleCard() {
   const [status, setStatus] = useState<SearchConsoleStatus | null>(null);
   const [sites, setSites] = useState<SearchConsoleSite[]>([]);
@@ -50,10 +91,13 @@ export default function GoogleSearchConsoleCard() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  /** Why the status read failed. Separate from `error`, which is about an action the merchant took. */
+  const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
     try {
       setState('loading');
+      setLoadError('');
       const next = await fetchGoogleStatus();
       setStatus(next);
 
@@ -63,7 +107,8 @@ export default function GoogleSearchConsoleCard() {
       if (next.connected && next.siteUrl) setPerformance(await fetchGooglePerformance(REPORT_DAYS));
 
       setState('ready');
-    } catch {
+    } catch (err) {
+      setLoadError(describeLoadFailure(err));
       setState('error');
     }
   }, []);
@@ -153,8 +198,12 @@ export default function GoogleSearchConsoleCard() {
       </div>
 
       {state === 'error' && (
-        <p className="mt-2 text-[11.5px] leading-[1.4] text-surface-500">
-          Could not read the connection state. <button type="button" onClick={() => void load()} className="cursor-pointer font-semibold text-brand-600 underline underline-offset-2">Retry</button>
+        <p role="alert" className="mt-2 flex items-start gap-1.5 rounded-md border border-critical-200 bg-critical-50 px-2.5 py-2 text-[11.5px] leading-[1.4] text-critical-800">
+          <AlertCircle size={13} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
+          <span>
+            {loadError}{' '}
+            <button type="button" onClick={() => void load()} className="cursor-pointer font-semibold underline underline-offset-2">Retry</button>
+          </span>
         </p>
       )}
 
