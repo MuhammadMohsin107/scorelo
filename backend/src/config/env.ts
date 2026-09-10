@@ -41,6 +41,16 @@ export const env = {
   // Where to send the browser after a successful connect — the frontend app.
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:5173',
   tokenEncryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
+  // ─── Google Search Console ──────────────────────────────────────────
+  // OAuth client from the Google Cloud console. Optional at startup like the Shopify block above:
+  // without it the API runs and every other route is unaffected, and the Integrations page shows
+  // Search Console as unavailable rather than offering a Connect button that would fail.
+  //
+  // The redirect URI registered in Google Cloud must be exactly
+  // `${BACKEND_URL}/api/google/callback` — Google matches it character for character, and a
+  // mismatch is rejected at the consent screen before Scorelo is ever called.
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
   // ─── SMTP ───────────────────────────────────────────────────────────
   // Optional at startup, like the Shopify block above: without it the API still runs and every
   // other route is unaffected. Only password-reset delivery depends on it, and that path reports
@@ -139,6 +149,20 @@ export function aiConfigured(): boolean {
 
 export function shopifyConfigured(): boolean {
   return Boolean(env.shopifyApiKey && env.shopifyApiSecret && env.backendUrl && env.tokenEncryptionKey);
+}
+
+/**
+ * Whether Google Search Console can be offered at all.
+ *
+ * `tokenEncryptionKey` is part of it because the refresh token Google returns is a long-lived
+ * credential to a merchant's search data — storing it without encryption at rest is not a
+ * degraded mode worth having, so the integration is hidden rather than offered insecurely.
+ *
+ * `backendUrl` is required because the OAuth redirect URI is derived from it and Google matches
+ * it exactly; guessing a default here would produce a consent screen that always fails.
+ */
+export function googleConfigured(): boolean {
+  return Boolean(env.googleClientId && env.googleClientSecret && env.backendUrl && env.tokenEncryptionKey);
 }
 
 export const isDev = env.nodeEnv !== 'production';

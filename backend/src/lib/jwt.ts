@@ -54,6 +54,30 @@ export function signShopifyState(userId: number, shop: string): string {
   return jwt.sign({ sub: userId, shop, type: 'shopify_state' } satisfies ShopifyStatePayload, env.jwtAccessSecret, { expiresIn: '10m' });
 }
 
+/**
+ * The same short-lived signed nonce, for Google's OAuth redirect.
+ *
+ * Google's callback carries no signature of its own — unlike Shopify's, which HMACs its query — so
+ * this state IS the entire CSRF defence and the only thing that says which Scorelo user and store
+ * the returning code belongs to. An unsigned or guessable state would let anyone hand Scorelo an
+ * authorization code and have the resulting tokens filed against someone else's store.
+ */
+export function signGoogleState(userId: number, storeId: number): string {
+  return jwt.sign(
+    { sub: userId, storeId, type: 'google_state' },
+    env.jwtAccessSecret,
+    { expiresIn: '10m' },
+  );
+}
+
+export function verifyGoogleState(token: string): { sub: number; storeId: number } {
+  const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
+  if (payload.type !== 'google_state' || typeof payload.sub !== 'number' || typeof payload.storeId !== 'number') {
+    throw new Error('Not a google_state token');
+  }
+  return { sub: payload.sub, storeId: payload.storeId };
+}
+
 export function verifyShopifyState(token: string): ShopifyStatePayload {
   const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
   if (payload.type !== 'shopify_state' || typeof payload.sub !== 'number' || typeof payload.shop !== 'string') {

@@ -37,9 +37,12 @@ export const integrationCatalog: Record<string, IntegrationCatalogEntry> = {
     provider: 'search-console',
     group: 'Analytics',
     name: 'Google Search Console',
-    description: 'Search visibility, queries, clicks, impressions, and index coverage.',
+    // Narrowed to what the read-only scope actually returns. "Index coverage" was advertised and is
+    // a different API surface Scorelo does not read — the same overclaiming the Shopify entry was
+    // corrected for.
+    description: 'Search visibility: queries, clicks, impressions, CTR and average position.',
     data: ['Search queries', 'Clicks and impressions', 'CTR and average position'],
-    available: false,
+    available: true,
   },
   analytics: {
     provider: 'analytics',

@@ -13,6 +13,8 @@ import {
   type ShopifyStatus,
 } from '../data/shopify.repository';
 import { Button, Drawer, MetricTile, ModuleHeader, SectionHeading, StatusBadge } from '../components/workflows/WorkflowPrimitives';
+import GoogleSearchConsoleCard from '../components/integrations/GoogleSearchConsoleCard';
+import { describeGoogleOutcome } from '../data/google.repository';
 
 type IntegrationStatus = IntegrationRecord['status'];
 
@@ -62,12 +64,20 @@ export default function Integrations() {
   // The OAuth callback redirects the browser back here with the outcome. Read it once, show it,
   // then strip it from the URL so a refresh does not replay a stale "connected" banner.
   useEffect(() => {
-    const outcome = searchParams.get('shopify');
-    if (!outcome) return;
-    const described = describeConnectOutcome(outcome, searchParams.get('reason'));
+    // Both OAuth callbacks land here, each with its own parameter. Handled in one effect so the
+    // `reason` key — which they share — is stripped exactly once however the merchant arrived.
+    const shopifyOutcome = searchParams.get('shopify');
+    const googleOutcome = searchParams.get('google');
+    if (!shopifyOutcome && !googleOutcome) return;
+
+    const described = shopifyOutcome
+      ? describeConnectOutcome(shopifyOutcome, searchParams.get('reason'))
+      : describeGoogleOutcome(googleOutcome, searchParams.get('reason'));
     if (described) setBanner(described);
+
     const next = new URLSearchParams(searchParams);
     next.delete('shopify');
+    next.delete('google');
     next.delete('reason');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
@@ -168,6 +178,12 @@ export default function Integrations() {
         onSync={runSync}
         onRequestDisconnect={() => setConfirmingDisconnect(true)}
       />
+
+      {/* Its own panel beside Shopify's, not a card in the catalogue grid below. Both are real
+          OAuth connectors with their own state — connect, choose a property, read live data,
+          disconnect — and neither fits the one-line "View details" card the remaining providers
+          use, which exists precisely because those have no connector behind them. */}
+      <GoogleSearchConsoleCard />
 
       {groups.map((group) => {
         const GroupIcon = iconMap[group] ?? Database;

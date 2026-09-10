@@ -331,6 +331,62 @@ export const authChallenges = mysqlTable(
   ],
 );
 
+// ─── google_connections ──────────────────────────────────────────────
+// One row per store that has authorised Scorelo against Google Search Console.
+//
+// A SEPARATE TABLE FROM `integrations`, which holds only display state (status, a label, a last-
+// synced stamp). Credentials do not belong there: that row is read and written by ordinary
+// settings code, and a refresh token is a long-lived key to a merchant's search data. Keeping it
+// in its own table means the integrations row can stay freely readable while the secret is not.
+//
+// SHAPED AFTER `shopify_connections` deliberately — same encrypted-token pattern, same expiry
+// handling, same "one live connection per store". Two OAuth integrations with two different
+// storage designs is how one of them ends up with the weaker one.
+//
+// SECURITY: both tokens are AES-256-GCM encrypted at rest with TOKEN_ENCRYPTION_KEY, never logged,
+// and never returned by any API. The access token lives about an hour; the refresh token is what
+// actually matters and is spent server-side with no merchant interaction.
+export const googleConnections = mysqlTable(
+  'google_connections',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    storeId: int('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    /** The Google account that granted access, for the merchant to recognise the connection by. */
+    googleEmail: varchar('google_email', { length: 320 }),
+    /**
+     * The Search Console property this store reads, e.g. `sc-domain:example.com` or
+     * `https://example.com/`.
+     *
+     * Nullable because a merchant can authorise before a property is chosen — an account with
+     * several verified sites has to pick one, and an arbitrary guess would silently report on the
+     * wrong domain.
+     */
+    siteUrl: varchar('site_url', { length: 512 }),
+    accessTokenEncrypted: text('access_token_encrypted').notNull(),
+    /**
+     * NULLABLE, and the distinction is load-bearing. Google returns a refresh token only on the
+     * FIRST consent for a client; a re-authorisation without `prompt=consent` returns an access
+     * token alone. A null here therefore means "this connection cannot renew itself" and the
+     * merchant must reconnect — not "renewal failed".
+     */
+    refreshTokenEncrypted: text('refresh_token_encrypted'),
+    accessTokenExpiresAt: datetime('access_token_expires_at', { mode: 'date' }),
+    /** The scope string Google actually granted, which is the truth about what this token permits. */
+    scope: text('scope').notNull(),
+    /** Set when the last read failed, cleared when one succeeds. */
+    lastError: varchar('last_error', { length: 500 }),
+    lastSyncedAt: datetime('last_synced_at', { mode: 'date' }),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(now),
+    /** Non-null once the merchant disconnects. The row is kept so a reconnect is an update. */
+    disconnectedAt: datetime('disconnected_at', { mode: 'date' }),
+  },
+  (table) => [
+    uniqueIndex('google_connections_store_idx').on(table.storeId),
+  ],
+);
+
 // ─── user_recovery_codes ─────────────────────────────────────────────
 // The way back in when the second factor itself is unreachable.
 //

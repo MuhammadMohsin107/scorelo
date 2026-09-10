@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { shopifyRouter } from './routes/shopify.js';
+import { googleRouter } from './routes/google.js';
 import { usersRouter } from './routes/users.js';
 import { storesRouter } from './routes/stores.js';
 import { integrationsRouter } from './routes/integrations.js';
@@ -45,6 +46,7 @@ app.use(express.json({ verify: (req, _res, buf) => { (req as express.Request).ra
 app.use('/api', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/shopify', shopifyRouter);
+app.use('/api/google', googleRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/stores', storesRouter);
 app.use('/api/integrations', integrationsRouter);

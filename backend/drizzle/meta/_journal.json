@@ -71,6 +71,13 @@
       "when": 1788879502750,
       "tag": "0009_cuddly_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1788964058384,
+      "tag": "0010_brave_mandroid",
+      "breakpoints": true
     }
   ]
 }
