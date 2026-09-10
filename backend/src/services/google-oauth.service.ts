@@ -38,8 +38,23 @@ import { signGoogleState, verifyGoogleState } from '../lib/jwt.js';
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
-/** Read-only Search Console access. See the header for why the writable scope is not requested. */
-const SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly'].join(' ');
+/**
+ * Read-only Search Console access. See the header for why the writable scope is not requested.
+ *
+ * `userinfo.email` is the second entry and earns its place: fetchAccountEmail() below reads the
+ * connected account's address so the Integrations page can show WHICH Google account granted
+ * access. Without the scope that call 401s, the helper swallows it and returns null, and the card
+ * shows a connection with no way to tell whose it is — which matters when a merchant has several
+ * Google accounts and needs to know they connected the right one.
+ *
+ * Adding a scope later is not free: Google issues scopes only on fresh consent, so every existing
+ * connection would have to be re-authorised. That is the reason to declare it now rather than when
+ * the email is first missed.
+ */
+const SCOPES = [
+  'https://www.googleapis.com/auth/webmasters.readonly',
+  'https://www.googleapis.com/auth/userinfo.email',
+].join(' ');
 
 /**
  * Renew slightly BEFORE expiry rather than on it. A token that expires mid-audit fails a request

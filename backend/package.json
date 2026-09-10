@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "verify:shopify": "tsx src/scripts/verify-shopify.ts",
     "verify:smtp": "tsx src/scripts/verify-smtp.ts",
-    "verify:ai": "tsx src/scripts/verify-ai.ts"
+    "verify:ai": "tsx src/scripts/verify-ai.ts",
+    "verify:google": "tsx src/scripts/verify-google.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
