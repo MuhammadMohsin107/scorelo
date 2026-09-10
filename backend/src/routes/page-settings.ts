@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { getPageSettings, upsertPageSettings } from '../controllers/pageSettings.controller.js';
-import { getAltTextSettings, postAltTextPreview, putAltTextSettings } from '../controllers/altText.controller.js';
+import { getAltTextSettings, putAltTextSettings } from '../controllers/altText.controller.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { validateRequest } from '../middleware/validateRequest.js';
 import { pageSettingsSlugSchema, upsertPageSettingsSchema } from '../schemas/pageSettings.schema.js';
-import { altTextConfigSchema, altTextPreviewSchema } from '../schemas/altText.schema.js';
+import { altTextConfigSchema } from '../schemas/altText.schema.js';
 import { storeIdQuerySchema } from '../schemas/common.schema.js';
 
 export const pageSettingsRouter = Router();
@@ -24,8 +24,6 @@ pageSettingsRouter.use(authenticate);
  */
 pageSettingsRouter.get('/image-alt-text/template', validateRequest({ query: storeIdQuerySchema }), asyncHandler(getAltTextSettings));
 pageSettingsRouter.put('/image-alt-text/template', validateRequest({ query: storeIdQuerySchema, body: altTextConfigSchema }), asyncHandler(putAltTextSettings));
-// POST, not PUT: a preview computes and returns a result. It stores nothing and changes nothing.
-pageSettingsRouter.post('/image-alt-text/preview', validateRequest({ query: storeIdQuerySchema, body: altTextPreviewSchema }), asyncHandler(postAltTextPreview));
 
 pageSettingsRouter.get('/:slug', validateRequest({ params: pageSettingsSlugSchema, query: storeIdQuerySchema }), asyncHandler(getPageSettings));
 pageSettingsRouter.put('/:slug', validateRequest({ params: pageSettingsSlugSchema, query: storeIdQuerySchema, body: upsertPageSettingsSchema }), asyncHandler(upsertPageSettings));

@@ -2,9 +2,8 @@ import { api } from '../../lib/api';
 
 /**
  * ─── Image alt-text template configuration ───────────────────────────
- * Talks to the existing page-settings API (store-scoped, authenticated). The generation itself
- * happens on the server so the preview a merchant sees is produced by the same engine that would
- * generate a real fix — a second copy of the pipeline in the browser would drift from it.
+ * Talks to the existing page-settings API (store-scoped, authenticated). Configuration only: this
+ * saves and loads one JSON document and never reaches Shopify.
  */
 
 export const ALT_TEXT_CONTENT_TYPES = ['products', 'articles'] as const;
@@ -56,8 +55,8 @@ export interface PlaceholderDefinition {
  * Mirrors the server catalogue in lib/alt-text/template.ts.
  *
  * Kept in step by the server, not by hope: an unknown placeholder is rejected by validation on
- * save AND on preview, so a stale entry here surfaces as an error rather than as a value the
- * merchant believes will resolve. Each one maps to a field the Shopify query already selects.
+ * save, so a stale entry here surfaces as an error rather than as a value the merchant believes
+ * will resolve.
  */
 export const PLACEHOLDERS: Record<AltTextContentType, PlaceholderDefinition[]> = {
   products: [
@@ -74,40 +73,12 @@ export const PLACEHOLDERS: Record<AltTextContentType, PlaceholderDefinition[]> =
   ],
 };
 
-export interface AltTextPreviewRow {
-  resourceTitle: string;
-  imageUrl: string | null;
-  currentAlt: string | null;
-  generated: string;
-  skipped: boolean;
-  truncated: boolean;
-  characters: number;
-  /**
-   * What the template would have produced, present only on a skipped row.
-   *
-   * A skipped row's `generated` is the merchant's own existing alt text, so on a store where every
-   * image already has some, the preview showed nothing about the template being edited.
-   */
-  wouldGenerate: string | null;
-}
-
-export interface AltTextPreviewResponse {
-  contentType: AltTextContentType;
-  rows: AltTextPreviewRow[];
-  emptyReason: 'none' | 'not_connected' | 'no_records' | 'no_images' | null;
-  shopName: string | null;
-}
-
 export function fetchAltTextConfig(): Promise<AltTextConfigResponse> {
   return api.get<AltTextConfigResponse>('/page-settings/image-alt-text/template');
 }
 
 export function saveAltTextConfig(config: AltTextConfig): Promise<AltTextConfigResponse> {
   return api.put<AltTextConfigResponse>('/page-settings/image-alt-text/template', { config });
-}
-
-export function fetchAltTextPreview(contentType: AltTextContentType, config: AltTextTypeConfig): Promise<AltTextPreviewResponse> {
-  return api.post<AltTextPreviewResponse>('/page-settings/image-alt-text/preview', { contentType, config });
 }
 
 // ─── Client-side validation ──────────────────────────────────────────

@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  ALT_TEXT_CONTENT_TYPES,
   AUTO_FORMATS,
   MAX_CHARACTER_LIMIT,
   MAX_TEMPLATE_LENGTH,
@@ -11,7 +10,7 @@ import {
  * Shape validation only — the request must be a well-formed configuration document before the
  * service looks at it. The MEANING of a template (unknown placeholders, malformed braces, a
  * placeholder belonging to another content type) is judged in lib/alt-text/template.ts, so the
- * rules the preview applies and the rules a save applies are provably the same ones.
+ * rules validation applies at the edge and the rules a save applies are provably the same ones.
  */
 
 const typeConfigSchema = z.object({
@@ -30,10 +29,4 @@ export const altTextConfigSchema = z.object({
   }).strict(),
 }).strict();
 
-export const altTextPreviewSchema = z.object({
-  contentType: z.enum(ALT_TEXT_CONTENT_TYPES),
-  config: typeConfigSchema,
-}).strict();
-
 export type AltTextConfigInput = z.infer<typeof altTextConfigSchema>;
-export type AltTextPreviewInput = z.infer<typeof altTextPreviewSchema>;
