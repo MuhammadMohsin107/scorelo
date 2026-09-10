@@ -364,6 +364,18 @@ export const googleConnections = mysqlTable(
      * wrong domain.
      */
     siteUrl: varchar('site_url', { length: 512 }),
+    /**
+     * The GA4 property this store reports on — the NUMERIC id, e.g. `498211037`, from which
+     * `properties/498211037` is formed for the API.
+     *
+     * NOT the `G-XXXXXXXXXX` measurement id, which belongs in a page tag and which the Data API
+     * rejects outright. The two are easy to confuse because the Analytics admin shows both.
+     *
+     * Nullable for the same reason siteUrl is: an account with several properties has to pick one,
+     * and choosing automatically would report another brand's traffic as this store's. It also
+     * stays null for every connection that authorised before GA4 support existed.
+     */
+    ga4PropertyId: varchar('ga4_property_id', { length: 32 }),
     accessTokenEncrypted: text('access_token_encrypted').notNull(),
     /**
      * NULLABLE, and the distinction is load-bearing. Google returns a refresh token only on the

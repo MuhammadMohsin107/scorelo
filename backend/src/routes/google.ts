@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  getGa4Performance,
+  getGa4Properties,
+  getGa4Status,
   getGoogleAuthUrl,
   getGoogleCallback,
   getGooglePerformance,
   getGoogleSites,
   getGoogleStatus,
+  postGa4Property,
   postGoogleDisconnect,
   postGoogleSite,
 } from '../controllers/google.controller.js';
@@ -66,3 +70,40 @@ googleRouter.get(
 );
 
 googleRouter.post('/disconnect', authenticate, validateRequest({ query: storeIdQuerySchema }), asyncHandler(postGoogleDisconnect));
+
+/**
+ * ─── Google Analytics 4 ──────────────────────────────────────────────
+ *
+ * Mounted under the same router because it is the same OAuth connection: /auth-url, /callback and
+ * /disconnect above serve both. A parallel /api/analytics router would imply a second grant to
+ * make and revoke, which is exactly the confusion to avoid.
+ */
+
+/**
+ * A GA4 property id — the NUMERIC one, e.g. `498211037`.
+ *
+ * Digits only, because the alternative a merchant is likely to paste is the `G-XXXXXXXXXX`
+ * measurement id, which the Data API rejects with an unhelpful 400. Catching the shape here means
+ * the card can say which id is wanted instead of relaying Google's confusion. Whether the account
+ * may actually read it is checked server-side against Google's own list.
+ */
+const ga4PropertySchema = z.object({
+  propertyId: z.string().trim().regex(/^\d{1,20}$/, 'Use the numeric Property ID, not the G- measurement ID.'),
+}).strict();
+
+googleRouter.get('/ga4/status', authenticate, validateRequest({ query: storeIdQuerySchema }), asyncHandler(getGa4Status));
+googleRouter.get('/ga4/properties', authenticate, validateRequest({ query: storeIdQuerySchema }), asyncHandler(getGa4Properties));
+
+googleRouter.post(
+  '/ga4/property',
+  authenticate,
+  validateRequest({ query: storeIdQuerySchema, body: ga4PropertySchema }),
+  asyncHandler(postGa4Property),
+);
+
+googleRouter.get(
+  '/ga4/performance',
+  authenticate,
+  validateRequest({ query: performanceQuerySchema }),
+  asyncHandler(getGa4Performance),
+);

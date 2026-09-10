@@ -48,9 +48,13 @@ export const integrationCatalog: Record<string, IntegrationCatalogEntry> = {
     provider: 'analytics',
     group: 'Analytics',
     name: 'Google Analytics',
-    description: 'Traffic, engagement, conversion and acquisition context for audits.',
-    data: ['Sessions and landing pages', 'Engagement signals', 'Conversion events'],
-    available: false,
+    // Narrowed to what the read-only GA4 scope and the three queries behind this connector
+    // actually return. The earlier wording promised "acquisition context" in general, which is a
+    // much larger surface than sessions grouped by default channel — the same overclaiming the
+    // Shopify and Search Console entries were corrected for.
+    description: 'What happened after the click: sessions, engagement, landing pages and conversions.',
+    data: ['Sessions and engagement', 'Top landing pages', 'Channels and conversions'],
+    available: true,
   },
   pagespeed: {
     provider: 'pagespeed',

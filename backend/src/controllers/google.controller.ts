@@ -9,6 +9,12 @@ import {
   listSearchConsoleSites,
   selectSearchConsoleSite,
 } from '../services/search-console.service.js';
+import {
+  getAnalyticsPerformance,
+  getAnalyticsStatus,
+  listAnalyticsProperties,
+  selectAnalyticsProperty,
+} from '../services/analytics.service.js';
 
 /**
  * ─── Google Search Console endpoints ─────────────────────────────────
@@ -83,4 +89,38 @@ export async function postGoogleDisconnect(req: Request, res: Response) {
   const storeId = await getCurrentStoreId(requireUserId(req), optionalStoreId(req));
   await disconnectGoogle(storeId);
   res.json({ data: await getSearchConsoleStatus(storeId, googleConfigured()) });
+}
+
+/**
+ * ─── Google Analytics 4 ──────────────────────────────────────────────
+ *
+ * The SAME connection as Search Console — one consent, one token pair, two APIs — so there is no
+ * separate connect or disconnect here. What differs is that a grant made before the Analytics
+ * scope existed cannot read GA4, which the service checks rather than letting Google answer with
+ * an opaque 403.
+ */
+
+export async function getGa4Status(req: Request, res: Response) {
+  const storeId = await getCurrentStoreId(requireUserId(req), optionalStoreId(req));
+  res.json({ data: await getAnalyticsStatus(storeId, googleConfigured()) });
+}
+
+/** The GA4 properties the connected account can read, for the merchant to choose from. */
+export async function getGa4Properties(req: Request, res: Response) {
+  const storeId = await getCurrentStoreId(requireUserId(req), optionalStoreId(req));
+  res.json({ data: await listAnalyticsProperties(storeId) });
+}
+
+/** Records which property this store reports on. Verified against the account's own list. */
+export async function postGa4Property(req: Request, res: Response) {
+  const storeId = await getCurrentStoreId(requireUserId(req), optionalStoreId(req));
+  await selectAnalyticsProperty(storeId, req.body.propertyId);
+  res.json({ data: await getAnalyticsStatus(storeId, googleConfigured()) });
+}
+
+/** Live GA4 performance. Every number comes from Google in this request. */
+export async function getGa4Performance(req: Request, res: Response) {
+  const storeId = await getCurrentStoreId(requireUserId(req), optionalStoreId(req));
+  const days = typeof req.query.days === 'number' ? req.query.days : 28;
+  res.json({ data: await getAnalyticsPerformance(storeId, days) });
 }

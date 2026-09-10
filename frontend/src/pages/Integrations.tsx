@@ -14,6 +14,7 @@ import {
 } from '../data/shopify.repository';
 import { Button, Drawer, MetricTile, ModuleHeader, SectionHeading, StatusBadge } from '../components/workflows/WorkflowPrimitives';
 import GoogleSearchConsoleCard from '../components/integrations/GoogleSearchConsoleCard';
+import GoogleAnalyticsCard from '../components/integrations/GoogleAnalyticsCard';
 import { describeGoogleOutcome } from '../data/google.repository';
 
 type IntegrationStatus = IntegrationRecord['status'];
@@ -184,6 +185,11 @@ export default function Integrations() {
           disconnect — and neither fits the one-line "View details" card the remaining providers
           use, which exists precisely because those have no connector behind them. */}
       <GoogleSearchConsoleCard />
+
+      {/* Beside Search Console rather than in the catalogue grid, and for the same reason: it is a
+          real connector with its own state. It rides on the SAME Google grant — connecting here
+          and connecting above are the same act — which is why the two sit together. */}
+      <GoogleAnalyticsCard />
 
       {groups.map((group) => {
         const GroupIcon = iconMap[group] ?? Database;

@@ -69,6 +69,31 @@ describe('access scope', () => {
     );
   });
 
+  it('requests read-only Analytics access and nothing more', () => {
+    // Google also offers `.../auth/analytics`, which permits editing property configuration,
+    // custom dimensions and data streams. Scorelo reads reports and never writes, so requesting it
+    // would ask merchants to approve a permission no code path uses.
+    const oauth = source('../services/google-oauth.service.ts');
+    assert.ok(
+      oauth.includes('https://www.googleapis.com/auth/analytics.readonly'),
+      'the read-only Analytics scope is no longer requested',
+    );
+    assert.equal(
+      /auth\/analytics'/.test(oauth),
+      false,
+      'the WRITABLE analytics scope is being requested — Scorelo only reads',
+    );
+  });
+
+  it('gates GA4 on the scope the stored grant actually carries', () => {
+    // Scopes are issued only on fresh consent, so a connection made before Analytics support
+    // exists keeps a token that cannot read GA4. Without this gate the failure is an opaque 403
+    // from Google at read time, which reads as "Analytics is broken" rather than "reconnect".
+    const analytics = source('../services/analytics.service.ts');
+    assert.ok(analytics.includes('grantsAnalytics'), 'GA4 reads no longer check the granted scope');
+    assert.ok(analytics.includes('GA4_SCOPE_MISSING'), 'the reconnect-required case is no longer distinguished');
+  });
+
   it('asks for a refresh token explicitly', () => {
     // Without both of these Google returns an access token that dies in an hour, and audits that
     // run in background jobs would silently report nothing.
@@ -82,7 +107,11 @@ describe('redaction invariants', () => {
   it('never logs a token', () => {
     // Checked against the source because the failure is silent and permanent: a refresh token in a
     // log file is a standing key to a merchant's search data.
-    for (const file of ['../services/google-oauth.service.ts', '../services/search-console.service.ts']) {
+    for (const file of [
+      '../services/google-oauth.service.ts',
+      '../services/search-console.service.ts',
+      '../services/analytics.service.ts',
+    ]) {
       for (const line of source(file).split('\n')) {
         if (!/console\.(log|warn|error|info|debug)/.test(line)) continue;
         assert.equal(

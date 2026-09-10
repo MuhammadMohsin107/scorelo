@@ -53,8 +53,25 @@ const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
  */
 const SCOPES = [
   'https://www.googleapis.com/auth/webmasters.readonly',
+  'https://www.googleapis.com/auth/analytics.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
 ].join(' ');
+
+/**
+ * Scopes a stored grant must carry before the feature that needs it is offered.
+ *
+ * A connection made before a scope was added keeps the scopes it was granted — Google issues them
+ * only on fresh consent — so `googleConnections.scope` is the truth about what a given token can
+ * actually do, and the code that reads GA4 has to ask rather than assume. Without this check the
+ * failure is a 403 from Google at read time, which reads as "Analytics is broken" instead of
+ * "this connection predates Analytics support; reconnect".
+ */
+export const ANALYTICS_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+
+/** Whether a stored grant actually carries the GA4 read scope. */
+export function grantsAnalytics(connection: GoogleConnection): boolean {
+  return connection.scope.includes(ANALYTICS_SCOPE);
+}
 
 /**
  * Renew slightly BEFORE expiry rather than on it. A token that expires mid-audit fails a request
