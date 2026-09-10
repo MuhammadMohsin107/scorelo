@@ -1,8 +1,15 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { googleConnections, integrations } from '../db/schema.js';
+import { googleConnections } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
-import { getGoogleConnection, getValidGoogleAccessToken, type GoogleConnection } from './google-oauth.service.js';
+import {
+  getGoogleConnection,
+  getValidGoogleAccessToken,
+  markIntegrationStatus,
+  markIntegrationSynced,
+  upsertIntegrationRow,
+  type GoogleConnection,
+} from './google-oauth.service.js';
 
 /**
  * ─── Google Search Console · reading real data ───────────────────────
@@ -105,10 +112,9 @@ async function callApi<T>(connection: GoogleConnection, path: string, body?: unk
       .update(googleConnections)
       .set({ lastError: reason })
       .where(eq(googleConnections.id, connection.id));
-    await db
-      .update(integrations)
-      .set({ status: 'needs_attention' })
-      .where(eq(integrations.storeId, connection.storeId));
+    // Scoped to this provider. Without the provider clause this marked every connector on the
+    // store — Shopify included — as needing attention over a Search Console permission problem.
+    await markIntegrationStatus(connection.storeId, 'search-console', 'needs_attention');
     throw new ApiError(response.status, reason, 'GOOGLE_ACCESS_DENIED');
   }
 
@@ -155,10 +161,7 @@ export async function selectSearchConsoleSite(storeId: number, siteUrl: string):
     .set({ siteUrl, lastError: null })
     .where(eq(googleConnections.storeId, storeId));
 
-  await db
-    .update(integrations)
-    .set({ status: 'connected', accountDetail: siteUrl })
-    .where(eq(integrations.storeId, storeId));
+  await upsertIntegrationRow(storeId, 'search-console', 'connected', siteUrl);
 }
 
 async function requireConnection(storeId: number): Promise<GoogleConnection> {
@@ -233,10 +236,7 @@ export async function getSearchConsolePerformance(storeId: number, days = 28): P
     .update(googleConnections)
     .set({ lastSyncedAt: new Date(), lastError: null })
     .where(eq(googleConnections.id, connection.id));
-  await db
-    .update(integrations)
-    .set({ status: 'connected', lastSyncedAt: new Date() })
-    .where(eq(integrations.storeId, storeId));
+  await markIntegrationSynced(storeId, 'search-console');
 
   return {
     siteUrl: connection.siteUrl,

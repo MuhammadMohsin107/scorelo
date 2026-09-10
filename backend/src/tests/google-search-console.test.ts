@@ -141,6 +141,37 @@ describe('redaction invariants', () => {
   });
 });
 
+describe('integration display rows', () => {
+  it('scopes every integrations write to one provider', () => {
+    // The bug this guards was invisible until a second Google connector existed:
+    // `where(eq(integrations.storeId, id))` with no provider clause matches EVERY provider row on
+    // the store, so a Search Console 403 quietly marked Shopify as needing attention. The helpers
+    // in google-oauth.service.ts carry the provider; a raw update at a call site would not.
+    for (const file of ['../services/search-console.service.ts', '../services/analytics.service.ts']) {
+      assert.equal(
+        /update\(integrations\)/.test(source(file)),
+        false,
+        `${file} writes the integrations table directly — use upsertIntegrationRow / markIntegrationStatus / markIntegrationSynced, which scope by provider`,
+      );
+    }
+  });
+
+  it('keys the shared helpers on store AND provider', () => {
+    const oauth = source('../services/google-oauth.service.ts');
+    assert.ok(
+      oauth.includes('eq(integrations.provider'),
+      'the integrations helpers no longer filter by provider — every connector on the store would be overwritten',
+    );
+  });
+
+  it('writes an analytics row, not only a search-console one', () => {
+    // Nothing wrote a row for `analytics` at all, so the catalogue card read the default
+    // 'not_connected' and reported "Not connected" beside a card showing live GA4 data.
+    const oauth = source('../services/google-oauth.service.ts');
+    assert.ok(oauth.includes("'analytics'"), 'the Google callback no longer records an analytics row');
+  });
+});
+
 describe('honest reporting', () => {
   it('ends the reporting range before today', () => {
     // Search Console finalises data on a delay. A range ending today returns rows that are still

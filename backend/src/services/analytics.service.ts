@@ -1,11 +1,14 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { googleConnections, integrations } from '../db/schema.js';
+import { googleConnections } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import {
   getGoogleConnection,
   getValidGoogleAccessToken,
   grantsAnalytics,
+  markIntegrationStatus,
+  markIntegrationSynced,
+  upsertIntegrationRow,
   type GoogleConnection,
 } from './google-oauth.service.js';
 
@@ -139,10 +142,8 @@ async function callApi<T>(connection: GoogleConnection, url: string, body?: unkn
       .update(googleConnections)
       .set({ lastError: reason })
       .where(eq(googleConnections.id, connection.id));
-    await db
-      .update(integrations)
-      .set({ status: 'needs_attention' })
-      .where(eq(integrations.storeId, connection.storeId));
+    // This provider only. A GA4 permission problem says nothing about Search Console or Shopify.
+    await markIntegrationStatus(connection.storeId, 'analytics', 'needs_attention');
     throw new ApiError(response.status, reason, 'GA4_ACCESS_DENIED');
   }
 
@@ -240,6 +241,13 @@ export async function selectAnalyticsProperty(storeId: number, propertyId: strin
     .update(googleConnections)
     .set({ ga4PropertyId: propertyId, lastError: null })
     .where(eq(googleConnections.storeId, storeId));
+
+  // The display row the Integrations catalogue reads. Written here rather than only on connect,
+  // because the property is what the card names — and because nothing wrote an `analytics` row at
+  // all until now, which is why the catalogue reported "Not connected" beside a card showing live
+  // Analytics data.
+  const chosen = properties.find((property) => property.propertyId === propertyId);
+  await upsertIntegrationRow(storeId, 'analytics', 'connected', chosen?.displayName ?? propertyId);
 }
 
 interface ReportRow {
@@ -328,6 +336,7 @@ export async function getAnalyticsPerformance(storeId: number, days = 28): Promi
     .update(googleConnections)
     .set({ lastSyncedAt: new Date(), lastError: null })
     .where(eq(googleConnections.id, connection.id));
+  await markIntegrationSynced(storeId, 'analytics');
 
   return {
     propertyId,

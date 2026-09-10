@@ -247,20 +247,80 @@ export async function handleGoogleCallback(query: Record<string, unknown>): Prom
     await db.insert(googleConnections).values(values);
   }
 
-  // The Integrations row is display state only and is kept in step here, so the page reflects the
-  // connection without every reader having to join against the credential table.
-  await upsertIntegrationRow(payload.storeId, 'connected', email);
+  // The Integrations rows are display state only and are kept in step here, so the page reflects
+  // the connection without every reader having to join against the credential table.
+  //
+  // BOTH providers are written, and Analytics is written from the scope Google ACTUALLY granted
+  // rather than from the scopes requested. Re-consenting can return less than was asked for, and a
+  // grant made before Analytics support existed carries only the Search Console scope — writing
+  // "connected" for Analytics in either case would put a green badge on a connector that cannot
+  // read anything.
+  const grantedScope = tokens.scope ?? SCOPES;
+  await upsertIntegrationRow(payload.storeId, 'search-console', 'connected', email);
+  await upsertIntegrationRow(
+    payload.storeId,
+    'analytics',
+    grantedScope.includes(ANALYTICS_SCOPE) ? 'connected' : 'not_connected',
+    grantedScope.includes(ANALYTICS_SCOPE) ? email : null,
+  );
 
   console.log(`[scorelo-google] Search Console connected for store ${payload.storeId}`);
   return { storeId: payload.storeId };
 }
 
-/** Mirrors connection state onto the `integrations` row the Integrations page reads. */
-async function upsertIntegrationRow(storeId: number, status: string, accountDetail: string | null): Promise<void> {
+/**
+ * The two providers this one Google grant backs.
+ *
+ * They are separate `integrations` rows because the Integrations page lists them as separate
+ * connectors and they genuinely can differ: a grant made before Analytics support existed is a
+ * working Search Console connection and no Analytics connection at all.
+ */
+export const GOOGLE_PROVIDERS = ['search-console', 'analytics'] as const;
+export type GoogleProvider = (typeof GOOGLE_PROVIDERS)[number];
+
+/**
+ * Mirrors connection state onto the `integrations` row the Integrations page reads.
+ *
+ * THE PROVIDER IS PART OF THE KEY, and every write below scopes to it. It did not, and the effect
+ * was invisible until two connectors existed: `where(storeId)` alone matches EVERY provider row
+ * for the store, so a Search Console 403 quietly marked Shopify as needing attention too. The
+ * Shopify service has always scoped its writes this way; these now match.
+ */
+export async function upsertIntegrationRow(
+  storeId: number,
+  provider: GoogleProvider,
+  status: string,
+  accountDetail: string | null,
+): Promise<void> {
   await db
     .insert(integrations)
-    .values({ storeId, provider: 'search-console', status, accountDetail, lastSyncedAt: null })
+    .values({ storeId, provider, status, accountDetail, lastSyncedAt: null })
+    // Keys off integrations_store_provider_idx (store_id, provider) — MySQL's ON CONFLICT DO UPDATE.
     .onDuplicateKeyUpdate({ set: { status, accountDetail } });
+}
+
+/**
+ * Narrows one provider's status without touching its account detail or creating a row.
+ *
+ * Used on read failures, where the account is still known and only the health has changed.
+ */
+export async function markIntegrationStatus(
+  storeId: number,
+  provider: GoogleProvider,
+  status: string,
+): Promise<void> {
+  await db
+    .update(integrations)
+    .set({ status })
+    .where(and(eq(integrations.storeId, storeId), eq(integrations.provider, provider)));
+}
+
+/** Records a successful read against one provider's row. */
+export async function markIntegrationSynced(storeId: number, provider: GoogleProvider): Promise<void> {
+  await db
+    .update(integrations)
+    .set({ status: 'connected', lastSyncedAt: new Date() })
+    .where(and(eq(integrations.storeId, storeId), eq(integrations.provider, provider)));
 }
 
 /** True when the access token is missing, expired, or about to be. */
@@ -317,9 +377,15 @@ export async function getValidGoogleAccessToken(connection: GoogleConnection): P
   return accessToken;
 }
 
+/**
+ * A refresh that cannot be recovered kills BOTH providers, because both read through the same
+ * token. Marking only Search Console would leave Analytics showing green beside a dead grant.
+ */
 async function markNeedsAttention(storeId: number, reason: string): Promise<void> {
   await db.update(googleConnections).set({ lastError: reason }).where(eq(googleConnections.storeId, storeId));
-  await upsertIntegrationRow(storeId, 'needs_attention', null);
+  for (const provider of GOOGLE_PROVIDERS) {
+    await markIntegrationStatus(storeId, provider, 'needs_attention');
+  }
 }
 
 /** The store's live connection, or null. A disconnected row is not a connection. */
@@ -349,10 +415,16 @@ export async function disconnectGoogle(storeId: number): Promise<void> {
       refreshTokenEncrypted: null,
       accessTokenExpiresAt: null,
       siteUrl: null,
+      // Cleared with the tokens: a property id left behind would be re-selected silently on the
+      // next connect, which may be a different Google account entirely.
+      ga4PropertyId: null,
       lastError: null,
     })
     .where(eq(googleConnections.storeId, storeId));
 
-  await upsertIntegrationRow(storeId, 'not_connected', null);
+  // Both, because one grant backed both.
+  for (const provider of GOOGLE_PROVIDERS) {
+    await upsertIntegrationRow(storeId, provider, 'not_connected', null);
+  }
   console.log(`[scorelo-google] Search Console disconnected for store ${storeId}`);
 }
