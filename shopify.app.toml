@@ -25,7 +25,7 @@ name = "Scorelo"
 
 # PUBLIC identifier — it appears in the browser address bar as ?client_id= during every OAuth
 # redirect. Not a secret. SHOPIFY_API_SECRET stays only in backend/.env (git-ignored).
-client_id = "b3b946c45888d1581d1b8ba16aa414af"
+client_id = "1f4a5ec573df0df3e8ffd239863fc18e"
 
 # Where Shopify sends a merchant who opens the app. Scorelo is a standalone web app, so this is
 # the FRONTEND origin, not the API.
@@ -61,7 +61,7 @@ scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_pol
 # /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install would finish the
 # install without ever handing Scorelo the `code`, so handleShopifyCallback would never run and
 # no access token would ever be stored.
-use_legacy_install_flow = false 
+use_legacy_install_flow = true
 
 
 [auth]
