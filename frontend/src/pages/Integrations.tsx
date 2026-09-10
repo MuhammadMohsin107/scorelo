@@ -197,28 +197,43 @@ export default function Integrations() {
         return (
           <section key={group} className="space-y-2" aria-labelledby={`${group}-integrations`}>
             <SectionHeading eyebrow="Connection group" title={group} />
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {/* Three across from `sm` up, because every group holds three or fewer providers and
+                the previous md:2 / xl:3 left the third alone on its own row at most window
+                widths — a lone card beside dead space, which reads as a layout fault rather than
+                as a set. */}
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {groupRecords.map((record) => (
-                <article key={record.id} className="group rounded-lg border border-surface-200 bg-surface-0 p-2.5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:border-brand-200">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-surface-100 text-surface-700"><GroupIcon size={17} /></div>
+                <article key={record.id} className="group flex flex-col rounded-lg border border-surface-200 bg-surface-0 p-2.5 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:border-brand-200">
+                  {/* Icon, name and status on ONE line. Stacking them cost a full row of height
+                      per card for an icon that identifies nothing the name does not. */}
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-700"><GroupIcon size={14} /></span>
+                    <h3 className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-surface-950">{record.name}</h3>
                     {record.available
                       ? <StatusBadge label={record.status} tone={statusTone[record.status]} />
                       : <StatusBadge label="Coming soon" tone="neutral" />}
                   </div>
-                  <h3 className="mt-2 text-[12.5px] font-bold text-surface-950">{record.name}</h3>
-                  {/* min-h keeps the cards in a row the same height; it tracks the two lines this
-                      copy actually takes at 11.5px, not the three it was reserving. */}
-                  <p className="mt-0.5 min-h-8 text-[11.5px] leading-[1.4] text-surface-500">{record.description}</p>
-                  {record.notice && <p className="mt-2 rounded-md bg-warning-50 px-2.5 py-1.5 text-[11px] font-medium leading-[1.4] text-warning-700">{record.notice}</p>}
-                  <div className="mt-2 border-t border-surface-100 pt-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-500">{record.status === 'Connected' ? 'Last synced' : 'Connection'}</p>
-                    <p className="mt-0.5 text-[12px] font-semibold text-surface-800">{record.status === 'Connected' ? record.lastSynced : record.detail}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {record.data.slice(0, 2).map((item) => <span key={item} className="rounded bg-surface-100 px-1.5 py-0.5 text-[10.5px] text-surface-600">{item}</span>)}
-                    </div>
+
+                  {/* line-clamp rather than a min-height: the cards align on their own because the
+                      action below is pushed to the bottom, so reserving space here only padded
+                      every card to fit the longest description in the group. */}
+                  <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-[1.4] text-surface-500">{record.description}</p>
+
+                  {record.notice && <p className="mt-1.5 rounded-md bg-warning-50 px-2 py-1 text-[11px] font-medium leading-[1.4] text-warning-700">{record.notice}</p>}
+
+                  {/* Label and value on one line. Stacked, this was two rows to say "Not connected". */}
+                  <div className="mt-2 flex items-baseline gap-1.5 border-t border-surface-100 pt-2">
+                    <span className="flex-shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-surface-500">{record.status === 'Connected' ? 'Synced' : 'Connection'}</span>
+                    <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-surface-800">{record.status === 'Connected' ? record.lastSynced : record.detail}</span>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
+
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {record.data.slice(0, 2).map((item) => <span key={item} className="rounded bg-surface-100 px-1.5 py-0.5 text-[10.5px] text-surface-600">{item}</span>)}
+                  </div>
+
+                  {/* mt-auto pins the action to the card's floor, so buttons share a baseline
+                      across a row whatever each description ran to. */}
+                  <div className="mt-auto flex items-center gap-2 pt-2">
                     {record.available
                       ? <Button variant="secondary" onClick={() => setSelected(record)}>View details</Button>
                       // No Connect action without a connector behind it. The previous build offered
