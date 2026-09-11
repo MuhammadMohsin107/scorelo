@@ -85,6 +85,13 @@
       "when": 1789044178705,
       "tag": "0011_stiff_manta",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1789134981218,
+      "tag": "0012_clear_starbolt",
+      "breakpoints": true
     }
   ]
 }

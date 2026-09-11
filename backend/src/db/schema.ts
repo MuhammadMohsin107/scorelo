@@ -777,6 +777,39 @@ export const pageSettings = mysqlTable(
   ],
 );
 
+// ─── schema_templates ─────────────────────────────────────────────────
+// One store's configuration for one Schema.org type: whether it is switched on, and where each
+// of its properties gets its value from.
+//
+// A TABLE OF ITS OWN, not another `page_settings` slug. Publishing has to answer "which types are
+// enabled for this store?" in one query, and that is a column here rather than a LIKE over slugs
+// and a JSON probe. The `properties` blob holds the ValueSource tree, which is the engine's own
+// shape (schema-engine/types.ts) and is validated before it is written — never rendered from here.
+export const schemaTemplates = mysqlTable(
+  'schema_templates',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    storeId: int('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    /** A Schema.org type name, e.g. 'Product'. Not an enum: the library grows by data, and the
+     * custom builder may emit a type the library does not carry. */
+    schemaType: varchar('schema_type', { length: 64 }).notNull(),
+    /** Which Shopify record it renders against — product, collection, page, article or shop. */
+    context: varchar('context', { length: 16 }).notNull(),
+    /** Off until the merchant switches it on. Nothing is ever published by default. */
+    enabled: boolean('enabled').notNull().default(false),
+    properties: json('properties').notNull().default({}),
+    updatedAt: datetime('updated_at', { mode: 'date' }).notNull().default(now),
+  },
+  (table) => [
+    // One configuration per type per context per store. The same type legitimately appears in two
+    // contexts — BreadcrumbList on a product and on an article are different templates.
+    uniqueIndex('schema_templates_store_type_context_idx').on(table.storeId, table.schemaType, table.context),
+    index('schema_templates_store_enabled_idx').on(table.storeId, table.enabled),
+  ],
+);
+
 // ─── ai_fix_proposals ─────────────────────────────────────────────────
 // One AI-proposed value for one field of one resource, awaiting a human decision.
 //

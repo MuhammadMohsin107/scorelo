@@ -461,6 +461,196 @@ function localBusinessType(type: string, description: string, builtIn: boolean):
   };
 }
 
+// ─── Education, jobs, events, food, software ─────────────────────────
+// Each of these has its own Google rich result, and each is a real thing a Shopify store
+// publishes — a supplement brand runs courses and posts recipes, a growing one posts jobs. They
+// are entries in this list rather than code because that is what keeps coverage extensible.
+
+const HOW_TO: SchemaTypeDefinition = {
+  type: 'HowTo',
+  category: 'Content',
+  description: 'Step-by-step instructions — "how to use this supplement", "how to fit this part".',
+  contexts: ['page', 'article', 'product'],
+  builtIn: true,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/how-to',
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'What the instructions achieve.' },
+    { name: 'step', expects: 'HowToStep', requirement: 'required', description: 'The ordered steps. Each needs text; a name and image help.' },
+    { name: 'description', expects: 'Text', requirement: 'recommended', description: 'A summary of the process.' },
+    { name: 'totalTime', expects: 'Duration (ISO 8601)', requirement: 'optional', description: 'e.g. PT30M.' },
+    { name: 'supply', expects: 'HowToSupply', requirement: 'optional', description: 'What gets used up.' },
+    { name: 'tool', expects: 'HowToTool', requirement: 'optional', description: 'What is needed but not consumed.' },
+  ],
+};
+
+const COURSE: SchemaTypeDefinition = {
+  type: 'Course',
+  category: 'Content',
+  description: 'A course of instruction.',
+  contexts: ['page', 'product'],
+  builtIn: true,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/course',
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'Course title.' },
+    { name: 'description', expects: 'Text', requirement: 'required', description: 'What the course covers.' },
+    { name: 'provider', expects: 'Organization', requirement: 'required', description: 'Who runs it.', defaultSource: { kind: 'object', type: 'Organization', properties: { name: shopify('shop.name'), url: shopify('shop.url') } } },
+    { name: 'hasCourseInstance', expects: 'CourseInstance', requirement: 'optional', description: 'Specific runs of the course.' },
+    { name: 'offers', expects: 'Offer', requirement: 'optional', description: 'What it costs.' },
+  ],
+};
+
+const COURSE_INSTANCE: SchemaTypeDefinition = {
+  type: 'CourseInstance',
+  category: 'Content',
+  description: 'One scheduled run of a course.',
+  contexts: [],
+  builtIn: false,
+  properties: [
+    { name: 'courseMode', expects: 'Text', requirement: 'recommended', description: 'e.g. Online, Onsite.' },
+    { name: 'startDate', expects: 'Date', requirement: 'recommended', description: 'When it begins.' },
+    { name: 'endDate', expects: 'Date', requirement: 'optional', description: 'When it ends.' },
+    { name: 'location', expects: 'Place or VirtualLocation', requirement: 'optional', description: 'Where it happens.' },
+  ],
+};
+
+const JOB_POSTING: SchemaTypeDefinition = {
+  type: 'JobPosting',
+  category: 'Content',
+  description: 'A job opening. Feeds Google for Jobs.',
+  contexts: ['page'],
+  builtIn: true,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/job-posting',
+  properties: [
+    { name: 'title', expects: 'Text', requirement: 'required', description: 'The role, e.g. "Warehouse Assistant". Not the posting headline.' },
+    { name: 'description', expects: 'Text', requirement: 'required', description: 'The full description. HTML is allowed here.' },
+    { name: 'datePosted', expects: 'Date', requirement: 'required', description: 'When it was published.' },
+    { name: 'hiringOrganization', expects: 'Organization', requirement: 'required', description: 'Who is hiring.', defaultSource: { kind: 'object', type: 'Organization', properties: { name: shopify('shop.name'), url: shopify('shop.url') } } },
+    { name: 'jobLocation', expects: 'Place', requirement: 'required', description: 'Where the work happens. Omit only for a fully remote role.' },
+    { name: 'validThrough', expects: 'Date', requirement: 'recommended', description: 'When the posting expires. Google drops expired postings.' },
+    { name: 'employmentType', expects: 'Text', requirement: 'optional', description: 'e.g. FULL_TIME, PART_TIME.' },
+    { name: 'baseSalary', expects: 'MonetaryAmount', requirement: 'optional', description: 'Pay.' },
+  ],
+};
+
+function eventType(type: string, description: string, builtIn: boolean): SchemaTypeDefinition {
+  return {
+    type,
+    category: 'Content',
+    description,
+    contexts: ['page'],
+    builtIn,
+    googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/event',
+    properties: [
+      { name: 'name', expects: 'Text', requirement: 'required', description: 'Event name.' },
+      { name: 'startDate', expects: 'DateTime', requirement: 'required', description: 'Start, with timezone offset.' },
+      { name: 'location', expects: 'Place or VirtualLocation', requirement: 'required', description: 'Where it happens. Online events use VirtualLocation.' },
+      { name: 'endDate', expects: 'DateTime', requirement: 'recommended', description: 'End, with timezone offset.' },
+      { name: 'description', expects: 'Text', requirement: 'recommended', description: 'What it is.' },
+      { name: 'image', expects: 'URL', requirement: 'recommended', description: 'Event image.' },
+      { name: 'offers', expects: 'Offer', requirement: 'optional', description: 'Tickets.' },
+      { name: 'organizer', expects: 'Organization', requirement: 'optional', description: 'Who runs it.', defaultSource: { kind: 'object', type: 'Organization', properties: { name: shopify('shop.name'), url: shopify('shop.url') } } },
+    ],
+  };
+}
+
+const NUTRITION_INFORMATION: SchemaTypeDefinition = {
+  type: 'NutritionInformation',
+  category: 'Content',
+  description: 'Nutrition facts for a recipe or food product.',
+  contexts: [],
+  builtIn: false,
+  properties: [
+    { name: 'calories', expects: 'Energy', requirement: 'recommended', description: 'e.g. "240 calories".' },
+    { name: 'servingSize', expects: 'Text', requirement: 'optional', description: 'What one serving is.' },
+    { name: 'proteinContent', expects: 'Mass', requirement: 'optional', description: 'e.g. "12 g".' },
+    { name: 'fatContent', expects: 'Mass', requirement: 'optional', description: 'e.g. "3 g".' },
+    { name: 'carbohydrateContent', expects: 'Mass', requirement: 'optional', description: 'e.g. "30 g".' },
+    { name: 'sugarContent', expects: 'Mass', requirement: 'optional', description: 'e.g. "8 g".' },
+  ],
+};
+
+const RECIPE: SchemaTypeDefinition = {
+  type: 'Recipe',
+  category: 'Content',
+  description: 'A recipe. Common on supplement and food stores, and it has its own rich result.',
+  contexts: ['article', 'page', 'product'],
+  builtIn: true,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/recipe',
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'Recipe name.' },
+    { name: 'image', expects: 'URL', requirement: 'required', description: 'A photo of the finished dish.' },
+    { name: 'recipeIngredient', expects: 'Text', requirement: 'required', description: 'One entry per ingredient, with quantity.' },
+    { name: 'recipeInstructions', expects: 'HowToStep', requirement: 'required', description: 'The steps, in order.' },
+    { name: 'description', expects: 'Text', requirement: 'recommended', description: 'What it is.' },
+    { name: 'prepTime', expects: 'Duration (ISO 8601)', requirement: 'optional', description: 'e.g. PT15M.' },
+    { name: 'cookTime', expects: 'Duration (ISO 8601)', requirement: 'optional', description: 'e.g. PT30M.' },
+    { name: 'recipeYield', expects: 'Text', requirement: 'optional', description: 'e.g. "4 servings".' },
+    { name: 'nutrition', expects: 'NutritionInformation', requirement: 'optional', description: 'Nutrition facts.' },
+    { name: 'aggregateRating', expects: 'AggregateRating', requirement: 'optional', description: 'Real ratings only.' },
+  ],
+};
+
+function softwareType(type: string, description: string, builtIn: boolean): SchemaTypeDefinition {
+  return {
+    type,
+    category: 'Content',
+    description,
+    contexts: ['page', 'product'],
+    builtIn,
+    googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/software-app',
+    properties: [
+      { name: 'name', expects: 'Text', requirement: 'required', description: 'Application name.' },
+      { name: 'offers', expects: 'Offer', requirement: 'required', description: 'Price. Use 0 for a free app.' },
+      { name: 'applicationCategory', expects: 'Text', requirement: 'required', description: 'e.g. HealthApplication.' },
+      { name: 'operatingSystem', expects: 'Text', requirement: 'recommended', description: 'e.g. Android, iOS.' },
+      { name: 'aggregateRating', expects: 'AggregateRating', requirement: 'optional', description: 'Real ratings only.' },
+    ],
+  };
+}
+
+const AUDIO_OBJECT: SchemaTypeDefinition = {
+  type: 'AudioObject',
+  category: 'Media',
+  description: 'An audio file — a podcast episode or product audio guide.',
+  contexts: ['page', 'article'],
+  builtIn: false,
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'Title.' },
+    { name: 'contentUrl', expects: 'URL', requirement: 'required', description: 'The audio file.' },
+    { name: 'description', expects: 'Text', requirement: 'recommended', description: 'What it covers.' },
+    { name: 'duration', expects: 'Duration (ISO 8601)', requirement: 'optional', description: 'e.g. PT22M.' },
+    { name: 'uploadDate', expects: 'Date', requirement: 'optional', description: 'When it was published.' },
+  ],
+};
+
+const PLACE: SchemaTypeDefinition = {
+  type: 'Place',
+  category: 'Business & Local',
+  description: 'A physical location.',
+  contexts: [],
+  builtIn: false,
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'recommended', description: 'What the place is called.' },
+    { name: 'address', expects: 'PostalAddress', requirement: 'required', description: 'Where it is.' },
+    { name: 'geo', expects: 'GeoCoordinates', requirement: 'optional', description: 'Latitude and longitude.' },
+  ],
+};
+
+const CREATIVE_WORK: SchemaTypeDefinition = {
+  type: 'CreativeWork',
+  category: 'Content',
+  description: 'A generic created work, for content none of the more specific types fits.',
+  contexts: ['page', 'article'],
+  builtIn: false,
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'Title.' },
+    { name: 'description', expects: 'Text', requirement: 'recommended', description: 'What it is.' },
+    { name: 'author', expects: 'Person or Organization', requirement: 'optional', description: 'Who made it.' },
+    { name: 'datePublished', expects: 'Date', requirement: 'optional', description: 'When it was published.' },
+    { name: 'url', expects: 'URL', requirement: 'optional', description: 'Where it lives.' },
+  ],
+};
+
 export const SCHEMA_LIBRARY: SchemaTypeDefinition[] = [
   // Ecommerce
   PRODUCT,
@@ -509,6 +699,26 @@ export const SCHEMA_LIBRARY: SchemaTypeDefinition[] = [
   localBusinessType('FinancialService', 'A financial services business.', false),
   localBusinessType('AutomotiveBusiness', 'An automotive business.', false),
   localBusinessType('LodgingBusiness', 'A hotel or other lodging.', false),
+  PLACE,
+  // Education, jobs, events, food, software
+  HOW_TO,
+  COURSE,
+  COURSE_INSTANCE,
+  JOB_POSTING,
+  eventType('Event', 'A scheduled event.', true),
+  eventType('BusinessEvent', 'A business event or trade show.', false),
+  eventType('EducationEvent', 'A class, workshop or webinar.', false),
+  eventType('Festival', 'A festival.', false),
+  eventType('SocialEvent', 'A social gathering.', false),
+  eventType('SportsEvent', 'A sporting event.', false),
+  eventType('ScreeningEvent', 'A film or video screening.', false),
+  RECIPE,
+  NUTRITION_INFORMATION,
+  softwareType('SoftwareApplication', 'A software application.', true),
+  softwareType('MobileApplication', 'A mobile app.', false),
+  softwareType('WebApplication', 'A web app.', false),
+  AUDIO_OBJECT,
+  CREATIVE_WORK,
 ];
 
 const BY_TYPE = new Map(SCHEMA_LIBRARY.map((definition) => [definition.type, definition]));

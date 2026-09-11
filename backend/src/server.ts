@@ -16,6 +16,7 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { reportsRouter } from './routes/reports.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { pageSettingsRouter } from './routes/page-settings.js';
+import { schemaRouter } from './routes/schema.js';
 import { securityRouter } from './routes/security.js';
 import { adminRouter } from './routes/admin.js';
 import { errorHandler, notFound } from './middleware/error.js';
@@ -57,6 +58,9 @@ app.use('/api/findings', findingsRouter);
 app.use('/api/ai-fixes', aiFixesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/page-settings', pageSettingsRouter);
+// Schema / JSON-LD settings. Separate from the SEO schema AUDIT, which reads what the storefront
+// already renders — this is what Scorelo would generate from the store's own data.
+app.use('/api/schema', schemaRouter);
 app.use('/api/security', securityRouter);
 // Platform-operator surface. Authenticated AND admin-authorized inside the router itself — see
 // routes/admin.ts, which applies both guards once for every route it will ever hold.

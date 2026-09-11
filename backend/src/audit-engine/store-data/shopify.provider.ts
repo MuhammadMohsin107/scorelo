@@ -36,6 +36,7 @@ import {
   type SnapshotPolicyAccess,
   type SnapshotProduct,
   type SnapshotProductOption,
+  type SnapshotShop,
   type SnapshotVariant,
   type StoreDataProvider,
   type StoreSnapshot,
@@ -152,6 +153,50 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
     private readonly productLimit: number,
   ) {}
 
+  /**
+   * One record of each kind, plus the shop.
+   *
+   * Exists so the Schema settings page can preview a template against the merchant's REAL data
+   * without building a whole snapshot: a preview that read the entire catalogue would take
+   * minutes and hammer Shopify every time someone changed a dropdown. It reuses the same fetchers
+   * and the same mapping as an audit, so what the preview shows is exactly what the engine will
+   * later generate — a second, lighter read path would be free to drift from the real one.
+   *
+   * Returns plain snapshot types and knows nothing about schema, so the store-data layer stays
+   * about Shopify and the schema engine stays about schema.
+   *
+   * Per-resource failures degrade to an empty list rather than throwing: a store with no blog
+   * still has products to preview against.
+   */
+  async sampleRecords(): Promise<{
+    shop: SnapshotShop;
+    products: SnapshotProduct[];
+    collections: SnapshotCollection[];
+    pages: SnapshotPage[];
+    articles: SnapshotArticle[];
+  }> {
+    const warnings: string[] = [];
+    const identity = await fetchShopIdentity(this.client);
+    const primaryUrl = (identity.primaryUrl ?? `https://${this.shopDomain}`).replace(/\/$/, '');
+
+    const [products, collections, pages, articles] = await Promise.all([
+      this.safe('products', warnings, () => this.fetchProducts(primaryUrl, 1)),
+      this.safe('collections', warnings, () => this.fetchCollections(primaryUrl)),
+      this.safe('pages', warnings, () => this.fetchPages(primaryUrl)),
+      this.safe('articles', warnings, () => this.fetchArticles(primaryUrl)),
+    ]);
+
+    return {
+      shop: this.buildShop(identity, primaryUrl),
+      // Only the first of each: a preview describes one record, and holding more would make this
+      // a catalogue read by another name.
+      products: (products?.items ?? []).slice(0, 1),
+      collections: (collections?.items ?? []).slice(0, 1),
+      pages: (pages?.items ?? []).slice(0, 1),
+      articles: (articles?.items ?? []).slice(0, 1),
+    };
+  }
+
   async buildSnapshot(): Promise<StoreSnapshot> {
     const warnings: string[] = [];
 
@@ -213,16 +258,7 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
     return {
       storeId: this.storeId,
       capturedAt: new Date(),
-      shop: {
-        domain: this.shopDomain,
-        primaryUrl,
-        name: identity.name,
-        email: identity.contactEmail,
-        currency: identity.currencyCode,
-        country: identity.country,
-        timezone: identity.ianaTimezone,
-        planName: identity.planName,
-      },
+      shop: this.buildShop(identity, primaryUrl),
       products: productList,
       collections: collections?.items ?? [],
       pages: pages?.items ?? [],
@@ -269,6 +305,21 @@ export class ShopifyStoreDataProvider implements StoreDataProvider {
    * aborting the snapshot. A permanently-fatal auth error still propagates, because
    * continuing without credentials would only produce meaningless "unavailable" results.
    */
+  /** The shop block, built once so a full snapshot and a preview sample cannot describe the same
+   * store differently. */
+  private buildShop(identity: Awaited<ReturnType<typeof fetchShopIdentity>>, primaryUrl: string): SnapshotShop {
+    return {
+      domain: this.shopDomain,
+      primaryUrl,
+      name: identity.name,
+      email: identity.contactEmail,
+      currency: identity.currencyCode,
+      country: identity.country,
+      timezone: identity.ianaTimezone,
+      planName: identity.planName,
+    };
+  }
+
   private async safe<T>(resource: string, warnings: string[], task: () => Promise<T>): Promise<T | null> {
     try {
       return await task();
