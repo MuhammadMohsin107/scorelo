@@ -4,7 +4,7 @@
 // allow-list, the value rules, resource-reference parsing — plus the provider's planFix contract
 // with a stubbed transport, so every OpenAI outcome is covered without a live key.
 
-import { describe, it, afterEach } from 'node:test';
+import { describe, it, afterEach, before } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FIELD_RULES,
@@ -16,18 +16,52 @@ import {
 import { openAiProvider } from '../lib/ai/openai.provider.js';
 import type { FixPlanContext } from '../lib/ai/provider.js';
 
+/**
+ * Installs a key before any test runs — see the identical note in ai-recommendation.test.ts.
+ *
+ * The header above promises these run "without a live key". They did not: without OPENAI_API_KEY
+ * in the environment, planFix returned 'disabled' before sending anything, and every assertion
+ * about the request it makes failed on an empty call log.
+ */
+/** The key the provider will actually send — assertions compare against this, not process.env. */
+let apiKey = '';
+
+before(async () => {
+  const { env } = await import('../config/env.js');
+  const mutable = env as unknown as { openaiApiKey?: string; aiRecommendationsEnabled: boolean };
+  mutable.openaiApiKey ||= 'sk-test-not-a-real-key';
+  mutable.aiRecommendationsEnabled = true;
+  apiKey = mutable.openaiApiKey;
+});
+
 // ─── Field allow-list ────────────────────────────────────────────────
 
 describe('fix policy — the allow-list', () => {
   it('maps only the sub-pillars that have a fixable field', () => {
     assert.equal(fieldForSubPillar('title-tags')?.field, 'seo.title');
     assert.equal(fieldForSubPillar('meta-descriptions')?.field, 'seo.description');
+    // Alt text is writable too, and by a different route: a template built from the product's own
+    // attributes rather than a model. Asserted alongside the other two so the allow-list cannot
+    // grow a third entry without this test being read.
+    assert.equal(fieldForSubPillar('image-alt-text')?.field, 'image.alt');
+  });
+
+  it('generates alt text from a template, never from the model', () => {
+    // The distinction is the point: `generator` decides whether planAiFixes may send this field
+    // to a provider at all. Alt text is derived from attributes Scorelo already holds, so a model
+    // call would be spend with nothing to add — and a silent flip to 'ai' would be invisible
+    // without this.
+    assert.equal(fieldForSubPillar('image-alt-text')?.generator, 'template');
+    assert.equal(fieldForSubPillar('title-tags')?.generator, 'ai');
+    assert.equal(fieldForSubPillar('meta-descriptions')?.generator, 'ai');
   });
 
   it('refuses sub-pillars with no fixable field, so they can never be targeted', () => {
-    // Body copy, images, theme weight and policies are all deliberately out of reach — an
-    // unlisted field is unreachable by construction rather than by a rule someone remembered.
-    for (const subPillar of ['product-descriptions', 'image-alt-text', 'theme-weight', 'returns', 'feed', '', 'seo.title']) {
+    // Body copy, theme weight and policies are all deliberately out of reach — an unlisted field
+    // is unreachable by construction rather than by a rule someone remembered. The last two
+    // entries matter as much as the rest: the lookup is by SUB-PILLAR, so a field name must never
+    // resolve, and neither must an empty string.
+    for (const subPillar of ['product-descriptions', 'theme-weight', 'returns', 'feed', '', 'seo.title']) {
       assert.equal(fieldForSubPillar(subPillar), null, `${subPillar} must not be fixable`);
     }
   });
@@ -209,9 +243,11 @@ describe('openAiProvider.planFix', () => {
     const calls = stubFetch(() => completion(VALID_PROPOSALS));
     await openAiProvider.planFix(CONTEXT);
     const { init } = calls[0];
-    const key = process.env.OPENAI_API_KEY ?? '';
-    assert.equal((init.headers as Record<string, string>).Authorization, `Bearer ${key}`);
-    assert.equal(String(init.body).includes(key), false);
+    // The resolved config, not process.env — see the same note in ai-recommendation.test.ts.
+    // With an empty key this assertion could never fail: every string contains ''.
+    assert.notEqual(apiKey, '', 'a key must be configured for this assertion to mean anything');
+    assert.equal((init.headers as Record<string, string>).Authorization, `Bearer ${apiKey}`);
+    assert.equal(String(init.body).includes(apiKey), false);
   });
 
   it('sends no store domain, token or resource URL to the model', async () => {

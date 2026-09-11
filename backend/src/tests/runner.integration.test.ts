@@ -7,6 +7,7 @@ import { auditScores, audits, findings, jobs, stores, users } from '../db/schema
 import { runAuditJob } from '../audit-engine/runner.js';
 import { StoreDataError, type StoreDataProvider, type StoreSnapshot } from '../audit-engine/store-data/types.js';
 import type { AuditCheck, SubPillarResult } from '../audit-engine/types.js';
+import { skipWithoutDatabase } from './helpers/database.js';
 
 // Integration test: exercises the real worker against the real MySQL database.
 // Only the external store-data provider is stubbed — everything else (transaction,
@@ -104,7 +105,7 @@ after(async () => {
   await pool.end();
 });
 
-describe('audit worker (integration, real DB)', () => {
+describe('audit worker (integration, real DB)', { skip: skipWithoutDatabase }, () => {
   it('persists a complete audit and marks the job succeeded', async () => {
     const { user, store } = await createStoreFixture(`itest-ok-${process.pid}@test.local`);
     try {

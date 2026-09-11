@@ -10,6 +10,7 @@ import { buildPasswordResetEmail } from '../lib/emails/passwordReset.js';
 import { forgotPasswordSchema, resetPasswordSchema } from '../schemas/auth.schema.js';
 import { ApiError } from '../middleware/error.js';
 import bcrypt from 'bcryptjs';
+import { skipWithoutDatabase } from './helpers/database.js';
 
 // Integration test against the real database, mirroring runner.integration.test.ts. Nothing is
 // stubbed except the passage of time (expiry is set directly), because the properties under test
@@ -75,7 +76,7 @@ describe('password reset · schema validation', () => {
   });
 });
 
-describe('password reset · token redemption', () => {
+describe('password reset · token redemption', { skip: skipWithoutDatabase }, () => {
   it('sets the new password and consumes the token', async () => {
     const user = await trackedUser('OriginalPass1');
     const before = await currentHash(user.id);

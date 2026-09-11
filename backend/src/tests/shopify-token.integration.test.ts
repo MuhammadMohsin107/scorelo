@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
+import { skipWithoutDatabase } from './helpers/database.js';
 
 // The Shopify config is read once at module load, so it must be set before anything that
 // imports config/env.js is pulled in. Hence the dynamic imports below.
@@ -74,7 +75,7 @@ after(async () => {
   await pool.end();
 });
 
-describe('expiring offline access tokens', () => {
+describe('expiring offline access tokens', { skip: skipWithoutDatabase }, () => {
   it('returns a legacy non-expiring token untouched instead of treating it as expired', async () => {
     // Connections created before expiring tokens have NULL expiry and NO refresh token. Reading
     // NULL as "expired at epoch" would send every one of them down a refresh path they cannot
