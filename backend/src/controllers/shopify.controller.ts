@@ -19,11 +19,15 @@ import { handleAppUninstalled, handleCustomersDataRequest, handleCustomersRedact
  * The URL is built server-side and carries a signed state nonce, so the client cannot influence
  * which user, which app or which scopes the authorization is for.
  */
-export function getInstall(req: Request, res: Response) {
+export async function getInstall(req: Request, res: Response) {
   const userId = requireUserId(req);
   const shop = String(req.query.shop);
-  console.log(`[scorelo-api] shopify: installation started for ${shop} (user ${userId})`);
-  res.json({ data: { url: buildInstallUrl(userId, shop) } });
+  // Resolved HERE, through the same seam GET /shopify/status reads, and signed into the OAuth
+  // state so the callback attaches the connection to the store the merchant is actually looking
+  // at — rather than picking one for itself once the merchant is no longer in the request.
+  const storeId = await getCurrentStoreId(userId, optionalStoreId(req));
+  console.log(`[scorelo-api] shopify: installation started for ${shop} (user ${userId}, store ${storeId})`);
+  res.json({ data: { url: buildInstallUrl(userId, storeId, shop) } });
 }
 
 /** Where the merchant's browser lands after the OAuth round trip, with an outcome the

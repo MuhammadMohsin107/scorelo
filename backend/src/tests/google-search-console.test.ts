@@ -42,7 +42,7 @@ describe('oauth state', () => {
   it('rejects a shopify state presented as a google state', () => {
     // Both are signed with the same secret, so only the `type` claim keeps them apart. Without
     // that check a state minted for one integration would authorise the other.
-    const shopifyState = signShopifyState(42, 'example.myshopify.com');
+    const shopifyState = signShopifyState(42, 7, 'example.myshopify.com');
     assert.throws(() => verifyGoogleState(shopifyState));
   });
 

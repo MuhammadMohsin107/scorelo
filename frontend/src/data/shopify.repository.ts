@@ -91,6 +91,8 @@ export function describeConnectOutcome(outcome: string | null, reason: string | 
       return { tone: 'error', message: 'Shopify authorization failed its security check. Please try connecting again.' };
     case 'SHOPIFY_SHOP_ALREADY_CLAIMED':
       return { tone: 'error', message: 'That Shopify store is already connected to a different Scorelo account.' };
+    case 'SHOPIFY_STORE_ALREADY_CONNECTED':
+      return { tone: 'error', message: 'This workspace is already connected to a different Shopify store. Disconnect it first, then connect the new one.' };
     case 'SHOPIFY_NOT_CONFIGURED':
       return { tone: 'error', message: 'Shopify is not configured on this server yet. Contact your administrator.' };
     case 'SHOPIFY_TOKEN_EXCHANGE_FAILED':

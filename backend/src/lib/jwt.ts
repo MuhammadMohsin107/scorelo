@@ -45,13 +45,23 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
 interface ShopifyStatePayload {
   sub: number;
   shop: string;
+  /**
+   * WHICH store row the install belongs to — the one the merchant had on screen when they pressed
+   * Connect, resolved through the same tenancy seam every read path uses.
+   *
+   * Optional only so a state token minted by the previous build (10-minute TTL) still completes
+   * instead of failing its security check; the callback falls back to the caller's current store,
+   * which is the same value this now carries.
+   */
+  storeId?: number;
   type: 'shopify_state';
 }
 
-/** Short-lived signed nonce carrying the authenticated user's id through Shopify's OAuth redirect
- * (which is otherwise unauthenticated from Scorelo's perspective — Shopify only echoes it back). */
-export function signShopifyState(userId: number, shop: string): string {
-  return jwt.sign({ sub: userId, shop, type: 'shopify_state' } satisfies ShopifyStatePayload, env.jwtAccessSecret, { expiresIn: '10m' });
+/** Short-lived signed nonce carrying the authenticated user's id AND target store through
+ * Shopify's OAuth redirect (which is otherwise unauthenticated from Scorelo's perspective —
+ * Shopify only echoes it back). Same shape as signGoogleState below, for the same reason. */
+export function signShopifyState(userId: number, storeId: number, shop: string): string {
+  return jwt.sign({ sub: userId, storeId, shop, type: 'shopify_state' } satisfies ShopifyStatePayload, env.jwtAccessSecret, { expiresIn: '10m' });
 }
 
 /**
@@ -81,6 +91,10 @@ export function verifyGoogleState(token: string): { sub: number; storeId: number
 export function verifyShopifyState(token: string): ShopifyStatePayload {
   const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
   if (payload.type !== 'shopify_state' || typeof payload.sub !== 'number' || typeof payload.shop !== 'string') {
+    throw new Error('Not a shopify_state token');
+  }
+  // `storeId` is validated but not required — see the note on ShopifyStatePayload.
+  if (payload.storeId !== undefined && typeof payload.storeId !== 'number') {
     throw new Error('Not a shopify_state token');
   }
   return payload as unknown as ShopifyStatePayload;

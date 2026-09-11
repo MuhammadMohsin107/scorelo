@@ -210,9 +210,10 @@ export async function signup(input: SignupInput, metadata: RequestMetadata): Pro
   if (!user) throw new ApiError(500, 'Unable to create account', 'SIGNUP_FAILED');
 
   // A brand-new account has no shop connected yet. This placeholder row keeps every service
-  // that resolves "the user's store" working from the moment of signup, and platform
-  // 'Not connected' is exactly what resolveStoreForInstall() looks for: the first Shopify
-  // install CLAIMS this row and overwrites its identity, rather than creating a second store.
+  // that resolves "the user's store" working from the moment of signup, and it is the row a
+  // Shopify install lands on: handleShopifyCallback() attaches the connection to whichever store
+  // the merchant pressed Connect from and stamps this row with the shop's real identity, rather
+  // than creating a second store nothing can display.
   // Nothing here is presented as real store data — no audit can run until a shop is connected.
   await db.insert(stores).values({
     ownerId: user.id,

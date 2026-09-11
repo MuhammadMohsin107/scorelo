@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { insertReturning } from '../db/returning.js';
 import { integrations, shopifyConnections, stores } from '../db/schema.js';
 import { env, shopifyConfigured } from '../config/env.js';
 import { ApiError } from '../middleware/error.js';
@@ -11,6 +10,7 @@ import { ShopifyClient } from '../audit-engine/store-data/shopify-client.js';
 import { fetchShopIdentity } from '../audit-engine/store-data/shopify.queries.js';
 import { registerAppUninstalledWebhook } from './shopify-webhook.service.js';
 import { createNotification } from './notification.service.js';
+import { getCurrentStoreId } from './store.service.js';
 
 /**
  * ─── Access scopes ───────────────────────────────────────────────────
@@ -99,9 +99,9 @@ function requireConfigured() {
   }
 }
 
-export function buildInstallUrl(userId: number, shop: string): string {
+export function buildInstallUrl(userId: number, storeId: number, shop: string): string {
   requireConfigured();
-  const state = signShopifyState(userId, shop);
+  const state = signShopifyState(userId, storeId, shop);
   const redirectUri = new URL('/api/shopify/callback', env.backendUrl).toString();
   const authorizeUrl = new URL(`https://${shop}/admin/oauth/authorize`);
   authorizeUrl.searchParams.set('client_id', env.shopifyApiKey!);
@@ -247,60 +247,6 @@ async function markReauthRequired(connection: ShopifyConnection) {
   });
 }
 
-/**
- * Picks the store this install belongs to.
- *
- * Signup creates one placeholder store (platform 'Not connected') so the rest of the API has
- * something to resolve. The first Shopify install CLAIMS that placeholder; every later install by
- * the same user creates an ADDITIONAL store. The previous implementation always rewrote the
- * user's first store, so connecting a second shop destroyed the first shop's identity — audits
- * stayed attached to a store row that now described a different shop.
- */
-async function resolveStoreForInstall(userId: number, shop: string, shopName: string): Promise<number> {
-  const ownedStores = await db.select().from(stores).where(eq(stores.ownerId, userId));
-  const shopUrl = `https://${shop}`;
-
-  // FIRST: a store this owner already has for THIS EXACT SHOP.
-  //
-  // Reconnecting the same shop must land on the same store row, otherwise every disconnect ->
-  // reconnect cycle forks the merchant's history: disconnectShopify() deletes the token but
-  // leaves platform = 'Shopify', so the placeholder branch below no longer matches and a
-  // DUPLICATE store was created. The old row kept every audit while the new row held the live
-  // connection, so the dashboard read one store and the audit runner needed the other — the
-  // store looked connected yet no audit could run and no results ever appeared.
-  //
-  // Matching on the shop URL is what makes reconnect idempotent.
-  const sameShop = ownedStores.find((store) => store.url === shopUrl);
-  if (sameShop) {
-    // Re-assert identity in case the shop was renamed while disconnected.
-    await db.update(stores).set({ name: shopName, url: shopUrl, platform: 'Shopify' }).where(eq(stores.id, sameShop.id));
-    return sameShop.id;
-  }
-
-  // 'Not connected' is exactly the platform value signup writes and the callback overwrites, so
-  // it identifies an unclaimed placeholder and never a store already backed by a real shop.
-  const placeholder = ownedStores.find((store) => store.platform === 'Not connected');
-
-  if (placeholder) {
-    await db.update(stores).set({ name: shopName, url: shopUrl, platform: 'Shopify' }).where(eq(stores.id, placeholder.id));
-    return placeholder.id;
-  }
-
-  const created = await insertReturning(stores, {
-    ownerId: userId,
-    workspaceName: shopName,
-    name: shopName,
-    url: shopUrl,
-    platform: 'Shopify',
-    industry: 'Unspecified',
-    country: 'Unspecified',
-    timezone: '(UTC+00:00) UTC',
-    currency: 'USD — US Dollar',
-  });
-  if (!created) throw new ApiError(500, 'Unable to create store for Shopify connection', 'STORE_CREATE_FAILED');
-  return created.id;
-}
-
 export async function handleShopifyCallback(query: Record<string, unknown>): Promise<{ shopDomain: string; storeId: number }> {
   requireConfigured();
 
@@ -318,6 +264,26 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
   }
   if (statePayload.shop !== shop) throw new ApiError(401, 'OAuth state does not match shop', 'SHOPIFY_STATE_MISMATCH');
 
+  /**
+   * ─── Which store row this install lands on ───────────────────────────
+   *
+   * The store the merchant was looking at when they pressed Connect, carried through the OAuth
+   * round trip in the signed state and re-checked here against their ownership. It is NOT guessed.
+   *
+   * The previous implementation guessed: match the shop domain against the caller's store rows,
+   * else claim an unclaimed placeholder, else CREATE A NEW STORE. Every read path resolves the
+   * caller's first store (store.service.ts) and the app has no store switcher, so that last
+   * branch filed the connection against a row nothing could ever display. Connecting a second
+   * shop therefore "succeeded" in a way the merchant could never see: Shopify redirected back
+   * with shopify=connected and the banner said so, while the Integrations panel, the catalogue
+   * card and every audit run kept reporting Not Connected — all three reading the OTHER row.
+   *
+   * getCurrentStoreId is the same tenancy seam those reads use, and it is scoped to stores this
+   * user owns, so it also re-verifies the signed id rather than trusting it. Passing `undefined`
+   * (a state token minted before this change) resolves exactly what the install would have signed.
+   */
+  const storeId = await getCurrentStoreId(statePayload.sub, statePayload.storeId);
+
   const tokens = await exchangeCodeForToken(shop, code);
 
   // Prove the token actually works, and take the shop's identity from Shopify rather than
@@ -332,8 +298,8 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
    * The connection row this install should reuse, or null when it must create a fresh one.
    *
    * Null after a LAPSED claim is released below — the shop then follows the same path as a shop
-   * Scorelo has never seen, which is what gives the new owner their own store row instead of
-   * inheriting someone else's.
+   * Scorelo has never seen, which is what files it against the new owner's own store instead of
+   * leaving it on someone else's.
    */
   let connectionToReuse: typeof shopifyConnections.$inferSelect | null = existingConnection ?? null;
 
@@ -387,12 +353,34 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
     }
   }
 
-  let storeId: number;
+  /**
+   * One shop per store. The Integrations page only offers Connect when the store has no live
+   * connection, so reaching this with a different shop already installed means a stale tab or a
+   * hand-made request — and silently swapping the merchant's store out from under them (renaming
+   * it, re-pointing its URL, leaving its audits describing a shop it no longer names) is worse
+   * than refusing. Disconnect is the explicit way to replace a store.
+   */
+  const [liveOnTarget] = await db
+    .select()
+    .from(shopifyConnections)
+    .where(and(eq(shopifyConnections.storeId, storeId), isNull(shopifyConnections.uninstalledAt)))
+    .limit(1);
+  if (liveOnTarget && liveOnTarget.shopDomain !== shop) {
+    throw new ApiError(
+      409,
+      'This workspace is already connected to a different Shopify store — disconnect it first',
+      'SHOPIFY_STORE_ALREADY_CONNECTED',
+    );
+  }
+
   if (connectionToReuse) {
-    storeId = connectionToReuse.storeId;
     await db
       .update(shopifyConnections)
       .set({
+        // Follows the store the merchant connected FROM. A row can sit on one of their other
+        // store rows — including one the old guess-a-store code created and nothing can display —
+        // and re-pointing it is what makes reconnecting from that page actually take effect.
+        storeId,
         accessTokenEncrypted: encryptToken(tokens.accessToken),
         refreshTokenEncrypted: tokens.refreshToken ? encryptToken(tokens.refreshToken) : null,
         accessTokenExpiresAt: tokens.accessTokenExpiresAt,
@@ -403,10 +391,22 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
         // than existingConnection, because a released claim leaves the latter pointing at a row
         // that has just been deleted.
         uninstalledAt: null,
+        // The previous read belongs to wherever this row used to live; it is re-established by
+        // the next sync rather than carried across.
+        lastSyncSummary: null,
+        lastSyncError: null,
       })
       .where(eq(shopifyConnections.id, connectionToReuse.id));
+
+    if (connectionToReuse.storeId !== storeId) {
+      // The row it moved off must stop claiming a connection it no longer holds.
+      await db
+        .update(integrations)
+        .set({ status: 'not_connected', accountDetail: null, lastSyncedAt: null, notice: null })
+        .where(and(eq(integrations.storeId, connectionToReuse.storeId), eq(integrations.provider, 'shopify')));
+      console.log(`[scorelo-api] shopify: moved ${shop} from store ${connectionToReuse.storeId} to store ${storeId}`);
+    }
   } else {
-    storeId = await resolveStoreForInstall(statePayload.sub, shop, identity.name);
     await db.insert(shopifyConnections).values({
       storeId,
       shopDomain: shop,
@@ -417,6 +417,18 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
       scope: tokens.scope,
       shopGid: identity.gid,
     });
+  }
+
+  /**
+   * Name the store after the shop Shopify just confirmed — but only when it is not already that
+   * shop. A plain reconnect must not overwrite a name the merchant set in Settings; a store that
+   * is being identified for the first time (the signup placeholder, url https://example.com) or
+   * re-pointed at a different shop must be.
+   */
+  const shopUrl = `https://${shop}`;
+  const [targetStore] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
+  if (targetStore && (targetStore.url !== shopUrl || targetStore.platform !== 'Shopify')) {
+    await db.update(stores).set({ name: identity.name, url: shopUrl, platform: 'Shopify' }).where(eq(stores.id, storeId));
   }
 
   await db

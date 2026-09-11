@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  AlertCircle,
   AlertOctagon,
   AlertTriangle,
   ArrowRight,
@@ -8,10 +9,11 @@ import {
   FileSearch,
   Flag,
   Globe,
+  PlugZap,
   RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PillarKpiCard, { type KpiAccent } from './PillarKpiCard';
 import PillarScoreRing from './PillarScoreRing';
 import { PillarDashboardEmpty, PillarDashboardError, PillarDashboardSkeleton, SeedDataNotice } from './PillarDashboardState';
@@ -145,8 +147,11 @@ export default function PillarDashboard({
   const [data, setData] = useState<PillarDashboardData | null>(null);
   const [state, setState] = useState<LoadState>('loading');
 
-  const load = useCallback(async () => {
-    setState('loading');
+  const load = useCallback(async (isRefresh = false) => {
+    // Only the first load blanks the page to a skeleton. Doing it after a refresh threw the
+    // whole dashboard away and rebuilt it, which read as the page reloading rather than the
+    // numbers updating.
+    if (!isRefresh) setState('loading');
     try {
       setData(await fetchPillarDashboard(pillar));
       setState('ready');
@@ -157,16 +162,16 @@ export default function PillarDashboard({
     }
   }, [pillar]);
 
-  // "Refresh" must re-ANALYSE the store, not just re-read the audit already stored. reload()
+  // "Refresh" must re-ANALYSE the store, not just re-read the audit already stored. load()
   // refreshes this page's data once the new audit has actually finished.
   const auditRun = useAuditRun();
-  const refresh = () => void auditRun.run(load);
+  const refresh = () => void auditRun.run(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
   if (state === 'loading') return <PillarDashboardSkeleton title={title} />;
   if (state === 'empty') return <PillarDashboardEmpty title={title} description={emptyDescription} />;
-  if (state === 'error' || !data) return <PillarDashboardError title={title} onRetry={load} />;
+  if (state === 'error' || !data) return <PillarDashboardError title={title} onRetry={() => load()} />;
 
   const overallScore = data.overallScore;
   const overallStatus = overallScore === null ? 'Not measured' : statusLabel(overallScore);
@@ -237,6 +242,22 @@ export default function PillarDashboard({
             </div>
           </div>
         </div>
+
+        {/* A run that could not start has to say so. Silence here is what made Refresh look
+            broken: a store with no live Shopify connection is refused with STORE_NOT_CONNECTED
+            before any work begins, the spinner stopped, and nothing on the page explained why
+            "Last analyzed" had not moved. */}
+        {auditRun.error && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-critical-100 bg-critical-50 px-2.5 py-2 text-[12px] text-critical-800" role="alert">
+            <AlertCircle size={15} className="shrink-0" />
+            <p className="flex-1">{auditRun.error.message}</p>
+            {auditRun.error.needsConnection ? (
+              <Link to="/integrations" className="btn-primary btn-xs"><PlugZap size={12} />Connect your store</Link>
+            ) : (
+              <button onClick={refresh} className="btn-secondary btn-xs"><RefreshCw size={12} />Try again</button>
+            )}
+          </div>
+        )}
 
         {data.source === 'seed' && <SeedDataNotice />}
 
