@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js';
+import { withRetry, type AttemptContext } from './retry.js';
 import type {
   AiFixResult,
   AiFailureReason,
@@ -37,11 +38,6 @@ import {
  * The PROMPTS and the VALIDATION are not here: they live in prompt.ts, shared with the Gemini
  * provider, because what Scorelo asks for and what it accepts must not depend on the vendor.
  */
-
-/** Hard ceiling on a single call. Audits and Fix Center both run in a request, so a hung model
- * call must never hold a connection open. Configurable (AI_TIMEOUT_MS) and shared with the Gemini
- * provider, so the two vendors cannot drift to different patience. */
-const TIMEOUT_MS = env.aiTimeoutMs;
 
 const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
@@ -116,6 +112,7 @@ const FIX_RESPONSE_SCHEMA = {
  * — a second copy is a second place for the key handling to be got wrong.
  */
 async function chatCompletion(
+  label: string,
   messages: Array<{ role: 'system' | 'user'; content: string }>,
   responseFormat: unknown,
   maxTokens: number,
@@ -123,8 +120,20 @@ async function chatCompletion(
   const apiKey = env.openaiApiKey;
   if (!apiKey) return { ok: false, reason: 'disabled', detail: 'no API key configured' };
 
+  const result = await withRetry(label, (attemptContext) => attemptCompletion(apiKey, attemptContext, messages, responseFormat, maxTokens));
+  return result.ok ? { ok: true, content: result.value } : result;
+}
+
+/** One HTTP attempt. The retry wrapper decides whether there is a second. */
+async function attemptCompletion(
+  apiKey: string,
+  { timeoutMs }: AttemptContext,
+  messages: Array<{ role: 'system' | 'user'; content: string }>,
+  responseFormat: unknown,
+  maxTokens: number,
+): Promise<{ ok: true; value: string } | { ok: false; reason: AiFailureReason; detail: string }> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
@@ -152,13 +161,13 @@ async function chatCompletion(
     const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const content = payload.choices?.[0]?.message?.content;
     if (!content) return { ok: false, reason: 'invalid_response', detail: 'empty completion' };
-    return { ok: true, content };
+    return { ok: true, value: content };
   } catch (error) {
     const aborted = error instanceof Error && error.name === 'AbortError';
     return {
       ok: false,
       reason: aborted ? 'timeout' : 'network',
-      detail: aborted ? `timed out after ${TIMEOUT_MS}ms` : 'request failed',
+      detail: aborted ? `timed out after ${timeoutMs}ms` : 'request failed',
     };
   } finally {
     clearTimeout(timer);
@@ -170,6 +179,7 @@ export const openAiProvider: AiProvider = {
 
   async enhance(context: RecommendationContext): Promise<AiResult> {
     const response = await chatCompletion(
+      'enhance',
       [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: buildUserMessage(context) },
@@ -194,6 +204,7 @@ export const openAiProvider: AiProvider = {
     }
 
     const response = await chatCompletion(
+      'planFix',
       [
         { role: 'system', content: FIX_SYSTEM_PROMPT },
         {

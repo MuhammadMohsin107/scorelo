@@ -106,6 +106,18 @@ export const env = {
    */
   aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS ?? 45_000),
   /**
+   * Ceiling on ONE capability call INCLUDING its retry, in milliseconds.
+   *
+   * Measured against the live endpoint, latency is bimodal: most calls answer in 1-2s, a minority
+   * stall 25-45s and then answer correctly. One retry covers the tail beyond the per-attempt
+   * timeout — but two full attempts would leave a merchant at a spinner for a minute and a half,
+   * so the retry only runs inside what is left of this.
+   */
+  aiTotalBudgetMs: Number(process.env.AI_TOTAL_BUDGET_MS ?? 60_000),
+  /** Least time a retry is worth starting with. A typical answer takes a couple of seconds; a
+   * sliver of remaining budget would spend the merchant's wait on a call that cannot finish. */
+  aiRetryMinRemainingMs: Number(process.env.AI_RETRY_MIN_REMAINING_MS ?? 8_000),
+  /**
    * How many resources ONE "Draft with AI" press may plan for.
    *
    * Bounded because every target costs prompt tokens, output tokens and latency inside a request.

@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js';
+import { withRetry, type AttemptContext } from './retry.js';
 import type {
   AiFixResult,
   AiFailureReason,
@@ -40,11 +41,6 @@ import {
  * equivalent of OpenAI's strict json_schema. The response is still validated after parsing — a
  * provider promising a shape is not the same as receiving it.
  */
-
-/** Hard ceiling on a single call, matching the OpenAI provider: this sits in a request path.
- * Configurable (AI_TIMEOUT_MS) because it has to cover a whole batch of fix proposals, and the
- * batch size is itself configurable — see env.aiFixMaxTargets. */
-const TIMEOUT_MS = env.aiTimeoutMs;
 
 const API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -129,6 +125,7 @@ async function upstreamDetail(response: Response, apiKey: string): Promise<strin
  * signal, the "never keep an upstream error body" rule and the failure classification exist once.
  */
 async function generate(
+  label: string,
   systemPrompt: string,
   userMessage: string,
   responseSchema: unknown,
@@ -137,8 +134,21 @@ async function generate(
   const apiKey = env.geminiApiKey;
   if (!apiKey) return { ok: false, reason: 'disabled', detail: 'no API key configured' };
 
+  const result = await withRetry(label, (attemptContext) => attemptGenerate(apiKey, attemptContext, systemPrompt, userMessage, responseSchema, maxTokens));
+  return result.ok ? { ok: true, content: result.value } : result;
+}
+
+/** One HTTP attempt. The retry wrapper decides whether there is a second. */
+async function attemptGenerate(
+  apiKey: string,
+  { timeoutMs }: AttemptContext,
+  systemPrompt: string,
+  userMessage: string,
+  responseSchema: unknown,
+  maxTokens: number,
+): Promise<{ ok: true; value: string } | { ok: false; reason: AiFailureReason; detail: string }> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_ROOT}/${encodeURIComponent(env.geminiModel)}:generateContent`, {
       method: 'POST',
@@ -190,13 +200,13 @@ async function generate(
       return { ok: false, reason: 'invalid_response', detail };
     }
 
-    return { ok: true, content };
+    return { ok: true, value: content };
   } catch (error) {
     const aborted = error instanceof Error && error.name === 'AbortError';
     return {
       ok: false,
       reason: aborted ? 'timeout' : 'network',
-      detail: aborted ? `timed out after ${TIMEOUT_MS}ms` : 'request failed',
+      detail: aborted ? `timed out after ${timeoutMs}ms` : 'request failed',
     };
   } finally {
     clearTimeout(timer);
@@ -207,7 +217,7 @@ export const geminiProvider: AiProvider = {
   name: 'gemini',
 
   async enhance(context: RecommendationContext): Promise<AiResult> {
-    const response = await generate(SYSTEM_PROMPT, buildUserMessage(context), RECOMMENDATION_SCHEMA, MAX_OUTPUT_TOKENS);
+    const response = await generate('enhance', SYSTEM_PROMPT, buildUserMessage(context), RECOMMENDATION_SCHEMA, MAX_OUTPUT_TOKENS);
     if (!response.ok) return response;
 
     const parsed = parseJson(response.content);
@@ -229,7 +239,7 @@ export const geminiProvider: AiProvider = {
       targets: context.targets.map((target) => ({ ...target, sourceText: target.sourceText.slice(0, SOURCE_TEXT_LIMIT) })),
     });
 
-    const response = await generate(FIX_SYSTEM_PROMPT, message, FIX_SCHEMA, fixOutputTokens(context.targets.length));
+    const response = await generate('planFix', FIX_SYSTEM_PROMPT, message, FIX_SCHEMA, fixOutputTokens(context.targets.length));
     if (!response.ok) return response;
 
     const parsed = parseJson(response.content);
