@@ -19,6 +19,7 @@ import { pageSettingsRouter } from './routes/page-settings.js';
 import { securityRouter } from './routes/security.js';
 import { adminRouter } from './routes/admin.js';
 import { errorHandler, notFound } from './middleware/error.js';
+import { startAutoAnalysisScheduler } from './services/auto-analysis.service.js';
 
 const app = express();
 
@@ -68,4 +69,7 @@ app.use(errorHandler);
 
 app.listen(env.port, () => {
   console.log(`[scorelo-api] listening on http://localhost:${env.port} (${env.nodeEnv})`);
+  // Started after the server is accepting requests, not before: a sweep queues audits that run
+  // in this same process, and the API must be answering first.
+  startAutoAnalysisScheduler();
 });

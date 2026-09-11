@@ -144,6 +144,20 @@ export const env = {
   crawlStorefrontPassword: process.env.CRAWL_STOREFRONT_PASSWORD,
   /** Set to 'false' to stop all storefront crawling without touching anything else. */
   crawlEnabled: process.env.CRAWL_ENABLED !== 'false',
+  // ─── Scheduled re-analysis ──────────────────────────────────────────
+  // Per-store scheduling lives in the database (`stores.auto_analysis`, `analysis_frequency`) and
+  // is the merchant's to set in Settings. These are the OPERATOR's controls over the sweep that
+  // acts on it — how often to look, how much to start at once, and a switch to stop it entirely.
+  /** Kill switch for the whole scheduler. Per-store preferences are untouched while it is off. */
+  autoAnalysisEnabled: process.env.AUTO_ANALYSIS_ENABLED !== 'false',
+  /** How often to look for stores whose interval has elapsed. Not how often a store is analysed —
+   * that is the store's own frequency, and a sweep starts nothing when nothing is due. */
+  autoAnalysisIntervalMs: Number(process.env.AUTO_ANALYSIS_INTERVAL_MS ?? 30 * 60_000),
+  /** Delay before the FIRST sweep after boot, so a redeploy does not trigger a round of audits. */
+  autoAnalysisStartDelayMs: Number(process.env.AUTO_ANALYSIS_START_DELAY_MS ?? 5 * 60_000),
+  /** Ceiling on runs queued per sweep, so a backlog is worked through over several ticks instead
+   * of hitting many storefronts at once. */
+  autoAnalysisMaxPerSweep: Number(process.env.AUTO_ANALYSIS_MAX_PER_SWEEP ?? 3),
 } as const;
 
 /** Whether storefront crawling should be attempted at all. */

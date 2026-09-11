@@ -35,12 +35,14 @@ export const metaDescriptionsAnalysis: SubPillarAnalysis = {
     // product whose theme derives a description from its body copy still has NO description
     // configured in Shopify, which is the gap this check reports and the merchant can act on.
     caption: 'Pages from your Shopify catalog with the meta description set on each one',
-    searchPlaceholder: 'Search URL or description…',
-    searchKeys: ['url', 'description'],
+    searchPlaceholder: 'Search product, URL or description…',
+    searchKeys: ['name', 'url', 'description'],
     sampleNoun: 'analyzed pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'url', header: 'Page URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[15rem]' },
+      // This table needs the name most: every row's description is empty on a store that sets
+      // none, so without it a truncated URL was the only thing distinguishing one row from another.
+      { key: 'name', fallbackKey: 'url', header: 'Product / page', subKey: 'path', clamp: 'max-w-[16rem]' },
       // "no description" claimed something this check never looked at — whether the SERVED page
       // has a <meta name="description">. It only knows the Shopify field is empty, so it says so.
       { key: 'description', header: 'Meta description in Shopify', emptyText: 'none set in Shopify', clamp: 'max-w-[24rem]' },

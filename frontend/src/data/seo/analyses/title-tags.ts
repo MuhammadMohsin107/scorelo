@@ -37,12 +37,15 @@ export const titleTagsAnalysis: SubPillarAnalysis = {
     // fetched pages — only `internal-links` and `schema` actually crawl. What it DOES read from
     // the storefront is the theme's title suffix, measured from the pages the crawl loaded.
     caption: 'Pages from your Shopify catalog, measured as the theme renders each title',
-    searchPlaceholder: 'Search URL, title or keyword…',
-    searchKeys: ['url', 'title'],
+    searchPlaceholder: 'Search product, URL or title…',
+    searchKeys: ['name', 'url', 'title'],
     sampleNoun: 'analyzed pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'url', header: 'Page URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[15rem]' },
+      // The resource's NAME identifies the row; the path disambiguates two similarly named ones.
+      // A full URL here spent the whole column on the origin, which is identical on every row, and
+      // truncated the only part that told them apart.
+      { key: 'name', fallbackKey: 'url', header: 'Product / page', subKey: 'path', clamp: 'max-w-[16rem]' },
       // No `keyword` subKey: the check never writes one — nothing in Scorelo derives a target
       // keyword for a page — so it only ever rendered as a blank second line under the title.
       { key: 'title', header: 'Current title', emptyText: 'no title tag', clamp: 'max-w-[20rem]' },

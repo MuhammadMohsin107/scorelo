@@ -66,6 +66,15 @@ export interface EvidenceColumn {
   variant?: 'mono' | 'text' | 'muted' | 'number' | 'status' | 'severity' | 'action';
   /** Optional second line rendered under the main value. */
   subKey?: string;
+  /**
+   * Cell to fall back to when `key` is absent.
+   *
+   * Evidence rows are written at audit time, so a column keyed on a cell added after an audit ran
+   * would render `emptyText` for every row of that audit until it is re-run. This keeps the older
+   * shape readable instead — e.g. a "Product" column showing the URL until the next analysis
+   * fills in the name.
+   */
+  fallbackKey?: string;
   /** Shown instead of an empty value. */
   emptyText?: string;
   /** Max width utility for long text cells. */

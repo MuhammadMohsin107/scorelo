@@ -7,6 +7,7 @@ import {
   buildPageInventory,
   findDuplicateValues,
   formatCount,
+  pathOf,
   takeEvidenceSample,
   type InventoryPage,
 } from './page-inventory.js';
@@ -176,7 +177,13 @@ export const metaDescriptionsCheck: AuditCheck = {
         status,
         facet: page.facet,
         cells: {
+          // This check needs the name more than any other: its `current` value is the DESCRIPTION,
+          // and on a store that has set none every row's value is empty. Without the name the only
+          // thing identifying a row in the fix editor is a truncated URL — so a merchant editing
+          // 25 descriptions could not tell which product each box belonged to.
+          name: page.title,
           url: page.url,
+          path: pathOf(page.url),
           pageType: page.facet,
           description,
           length: description.length,
@@ -184,7 +191,7 @@ export const metaDescriptionsCheck: AuditCheck = {
         current: {
           label: 'Current description',
           value: description,
-          meta: `${description.length} characters · ${page.facet}`,
+          meta: `${page.title} · ${description.length} characters · ${page.facet}`,
         },
         ...(suggestion ? { suggested: { label: 'Suggested description', value: suggestion, meta: `${suggestion.length} characters · excerpted from this page's own copy` } } : {}),
       });

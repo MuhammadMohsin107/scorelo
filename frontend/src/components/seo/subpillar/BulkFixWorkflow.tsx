@@ -465,7 +465,20 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, titleSuf
                   <article key={row.id} className="rounded-md border border-surface-200 p-2.5">
                     <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-[10.5px] text-surface-500">{String(row.cells.url ?? '')}</p>
+                        {/* WHICH RESOURCE THIS BOX WILL CHANGE, said plainly and first.
+                            It used to be a lone truncated URL. On meta descriptions that was the
+                            ONLY identifier, because `current.value` there is the description —
+                            which is empty on a store that has set none, so every row read
+                            "No current value" under an unreadable URL. The name answers "what am
+                            I editing?"; the path separates two products named alike. Both fall
+                            back to the URL so an audit taken before these cells existed still
+                            identifies its rows. */}
+                        <p className="truncate text-[12px] font-semibold text-surface-900" title={String(row.cells.name ?? '')}>
+                          {String(row.cells.name ?? row.cells.url ?? '')}
+                        </p>
+                        <p className="truncate font-mono text-[10.5px] text-surface-500" title={String(row.cells.url ?? '')}>
+                          {String(row.cells.path ?? row.cells.url ?? '')}
+                        </p>
                         <p className="mt-1.5 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-surface-400">Current value</p>
                         <p className="mt-0.5 text-[12.5px] leading-[1.45] text-surface-700">{row.current?.value || 'No current value'}</p>
                       </div>

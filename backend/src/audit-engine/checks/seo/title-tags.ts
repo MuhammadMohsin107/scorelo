@@ -7,6 +7,7 @@ import {
   buildPageInventory,
   findDuplicateValues,
   formatCount,
+  pathOf,
   takeEvidenceSample,
   type InventoryPage,
 } from './page-inventory.js';
@@ -262,7 +263,14 @@ export const titleTagsCheck: AuditCheck = {
         status,
         facet: page.facet,
         cells: {
+          // The resource's OWN name, which is what identifies the row. Deliberately separate from
+          // `title` below: that is the VALUE being judged and rewritten, this is the thing being
+          // changed. They read the same on a store that sets no SEO overrides, and diverge the
+          // moment one is set — at which point a table showing only the override cannot say which
+          // product it belongs to.
+          name: page.title,
           url: page.url,
+          path: pathOf(page.url),
           pageType: page.facet,
           title,
           // The rendered length, because that is what the status was decided on and what a search

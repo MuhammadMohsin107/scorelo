@@ -120,6 +120,21 @@ export function takeEvidenceSample<T extends { status: string }>(rows: T[], heal
   return [...issues, ...healthy].slice(0, EVIDENCE_ROW_LIMIT);
 }
 
+/**
+ * The site-relative path of a resource URL, for evidence rows.
+ *
+ * Every row on a store shares the same origin, so a table column showing full URLs spends its
+ * entire width on "https://mynutritionstore.pk/" and truncates the one part that identifies the
+ * row. The path is what tells two products apart.
+ */
+export function pathOf(url: string): string {
+  try {
+    return new URL(url).pathname || url;
+  } catch {
+    return url;
+  }
+}
+
 /** Locale-aware thousands separator, matching how the seeded summaries read ("1,146 of 1,284"). */
 export function formatCount(value: number): string {
   return value.toLocaleString('en-US');

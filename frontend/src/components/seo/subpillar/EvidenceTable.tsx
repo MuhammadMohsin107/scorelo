@@ -104,7 +104,10 @@ export default function EvidenceTable({
   };
 
   const renderCell = (row: EvidenceRow, column: EvidenceColumn) => {
-    const value = row.cells[column.key];
+    const primary = row.cells[column.key];
+    const value = (primary === undefined || primary === null || primary === '') && column.fallbackKey
+      ? row.cells[column.fallbackKey]
+      : primary;
     const sub = column.subKey ? row.cells[column.subKey] : undefined;
 
     if (column.variant === 'severity') return <SeverityBadge severity={severityForStatus(row.status, findings, evidence.healthyStatus)} showIcon={false} />;
