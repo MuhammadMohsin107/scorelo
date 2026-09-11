@@ -42,10 +42,10 @@ export const titleTagsAnalysis: SubPillarAnalysis = {
     sampleNoun: 'analyzed pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      // The resource's NAME identifies the row; the path disambiguates two similarly named ones.
-      // A full URL here spent the whole column on the origin, which is identical on every row, and
-      // truncated the only part that told them apart.
-      { key: 'name', fallbackKey: 'url', header: 'Product / page', subKey: 'path', clamp: 'max-w-[16rem]' },
+      // The resource's own NAME, and only that. A full URL here spent the whole column on the
+      // origin, identical on every row, and truncated the one part that told them apart. The URL
+      // is still searchable (searchKeys) — it just does not need a line of its own.
+      { key: 'name', fallbackKey: 'url', header: 'Product / page', clamp: 'max-w-[18rem]' },
       // No `keyword` subKey: the check never writes one — nothing in Scorelo derives a target
       // keyword for a page — so it only ever rendered as a blank second line under the title.
       { key: 'title', header: 'Current title', emptyText: 'no title tag', clamp: 'max-w-[20rem]' },

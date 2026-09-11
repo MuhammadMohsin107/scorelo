@@ -42,7 +42,8 @@ export const metaDescriptionsAnalysis: SubPillarAnalysis = {
     columns: [
       // This table needs the name most: every row's description is empty on a store that sets
       // none, so without it a truncated URL was the only thing distinguishing one row from another.
-      { key: 'name', fallbackKey: 'url', header: 'Product / page', subKey: 'path', clamp: 'max-w-[16rem]' },
+      // Name only — the URL stays searchable but is not worth a visible line.
+      { key: 'name', fallbackKey: 'url', header: 'Product / page', clamp: 'max-w-[18rem]' },
       // "no description" claimed something this check never looked at — whether the SERVED page
       // has a <meta name="description">. It only knows the Shopify field is empty, so it says so.
       { key: 'description', header: 'Meta description in Shopify', emptyText: 'none set in Shopify', clamp: 'max-w-[24rem]' },
