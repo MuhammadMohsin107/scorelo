@@ -31,6 +31,14 @@ import { getCurrentStoreId } from './store.service.js';
  *                     flow). `shopPolicies` used to be readable under read_content and now
  *                     requires this scope of its own — without it Shopify denies the field
  *                     outright, so the returns check reports "not measured" rather than scoring.
+ *   read_online_store_navigation  `UrlRedirect` records. Feeds SEO (handles & redirects: self
+ *                     redirects, chains, loops). Easy to miss because the LEGACY REST `Redirect`
+ *                     resource was covered by `content`, which this app already has — but the
+ *                     GraphQL `urlRedirects` connection is scoped separately, and Shopify's own
+ *                     access-scope table maps `UrlRedirect` to this scope alone. Without it the
+ *                     query is denied outright and handles-redirects reports "not measured".
+ *                     `write_online_store_navigation` is deliberately NOT requested: Scorelo
+ *                     reads redirects to diagnose them and never creates or edits one.
  *
  * ─── Write scopes ────────────────────────────────────────────────────
  * These are what turn an approved fix into an actual change on the storefront. Without them the
@@ -72,6 +80,9 @@ const SCOPES = [
   'read_themes',
   'read_metaobjects',
   'read_legal_policies',
+  // GraphQL's `urlRedirects` is scoped separately from the legacy REST Redirect resource that
+  // `read_content` covers — see the read_online_store_navigation entry in the block above.
+  'read_online_store_navigation',
   // Write access, required by the Apply-fix path. See the block above for why each is needed and
   // why existing connections keep read-only access until they reconnect.
   'write_products',

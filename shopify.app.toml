@@ -55,7 +55,11 @@ embedded = false
 # CHANGING THIS REQUIRES MERCHANTS TO RECONNECT. Shopify issues scopes only on fresh consent, so
 # stores connected before the write scopes were added keep read-only tokens; the Apply path checks
 # the granted scope string per field and refuses rather than failing at Shopify.
-scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_policies,write_products,write_content"
+#   read_online_store_navigation  UrlRedirect records for the SEO handles & redirects check.
+#                    Shopify's access-scope table maps UrlRedirect to this scope alone: the
+#                    legacy REST Redirect resource fell under `content`, but the GraphQL
+#                    urlRedirects connection does not, so read_content is not enough.
+scopes = "read_products,read_content,read_themes,read_metaobjects,read_legal_policies,read_online_store_navigation,write_products,write_content"
 
 # REQUIRED. Scorelo drives the classic authorization-code grant itself (buildInstallUrl →
 # /admin/oauth/authorize → exchangeCodeForToken). Shopify's managed install would finish the
