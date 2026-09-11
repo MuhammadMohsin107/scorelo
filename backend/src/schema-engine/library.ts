@@ -147,8 +147,8 @@ const OFFER_SHIPPING_DETAILS: SchemaTypeDefinition = {
   builtIn: false,
   googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/product',
   properties: [
-    { name: 'shippingRate', expects: 'MonetaryAmount', requirement: 'recommended', description: 'What delivery costs.' },
-    { name: 'shippingDestination', expects: 'DefinedRegion', requirement: 'recommended', description: 'Where you ship to.' },
+    { name: 'shippingRate', expects: 'MonetaryAmount', requirement: 'required', description: 'What delivery costs. Google needs this before shipping details show at all.' },
+    { name: 'shippingDestination', expects: 'DefinedRegion', requirement: 'required', description: 'Where you ship to. Required alongside shippingRate.' },
     { name: 'deliveryTime', expects: 'ShippingDeliveryTime', requirement: 'optional', description: 'Handling plus transit time.' },
   ],
 };
@@ -506,8 +506,8 @@ const COURSE_INSTANCE: SchemaTypeDefinition = {
   contexts: [],
   builtIn: false,
   properties: [
-    { name: 'courseMode', expects: 'Text', requirement: 'recommended', description: 'e.g. Online, Onsite.' },
-    { name: 'startDate', expects: 'Date', requirement: 'recommended', description: 'When it begins.' },
+    { name: 'courseMode', expects: 'Text', requirement: 'required', description: 'e.g. Online, Onsite. Google needs it to tell an instance apart from the course itself.' },
+    { name: 'startDate', expects: 'Date', requirement: 'required', description: 'When this run begins. An instance with no date is just the course again.' },
     { name: 'endDate', expects: 'Date', requirement: 'optional', description: 'When it ends.' },
     { name: 'location', expects: 'Place or VirtualLocation', requirement: 'optional', description: 'Where it happens.' },
   ],
@@ -560,7 +560,7 @@ const NUTRITION_INFORMATION: SchemaTypeDefinition = {
   contexts: [],
   builtIn: false,
   properties: [
-    { name: 'calories', expects: 'Energy', requirement: 'recommended', description: 'e.g. "240 calories".' },
+    { name: 'calories', expects: 'Energy', requirement: 'required', description: 'e.g. "240 calories". This is the one Google surfaces — a nutrition block without it shows nothing.' },
     { name: 'servingSize', expects: 'Text', requirement: 'optional', description: 'What one serving is.' },
     { name: 'proteinContent', expects: 'Mass', requirement: 'optional', description: 'e.g. "12 g".' },
     { name: 'fatContent', expects: 'Mass', requirement: 'optional', description: 'e.g. "3 g".' },
@@ -651,6 +651,123 @@ const CREATIVE_WORK: SchemaTypeDefinition = {
   ],
 };
 
+// ─── Remaining required coverage ─────────────────────────────────────
+
+const INDIVIDUAL_PRODUCT: SchemaTypeDefinition = {
+  type: 'IndividualProduct',
+  category: 'Ecommerce',
+  description: 'One specific physical item rather than a product line — a serial-numbered or one-of-a-kind piece.',
+  contexts: ['product'],
+  builtIn: false,
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'The item.', defaultSource: shopify('product.title') },
+    { name: 'serialNumber', expects: 'Text', requirement: 'recommended', description: 'What identifies this exact item. Shopify\'s SKU is the usual source.', defaultSource: shopify('variant.sku') },
+    { name: 'description', expects: 'Text', requirement: 'recommended', description: 'Plain-text description.', defaultSource: shopify('product.description') },
+    { name: 'offers', expects: 'Offer', requirement: 'recommended', description: 'Price and availability.', defaultSource: { kind: 'object', type: 'Offer', properties: { price: shopify('variant.price'), priceCurrency: shopify('shop.currency'), availability: shopify('variant.availability') } } },
+  ],
+};
+
+const REPORT: SchemaTypeDefinition = {
+  type: 'Report',
+  category: 'Content',
+  description: 'A report — a study, white paper or published findings. Published as a blog article on Shopify.',
+  contexts: ['article'],
+  builtIn: false,
+  properties: [
+    { name: 'headline', expects: 'Text', requirement: 'required', description: 'The report title.', defaultSource: shopify('article.title') },
+    { name: 'description', expects: 'Text', requirement: 'recommended', description: 'What it covers.', defaultSource: shopify('article.description') },
+    { name: 'datePublished', expects: 'Date', requirement: 'recommended', description: 'Publication date.', defaultSource: shopify('article.published_at') },
+    { name: 'author', expects: 'Person or Organization', requirement: 'recommended', description: 'Who produced it.' },
+    { name: 'reportNumber', expects: 'Text', requirement: 'optional', description: 'An identifying number, if the report has one.' },
+  ],
+};
+
+const CLIP: SchemaTypeDefinition = {
+  type: 'Clip',
+  category: 'Media',
+  description: 'A named segment within a video — what produces "key moments" under a video result.',
+  contexts: [],
+  builtIn: false,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/video',
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'What this segment covers.' },
+    { name: 'startOffset', expects: 'Number', requirement: 'required', description: 'Seconds from the start of the video.' },
+    { name: 'endOffset', expects: 'Number', requirement: 'recommended', description: 'Seconds from the start, where the segment ends.' },
+    { name: 'url', expects: 'URL', requirement: 'required', description: 'A deep link to this timestamp.' },
+  ],
+};
+
+const BROADCAST_EVENT: SchemaTypeDefinition = {
+  type: 'BroadcastEvent',
+  category: 'Media',
+  description: 'A live broadcast of a video — a launch stream or live shopping event.',
+  contexts: [],
+  builtIn: false,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/video',
+  properties: [
+    { name: 'isLiveBroadcast', expects: 'Boolean', requirement: 'required', description: 'True while it is live.' },
+    { name: 'startDate', expects: 'DateTime', requirement: 'required', description: 'When the stream starts, with timezone.' },
+    { name: 'endDate', expects: 'DateTime', requirement: 'recommended', description: 'When it ends.' },
+    { name: 'name', expects: 'Text', requirement: 'optional', description: 'What the broadcast is called.' },
+  ],
+};
+
+const LIVE_BLOG_POSTING: SchemaTypeDefinition = {
+  type: 'LiveBlogPosting',
+  category: 'Content',
+  description: 'A post updated live as an event unfolds — a launch-day or sale-day running commentary.',
+  contexts: ['article'],
+  builtIn: false,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/article',
+  properties: [
+    { name: 'headline', expects: 'Text', requirement: 'required', description: 'The title.', defaultSource: shopify('article.title') },
+    { name: 'coverageStartTime', expects: 'DateTime', requirement: 'required', description: 'When live coverage began.' },
+    { name: 'coverageEndTime', expects: 'DateTime', requirement: 'recommended', description: 'When it ended. Leave out while still running.' },
+    { name: 'liveBlogUpdate', expects: 'BlogPosting', requirement: 'recommended', description: 'The individual updates, newest first.' },
+    { name: 'datePublished', expects: 'DateTime', requirement: 'recommended', description: 'When the post went live.', defaultSource: shopify('article.published_at') },
+  ],
+};
+
+const LEARNING_RESOURCE: SchemaTypeDefinition = {
+  type: 'LearningResource',
+  category: 'Content',
+  description: 'Material made for learning — a guide, worksheet or training module.',
+  contexts: ['page', 'article'],
+  builtIn: false,
+  properties: [
+    { name: 'name', expects: 'Text', requirement: 'required', description: 'What the resource is called.' },
+    { name: 'description', expects: 'Text', requirement: 'recommended', description: 'What it teaches.' },
+    { name: 'learningResourceType', expects: 'Text', requirement: 'recommended', description: 'e.g. Guide, Worksheet, Course material.' },
+    { name: 'educationalLevel', expects: 'Text', requirement: 'optional', description: 'Who it is pitched at.' },
+    { name: 'teaches', expects: 'Text', requirement: 'optional', description: 'The skill or knowledge it imparts.' },
+  ],
+};
+
+const OCCUPATIONAL_EXPERIENCE: SchemaTypeDefinition = {
+  type: 'OccupationalExperienceRequirements',
+  category: 'Content',
+  description: 'How much work experience a job asks for. Nested inside JobPosting.',
+  contexts: [],
+  builtIn: false,
+  googleDocs: 'https://developers.google.com/search/docs/appearance/structured-data/job-posting',
+  properties: [
+    { name: 'monthsOfExperience', expects: 'Number', requirement: 'required', description: 'Months of relevant experience required.' },
+  ],
+};
+
+const EDUCATIONAL_CREDENTIAL: SchemaTypeDefinition = {
+  type: 'EducationalOccupationalCredential',
+  category: 'Content',
+  description: 'A qualification a job requires or a course awards.',
+  contexts: [],
+  builtIn: false,
+  properties: [
+    { name: 'credentialCategory', expects: 'Text', requirement: 'required', description: 'e.g. degree, certificate, high school.' },
+    { name: 'name', expects: 'Text', requirement: 'optional', description: 'What the credential is called.' },
+    { name: 'educationalLevel', expects: 'Text', requirement: 'optional', description: 'The level it sits at.' },
+  ],
+};
+
 export const SCHEMA_LIBRARY: SchemaTypeDefinition[] = [
   // Ecommerce
   PRODUCT,
@@ -719,6 +836,15 @@ export const SCHEMA_LIBRARY: SchemaTypeDefinition[] = [
   softwareType('WebApplication', 'A web app.', false),
   AUDIO_OBJECT,
   CREATIVE_WORK,
+  // Remaining required coverage
+  INDIVIDUAL_PRODUCT,
+  REPORT,
+  CLIP,
+  BROADCAST_EVENT,
+  LIVE_BLOG_POSTING,
+  LEARNING_RESOURCE,
+  OCCUPATIONAL_EXPERIENCE,
+  EDUCATIONAL_CREDENTIAL,
 ];
 
 const BY_TYPE = new Map(SCHEMA_LIBRARY.map((definition) => [definition.type, definition]));

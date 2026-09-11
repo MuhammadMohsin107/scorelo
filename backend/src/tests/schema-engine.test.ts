@@ -236,6 +236,55 @@ describe('schema engine · library integrity', () => {
     }
   });
 
+  it('covers every schema type the product requires, with nothing quietly dropped', () => {
+    // The agreed coverage list, written out in full rather than counted. A count would pass while
+    // one type was swapped for another; this fails naming the exact type that went missing.
+    const REQUIRED = [
+      // Ecommerce & Product
+      'Product', 'ProductGroup', 'Offer', 'AggregateOffer', 'AggregateRating', 'Review', 'Brand',
+      'IndividualProduct', 'MerchantReturnPolicy', 'OfferShippingDetails',
+      // Website & Organization
+      'Organization', 'OnlineStore', 'WebSite', 'WebPage', 'AboutPage', 'ContactPage',
+      'CollectionPage', 'SearchResultsPage', 'ProfilePage', 'BreadcrumbList',
+      // Content
+      'Article', 'BlogPosting', 'NewsArticle', 'TechArticle', 'Report', 'CreativeWork',
+      'ImageObject', 'VideoObject', 'AudioObject',
+      // FAQ / Q&A
+      'FAQPage', 'Question', 'Answer', 'QAPage',
+      // Business & Local SEO
+      'LocalBusiness', 'Store', 'Restaurant', 'MedicalBusiness', 'ProfessionalService',
+      'FinancialService', 'AutomotiveBusiness', 'LodgingBusiness', 'FoodEstablishment', 'Place',
+      'PostalAddress', 'GeoCoordinates', 'OpeningHoursSpecification',
+      // Media & Rich Content
+      'Clip', 'BroadcastEvent', 'LiveBlogPosting',
+      // Education / Guides
+      'Course', 'CourseInstance', 'HowTo', 'LearningResource',
+      // Jobs
+      'JobPosting', 'OccupationalExperienceRequirements', 'EducationalOccupationalCredential',
+      // Events
+      'Event', 'BusinessEvent', 'EducationEvent', 'Festival', 'SocialEvent', 'SportsEvent', 'ScreeningEvent',
+      // Recipes / Food
+      'Recipe', 'NutritionInformation',
+      // Software / Technology
+      'SoftwareApplication', 'MobileApplication', 'WebApplication',
+    ];
+
+    const present = new Set(SCHEMA_LIBRARY.map((definition) => definition.type));
+    const missing = REQUIRED.filter((type) => !present.has(type));
+    assert.deepEqual(missing, [], `missing from the schema library: ${missing.join(', ')}`);
+  });
+
+  it('gives every type at least one required property, so nothing is a hollow entry', () => {
+    // A type in the list with no properties would look like coverage and deliver none.
+    for (const definition of SCHEMA_LIBRARY) {
+      assert.ok(definition.properties.length > 0, `${definition.type} has no properties`);
+      assert.ok(
+        definition.properties.some((property) => property.requirement === 'required'),
+        `${definition.type} declares nothing as required — check it against Google's documentation`,
+      );
+    }
+  });
+
   it('has no duplicate type entries and no duplicate field paths', () => {
     const types = SCHEMA_LIBRARY.map((definition) => definition.type);
     assert.equal(new Set(types).size, types.length, 'a Schema type is defined twice');

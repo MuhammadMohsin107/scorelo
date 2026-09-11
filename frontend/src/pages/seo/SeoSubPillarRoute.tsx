@@ -1,6 +1,7 @@
 import { Navigate, useParams } from 'react-router-dom';
 import { seoAnalyses } from '../../data/seo/analyses';
 import AltTextTemplateBuilder from '../../components/seo/AltTextTemplateBuilder';
+import SchemaTemplateBuilder from '../../components/seo/SchemaTemplateBuilder';
 import SeoSubPillarPage from './SeoSubPillarPage';
 
 /**
@@ -16,6 +17,10 @@ import SeoSubPillarPage from './SeoSubPillarPage';
  */
 const configurators: Record<string, React.ReactNode> = {
   'image-alt-text': <AltTextTemplateBuilder />,
+  // Schema settings live beside the schema AUDIT rather than on a page of their own: the audit
+  // says what the storefront renders today, this says what Scorelo would generate. Reading one
+  // without the other is how a merchant ends up configuring schema they already have.
+  schema: <SchemaTemplateBuilder />,
 };
 
 export default function SeoSubPillarRoute() {
