@@ -444,6 +444,25 @@ export async function handleShopifyCallback(query: Record<string, unknown>): Pro
       set: { status: 'connected', accountDetail: shop, notice: null },
     });
 
+  /**
+   * Records the connection in the bell, so the store's integration history reads as one thread:
+   * connected here, authorization expired later, uninstalled after that — rather than only ever
+   * the failures, with nothing saying when the connection it lost had started.
+   *
+   * NOT deduped, unlike the failure notifications around it. `dedupeMinutes` keys on
+   * (store, type) alone, and `integration_alert` is also what a failed sync and an expired token
+   * write — so a window here would let this suppress a genuine alert, or be suppressed by one.
+   * Duplicates are not a real risk: an OAuth code is single-use, so a replayed callback fails at
+   * the token exchange and never reaches this line.
+   */
+  await createNotification({
+    storeId,
+    type: 'integration_alert',
+    title: 'Shopify store connected',
+    message: `Scorelo is now connected to ${shop}. Run a sync from Integrations to read your store data.`,
+    tone: 'success',
+  });
+
   // Best-effort, and intentionally after the connection is committed: losing the webhook is
   // recoverable, losing a successful install because a subscription call failed is not.
   await registerAppUninstalledWebhook(client, shop);

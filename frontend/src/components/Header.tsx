@@ -236,7 +236,7 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
                   </p>
                 )}
                 {notifications.map((notification) => {
-                  const Icon = iconForNotification(notification.type);
+                  const Icon = iconForNotification(notification.type, notification.tone);
                   return <button type="button" key={notification.id} onClick={() => openNotification(notification.id)} className={`flex w-full gap-2.5 border-b border-surface-100 px-3 py-2 text-left transition-colors hover:bg-surface-50 ${notification.isRead ? 'bg-surface-0' : 'bg-brand-50/40'}`}>
                     <Icon size={15} className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-surface-400' : 'text-brand-600'}`} />
                     <span className="min-w-0 flex-1"><span className={`block text-[12px] ${notification.isRead ? 'font-medium text-surface-700' : 'font-semibold text-surface-900'}`}>{notification.title}</span><span className="mt-0.5 block text-[11px] leading-[1.35] text-surface-500">{notification.message}</span><span className="mt-1 block text-[10px] text-surface-400">{formatNotificationTime(notification.createdAt)}</span></span>

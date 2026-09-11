@@ -257,7 +257,19 @@ const iconByType: Record<string, LucideIcon> = {
   product_update: Bell,
 };
 
-export function iconForNotification(type: string): LucideIcon {
+/**
+ * The mark shown beside a notification.
+ *
+ * `type` alone is not always enough. `integration_alert` is written BOTH for a store that just
+ * connected and for one whose authorization expired, so its AlertCircle put a warning mark on
+ * good news. `tone` is the field that tells those apart, and it was stored, returned by the API
+ * and then read by nothing — this is the first thing to use it.
+ *
+ * Deliberately narrow: only the ambiguous type consults tone. `score_change` keeps its trend
+ * arrow whichever direction the score moved, because an arrow says more there than a tick would.
+ */
+export function iconForNotification(type: string, tone?: NotificationRecord['tone']): LucideIcon {
+  if (type === 'integration_alert' && tone === 'success') return CheckCircle2;
   return iconByType[type] ?? Bell;
 }
 

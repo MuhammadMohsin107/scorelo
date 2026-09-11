@@ -9,17 +9,20 @@ import { getCurrentStoreId } from './store.service.js';
 /**
  * ─── Writing notifications ───────────────────────────────────────────
  *
- * The bell exists for things that happened WHILE THE MERCHANT WAS NOT LOOKING. That is the whole
- * test for whether an event belongs here.
+ * Two things belong in the bell.
  *
- * So a successful store connection does NOT create one: the merchant is standing in front of the
- * screen when it happens, the Integrations page shows a banner at that moment, and the connection
- * state is permanently visible on that page afterwards. A notification would repeat what is
- * already on screen.
+ * FIRST, anything that happened WHILE THE MERCHANT WAS NOT LOOKING — an uninstall, an expired
+ * token, a failed background sync, a finished audit. None of them is visible until somebody
+ * thinks to go looking, so without a notification they are simply not reported.
  *
- * An uninstall, an expired token, a failed background sync and a finished audit DO create one:
- * every one of them happens without the merchant present, and none of them is visible until
- * somebody thinks to go looking.
+ * SECOND, the milestones in a store's integration history, even ones the merchant watched happen.
+ * A successful Shopify connection is the example: the Integrations banner announces it once and
+ * is gone on the next navigation, which leaves the bell holding only the failures — an expired
+ * token and an uninstall, with nothing saying when the connection they refer to began. Recording
+ * the connect is what makes that history readable as one thread rather than a list of complaints.
+ *
+ * What still does NOT belong: state that is permanently on screen anyway. The connection BADGE on
+ * Integrations is not duplicated here; the moment it changed is.
  */
 
 /**

@@ -78,7 +78,7 @@ export default function Notifications() {
               <BellOff size={18} className="mx-auto text-surface-300" aria-hidden="true" />
               <p className="mt-2 text-[12.5px] font-medium text-surface-700">No notifications yet</p>
               <p className="mt-1 text-[11.5px] leading-[1.45] text-surface-500">
-                Scorelo will tell you here when an audit finishes, when a pillar score moves, or when your store connection needs attention.
+                Scorelo will tell you here when an audit finishes, when a pillar score moves, and when your store connection changes — connected, expired or removed.
               </p>
             </div>
           )}
@@ -86,7 +86,7 @@ export default function Notifications() {
           {/* A row, not a button, so the per-row remove control is not nested inside a clickable
               element — a button inside a button is invalid HTML and the inner one stops working. */}
           {items.map((notification) => {
-            const Icon = iconForNotification(notification.type);
+            const Icon = iconForNotification(notification.type, notification.tone);
             return (
               <div
                 key={notification.id}
