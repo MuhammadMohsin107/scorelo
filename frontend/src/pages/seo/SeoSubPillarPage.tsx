@@ -266,6 +266,7 @@ export default function SeoSubPillarPage({ analysis, configurator }: Props) {
               evidence={data.evidence}
               totalIssues={data.totals.issues}
                 supportsBulkFix={data.supportsBulkFix !== false}
+                titleSuffixLength={data.titleSuffix?.value.length ?? 0}
                 bulkFixMode={data.bulkFixMode}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}

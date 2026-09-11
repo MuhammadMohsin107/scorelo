@@ -10,7 +10,7 @@ import type {
 } from './provider.js';
 import {
   FIX_SYSTEM_PROMPT,
-  MAX_FIX_OUTPUT_TOKENS,
+  fixOutputTokens,
   MAX_OUTPUT_TOKENS,
   SOURCE_TEXT_LIMIT,
   SYSTEM_PROMPT,
@@ -39,8 +39,9 @@ import {
  */
 
 /** Hard ceiling on a single call. Audits and Fix Center both run in a request, so a hung model
- * call must never hold a connection open. */
-const TIMEOUT_MS = 20_000;
+ * call must never hold a connection open. Configurable (AI_TIMEOUT_MS) and shared with the Gemini
+ * provider, so the two vendors cannot drift to different patience. */
+const TIMEOUT_MS = env.aiTimeoutMs;
 
 const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
@@ -204,7 +205,7 @@ export const openAiProvider: AiProvider = {
         },
       ],
       FIX_RESPONSE_SCHEMA,
-      MAX_FIX_OUTPUT_TOKENS,
+      fixOutputTokens(context.targets.length),
     );
     if (!response.ok) return response;
 

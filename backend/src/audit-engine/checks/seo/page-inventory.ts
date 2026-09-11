@@ -1,3 +1,4 @@
+import { env } from '../../../config/env.js';
 import type { StoreSnapshot } from '../../store-data/types.js';
 
 /**
@@ -109,7 +110,7 @@ export function buildPageInventory(snapshot: StoreSnapshot): PageInventory {
  * Issue rows are kept ahead of healthy ones (see takeEvidenceSample) so the sample always shows
  * the merchant what is actually wrong rather than a page of passing rows.
  */
-export const EVIDENCE_ROW_LIMIT = 50;
+export const EVIDENCE_ROW_LIMIT = env.auditEvidenceRowLimit;
 
 /** Returns at most EVIDENCE_ROW_LIMIT rows, issues first, preserving input order within a group. */
 export function takeEvidenceSample<T extends { status: string }>(rows: T[], healthyStatus: string): T[] {

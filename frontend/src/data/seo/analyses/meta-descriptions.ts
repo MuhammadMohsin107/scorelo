@@ -29,14 +29,21 @@ export const metaDescriptionsAnalysis: SubPillarAnalysis = {
   findings: [],
   evidence: {
     title: 'Affected pages',
-    caption: 'Pages sampled from the latest crawl with their meta description status',
+    // NOT "sampled from the latest crawl". This sub-pillar never fetches the storefront — it
+    // reads the SEO description field from the Shopify Admin API (meta-descriptions.ts:43). The
+    // old wording promised rendered-page evidence and so made a correct result look wrong: a
+    // product whose theme derives a description from its body copy still has NO description
+    // configured in Shopify, which is the gap this check reports and the merchant can act on.
+    caption: 'Pages from your Shopify catalog with the meta description set on each one',
     searchPlaceholder: 'Search URL or description…',
     searchKeys: ['url', 'description'],
-    sampleNoun: 'crawled pages',
+    sampleNoun: 'analyzed pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
       { key: 'url', header: 'Page URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[15rem]' },
-      { key: 'description', header: 'Current meta description', emptyText: 'no description', clamp: 'max-w-[24rem]' },
+      // "no description" claimed something this check never looked at — whether the SERVED page
+      // has a <meta name="description">. It only knows the Shopify field is empty, so it says so.
+      { key: 'description', header: 'Meta description in Shopify', emptyText: 'none set in Shopify', clamp: 'max-w-[24rem]' },
       { key: 'length', header: 'Length', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },

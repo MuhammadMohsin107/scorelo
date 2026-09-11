@@ -5,6 +5,7 @@ import { metaDescriptionsCheck } from '../audit-engine/checks/seo/meta-descripti
 import { EVIDENCE_ROW_LIMIT } from '../audit-engine/checks/seo/page-inventory.js';
 import type { SnapshotProduct, StoreSnapshot } from '../audit-engine/store-data/types.js';
 import type { AuditCheck, SubPillarResult } from '../audit-engine/types.js';
+import type { CrawledPage, StorefrontCrawl } from '../audit-engine/storefront/types.js';
 
 /** AuditCheck.execute may return a promise; these checks are synchronous, so unwrap and assert
  * that, rather than threading `await` through assertions that read better without it. */
@@ -145,7 +146,7 @@ describe('seo.title-tags', () => {
 
   it('caps persisted evidence rows while still analyzing every page', () => {
     const many = Array.from({ length: EVIDENCE_ROW_LIMIT + 25 }, (_, i) =>
-      product({ id: `p${i}`, title: `${GOOD_TITLE} ${i}` }),
+      product({ id: `p${i}`, title: `${GOOD_TITLE} No.${i}` }),
     );
     const result = run(titleTagsCheck, snapshot(many));
     assert.equal(result.analyzedCount, EVIDENCE_ROW_LIMIT + 25);
@@ -154,7 +155,7 @@ describe('seo.title-tags', () => {
 
   it('puts issue rows ahead of healthy ones in the capped sample', () => {
     const healthy = Array.from({ length: EVIDENCE_ROW_LIMIT }, (_, i) =>
-      product({ id: `h${i}`, title: `${GOOD_TITLE} ${i}` }),
+      product({ id: `h${i}`, title: `${GOOD_TITLE} No.${i}` }),
     );
     const broken = product({ id: 'broken', title: '' });
     const result = run(titleTagsCheck, snapshot([...healthy, broken]));
@@ -220,5 +221,107 @@ describe('seo.meta-descriptions', () => {
     for (const finding of result.findings) {
       assert.ok(finding.affectedCount <= result.analyzedCount);
     }
+  });
+});
+
+// ─── The theme's title suffix ────────────────────────────────────────
+// Most Shopify themes render "<page title> – <shop name>", and those trailing characters count
+// against the same truncation budget. These cover the measurement itself — that it is recovered
+// from rendered pages, believed only on agreement, and never invented when there is no crawl.
+
+/** A crawled page carrying only what deriveTitleSuffix reads. */
+function crawled(resourceId: string, title: string | null): CrawledPage {
+  return {
+    url: `https://t.myshopify.com/products/${resourceId}`,
+    finalUrl: `https://t.myshopify.com/products/${resourceId}`,
+    pageType: 'product',
+    resourceId,
+    status: 200,
+    redirectChain: [],
+    responseTimeMs: 10,
+    bytes: 100,
+    title,
+    metaDescription: null,
+    canonical: null,
+    robots: null,
+    noindex: false,
+    headings: [],
+    links: [],
+    images: [],
+    scripts: [],
+    jsonLd: [],
+    textLength: 0,
+    text: '',
+  };
+}
+
+function crawlOf(pages: CrawledPage[]): StorefrontCrawl {
+  return {
+    origin: 'https://t.myshopify.com',
+    startedAt: new Date('2026-01-01T00:00:00Z'),
+    available: pages.length > 0,
+    unavailableReason: null,
+    passwordGated: false,
+    pages,
+    failures: [],
+    robots: null,
+    sitemap: null,
+    sitemapUrls: [],
+    sitemapEntries: [],
+    agentsMd: null,
+    llmsTxt: null,
+    linkStatuses: {},
+    budget: { maxPages: 40, concurrency: 3, timeoutMs: 12000, pagesFetched: pages.length, truncated: false },
+    warnings: [],
+  };
+}
+
+const SUFFIX = ' - My Nutrition Store';
+
+describe('seo.title-tags · theme title suffix', () => {
+  /** Four products whose titles are comfortably healthy BEFORE the suffix is counted. */
+  const products = Array.from({ length: 4 }, (_, i) =>
+    product({ id: `p${i}`, title: `${GOOD_TITLE} No.${i}` }),
+  );
+
+  it('counts the suffix the theme actually rendered, so a page Google truncates is not called healthy', () => {
+    // 42 chars in Shopify — comfortably healthy on its own. The theme adds 21 more, so the page
+    // actually renders 63 and gets truncated, which is the whole point of measuring it.
+    const withSuffix = products.map((item) => crawled(item.id, `${item.title}${SUFFIX}`));
+    const result = run(titleTagsCheck, snapshot(products, { crawl: crawlOf(withSuffix) }));
+
+    const row = result.details.evidenceRows.find((entry) => entry.id === 'product:p0');
+    assert.ok(row, 'p0 must be in the evidence sample');
+    // The length shown is the rendered one, not the Shopify field's.
+    assert.equal(row.cells.length, `${GOOD_TITLE} No.0`.length + SUFFIX.length);
+    assert.match(result.details.summary, /appends " - My Nutrition Store" \(21 characters\)/);
+  });
+
+  it('scores exactly as before when there is no crawl to measure from', () => {
+    const withCrawl = run(titleTagsCheck, snapshot(products, { crawl: crawlOf(products.map((item) => crawled(item.id, `${item.title}${SUFFIX}`))) }));
+    const withoutCrawl = run(titleTagsCheck, snapshot(products));
+
+    assert.equal(withoutCrawl.details.titleSuffix, null);
+    assert.notEqual(withCrawl.score, withoutCrawl.score, 'the suffix must actually change the verdict, or this test proves nothing');
+    const row = withoutCrawl.details.evidenceRows.find((entry) => entry.id === 'product:p0');
+    assert.equal(row?.cells.length, `${GOOD_TITLE} No.0`.length);
+  });
+
+  it('ignores a suffix only one or two pages happen to share', () => {
+    // Two of four agree — below SUFFIX_MIN_OBSERVATIONS and not a majority. A coincidence in two
+    // titles is not a theme template, and treating it as one would mis-score the whole store.
+    const mixed = [
+      crawled('p0', `${products[0].title}${SUFFIX}`),
+      crawled('p1', `${products[1].title}${SUFFIX}`),
+      crawled('p2', products[2].title),
+      crawled('p3', products[3].title),
+    ];
+    const result = run(titleTagsCheck, snapshot(products, { crawl: crawlOf(mixed) }));
+    assert.equal(result.details.titleSuffix, null);
+  });
+
+  it('never infers a suffix from Admin data alone — an empty crawl measures nothing', () => {
+    const result = run(titleTagsCheck, snapshot(products, { crawl: crawlOf([]) }));
+    assert.equal(result.details.titleSuffix, null);
   });
 });

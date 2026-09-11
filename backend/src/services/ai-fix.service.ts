@@ -41,9 +41,15 @@ import { getCurrentStoreId } from './store.service.js';
 // Resolved per call from AI_PROVIDER, so the vendor is a deployment choice rather than an import.
 const provider = (): AiProvider => aiProvider();
 
-/** Resources sent to the model in one request. Bounds cost and keeps the completion inside its
- * token budget; a finding affecting more than this is proposed for in batches. */
-const MAX_TARGETS_PER_REQUEST = 15;
+/**
+ * Resources sent to the model in one request. Bounds cost and latency; a finding affecting more
+ * than this is proposed for in batches.
+ *
+ * Configurable (AI_FIX_MAX_TARGETS) rather than fixed at 15. It no longer has to protect the
+ * completion from overflowing either: fixOutputTokens() derives the output budget from the batch
+ * size, so the two move together instead of one silently truncating the other.
+ */
+const MAX_TARGETS_PER_REQUEST = env.aiFixMaxTargets;
 
 /** Evidence-row statuses that mean "nothing to fix here". Everything else is a candidate. */
 const HEALTHY_STATUS = 'Healthy';
@@ -170,6 +176,46 @@ async function candidateRows(finding: typeof findings.$inferSelect): Promise<Evi
 }
 
 /**
+ * Narrows a title rule to what the merchant's FIELD may hold, given what the theme appends.
+ *
+ * The title-tags check scores the rendered title — the Shopify field plus the theme's suffix,
+ * which it measures from the crawl rather than assuming (deriveTitleSuffix). Without this, the
+ * two halves of the same feature would work to different numbers: the audit would flag a page at
+ * 64 rendered characters, the planner would happily write a 58-character value, the theme would
+ * render 79, and the very next audit would flag it again. A fix that cannot clear the check that
+ * asked for it is not a fix.
+ *
+ * Left untouched for non-title fields, when no suffix was observed, and when the suffix is so
+ * long that subtracting it would leave no workable range — in that last case the theme itself is
+ * the problem, and demanding a six-character title would not help anyone.
+ */
+async function withThemeTitleBudget(
+  rule: FieldRule,
+  finding: typeof findings.$inferSelect,
+): Promise<FieldRule> {
+  if (rule.field !== 'seo.title') return rule;
+
+  const [scoreRow] = await db
+    .select({ details: auditScores.details })
+    .from(auditScores)
+    .where(and(
+      eq(auditScores.auditId, finding.auditId),
+      eq(auditScores.pillar, finding.pillar),
+      eq(auditScores.subPillar, finding.subPillar),
+    ))
+    .limit(1);
+
+  const stored = (scoreRow?.details as { titleSuffix?: { value?: unknown } } | null)?.titleSuffix;
+  const suffixLength = typeof stored?.value === 'string' ? stored.value.length : 0;
+  if (suffixLength <= 0) return rule;
+
+  const maxLength = rule.maxLength - suffixLength;
+  if (maxLength < rule.minLength) return rule;
+
+  return { ...rule, maxLength };
+}
+
+/**
  * Derives the fixable resources from the audit's own evidence rows.
  *
  * This is the authorization anchor for "the resource belongs to this store". Evidence rows were
@@ -278,8 +324,8 @@ export async function planAiFixes(
   // Throws 404 unless this finding belongs to a store the caller owns.
   const finding = await getFinding(userId, findingId, options.storeId);
 
-  const rule = fieldForSubPillar(finding.subPillar);
-  if (!rule) {
+  const baseRule = fieldForSubPillar(finding.subPillar);
+  if (!baseRule) {
     return {
       findingId,
       planned: false,
@@ -289,6 +335,8 @@ export async function planAiFixes(
       unavailableReason: 'not_fixable',
     };
   }
+
+  const rule = await withThemeTitleBudget(baseRule, finding);
 
   let targets = extractTargets(await candidateRows(finding), rule);
 

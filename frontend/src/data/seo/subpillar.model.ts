@@ -142,6 +142,15 @@ export interface SubPillarAnalysis {
   supportsBulkFix?: boolean;
   /** Selects the validation adapter used by the shared workflow. */
   bulkFixMode?: 'title-tags' | 'generic';
+  /**
+   * What the storefront theme appends to every rendered `<title>`, as the audit measured it.
+   *
+   * The bulk-fix editor validates against the merchant's FIELD, but the audit scores the rendered
+   * title — field plus this. Without it the editor would accept a 58-character value on a store
+   * whose theme renders 79, and the next audit would re-flag the page it had just "fixed".
+   * Null when no crawl ran or no suffix was consistently observed.
+   */
+  titleSuffix?: { value: string; observedOn: number; comparedPages: number } | null;
   /** Sentence under the status, written per sub-pillar. */
   summary: string;
   /** Chip beside the status, e.g. "94.5% healthy". */

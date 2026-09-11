@@ -162,6 +162,7 @@ export default function NonSeoSubPillarPage() {
               evidence={data.evidence}
               totalIssues={data.totals.issues}
               supportsBulkFix={data.supportsBulkFix}
+              titleSuffixLength={data.titleSuffix?.value.length ?? 0}
               bulkFixMode={data.bulkFixMode}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}

@@ -25,6 +25,8 @@ interface Props {
    * deterministic suggestion.
    */
   findingIdByRowId: Record<string, string>;
+  /** Characters the theme appends to every rendered title, as the audit measured them. */
+  titleSuffixLength?: number;
   onClose: () => void;
   onApply: (updates: AppliedUpdate[]) => void;
 }
@@ -35,18 +37,33 @@ const isPersistedFinding = (id: string | undefined): id is string => Boolean(id 
 const MIN_TITLE_LENGTH = 30;
 const MAX_TITLE_LENGTH = 60;
 
-function validate(row: EvidenceRow, value: string, mode: 'title-tags' | 'generic') {
+/**
+ * What the merchant may type, given what the theme will append.
+ *
+ * The audit scores the RENDERED title — this field plus the theme's suffix, which it measures
+ * from the pages it loaded. Validating against the flat 60 would accept a value that renders
+ * well over it, and the next audit would re-flag the row that had just been fixed. Falls back to
+ * the flat range when no suffix was observed, and refuses to collapse the range if a suffix is so
+ * long that subtracting it would leave nothing to write — the same guard the planner applies.
+ */
+function titleFieldMax(suffixLength: number): number {
+  const adjusted = MAX_TITLE_LENGTH - suffixLength;
+  return adjusted < MIN_TITLE_LENGTH ? MAX_TITLE_LENGTH : adjusted;
+}
+
+function validate(row: EvidenceRow, value: string, mode: 'title-tags' | 'generic', maxTitleLength: number) {
   const current = row.current?.value ?? '';
   const trimmed = value.trim();
   if (!trimmed) return 'Recommendation is empty';
-  if (mode === 'title-tags' && (trimmed.length < MIN_TITLE_LENGTH || trimmed.length > MAX_TITLE_LENGTH)) {
-    return `Use ${MIN_TITLE_LENGTH}-${MAX_TITLE_LENGTH} characters`;
+  if (mode === 'title-tags' && (trimmed.length < MIN_TITLE_LENGTH || trimmed.length > maxTitleLength)) {
+    return `Use ${MIN_TITLE_LENGTH}-${maxTitleLength} characters`;
   }
   if (trimmed === current) return 'Recommendation must meaningfully change the value';
   return null;
 }
 
-export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose, onApply }: Props) {
+export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, titleSuffixLength = 0, onClose, onApply }: Props) {
+  const maxTitleLength = titleFieldMax(titleSuffixLength);
   const [isGenerating, setIsGenerating] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   /**
@@ -216,8 +233,8 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
   };
 
   const reviews = useMemo(
-    () => rows.map((row) => ({ row, value: drafts[row.id] ?? '', error: validate(row, drafts[row.id] ?? '', mode) })),
-    [drafts, mode, rows],
+    () => rows.map((row) => ({ row, value: drafts[row.id] ?? '', error: validate(row, drafts[row.id] ?? '', mode, maxTitleLength) })),
+    [drafts, maxTitleLength, mode, rows],
   );
   const ready = reviews.filter((item) => !item.error);
   const needsReview = reviews.length - ready.length;
@@ -457,7 +474,7 @@ export default function BulkFixWorkflow({ rows, mode, findingIdByRowId, onClose,
                         <textarea id={`bulk-fix-${row.id}`} value={value} onChange={(event) => updateDraft(row.id, event.target.value)} rows={2} className="mt-1 w-full resize-y rounded-md border border-surface-200 bg-surface-50 px-2.5 py-1.5 text-[12.5px] text-surface-900 outline-none focus:border-brand-400 focus:bg-surface-0 focus:ring-2 focus:ring-brand-100" />
                         <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px]">
                           <span className={error ? 'text-warning-700' : 'text-success-700'}>{error ?? 'Ready to apply'}</span>
-                          <span className="tabular-nums text-surface-400">{mode === 'title-tags' ? `${value.length}/${MAX_TITLE_LENGTH}` : `${value.length} characters`}</span>
+                          <span className="tabular-nums text-surface-400">{mode === 'title-tags' ? `${value.length}/${maxTitleLength}` : `${value.length} characters`}</span>
                         </div>
                         {/* WHY THIS ROW IS BLANK, on the row itself. "Recommendation is empty"
                             describes the box; it does not answer the only question the merchant

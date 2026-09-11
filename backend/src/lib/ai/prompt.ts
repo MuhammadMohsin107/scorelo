@@ -67,9 +67,30 @@ export function buildUserMessage(context: RecommendationContext): string {
   ].filter(Boolean).join('\n');
 }
 
-/** Fix planning returns one object per resource, so its budget scales with the batch. Held well
- * below what a full batch needs so a runaway completion is cut off rather than billed. */
-export const MAX_FIX_OUTPUT_TOKENS = 2_000;
+/**
+ * Hard ceiling on a fix-planning completion, whatever the batch size. A runaway answer is cut off
+ * rather than billed.
+ */
+export const MAX_FIX_OUTPUT_TOKENS = 8_000;
+
+/** Roughly what one proposal costs: the longest allowed value (160 chars), its one-sentence
+ * reason, the echoed ref and the JSON punctuation around them, with headroom. */
+const TOKENS_PER_PROPOSAL = 160;
+/** The wrapper object and array that hold the proposals. */
+const FIX_TOKENS_OVERHEAD = 200;
+
+/**
+ * The output budget for a batch of `targetCount` proposals.
+ *
+ * This is what the comment on MAX_FIX_OUTPUT_TOKENS always CLAIMED ("its budget scales with the
+ * batch") while the value was a flat 2,000 for every call. That flat number was survivable only
+ * because the batch was itself fixed at 15; now that the batch is configurable, a budget that did
+ * not move with it would truncate the completion — and a truncated JSON body is reported to the
+ * merchant as "AI could not draft these right now", with no clue that the cause was arithmetic.
+ */
+export function fixOutputTokens(targetCount: number): number {
+  return Math.min(MAX_FIX_OUTPUT_TOKENS, FIX_TOKENS_OVERHEAD + Math.max(1, targetCount) * TOKENS_PER_PROPOSAL);
+}
 
 /** Body copy handed to the model per resource. Enough to write a description from, small enough
  * that a batch of long product pages cannot inflate the prompt without bound. */

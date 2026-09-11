@@ -61,6 +61,16 @@ export interface SubPillarResult {
      */
     healthyStatus?: string;
     evidenceRows: SubPillarEvidenceRow[];
+    /**
+     * The text the storefront theme appends to every rendered `<title>`, measured from the crawl
+     * by the title-tags check (see deriveTitleSuffix there). Null when no crawl ran or no suffix
+     * was consistently observed.
+     *
+     * It lives on the RESULT rather than only in the summary because the length budget it implies
+     * has to reach everything that later writes a title — the AI fix planner and the bulk-fix
+     * editor — so they aim at the same rendered result the audit scored.
+     */
+    titleSuffix?: { value: string; observedOn: number; comparedPages: number } | null;
   };
   findings: SubPillarFindingResult[];
 }

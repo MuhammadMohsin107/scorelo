@@ -25,6 +25,8 @@ interface Props {
   onInvestigate: (finding: SubPillarFinding, rows: EvidenceRow[]) => void;
   supportsBulkFix?: boolean;
   bulkFixMode?: 'title-tags' | 'generic';
+  /** Characters the theme appends to every rendered title, measured by the audit. */
+  titleSuffixLength?: number;
 }
 
 const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
@@ -38,6 +40,7 @@ export default function EvidenceTable({
   onInvestigate,
   supportsBulkFix = false,
   bulkFixMode = 'generic',
+  titleSuffixLength = 0,
 }: Props) {
   const [search, setSearch] = useState('');
   const [facet, setFacet] = useState('All');
@@ -174,6 +177,7 @@ export default function EvidenceTable({
         <BulkFixWorkflow
           rows={selectedRows}
           mode={bulkFixMode}
+          titleSuffixLength={titleSuffixLength}
           // Resolved here rather than inside the workflow: this component already owns the
           // row→finding mapping (it is what the Investigate button uses), and AI planning is
           // scoped to a finding, so the selection has to carry which finding each row came from.

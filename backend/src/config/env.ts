@@ -96,6 +96,31 @@ export const env = {
   geminiModel: process.env.AI_MODEL ?? 'gemini-flash-lite-latest',
   /** Kill switch that works even when a key is present — set to 'false' to stop all AI calls. */
   aiRecommendationsEnabled: process.env.AI_RECOMMENDATIONS_ENABLED !== 'false',
+  /**
+   * Ceiling on ONE call to the model, in milliseconds.
+   *
+   * Was a hard-coded 20s in each provider. Two things made that too tight: a cold first call can
+   * genuinely take longer (observed against a live key), and there is no retry — one slow call is
+   * reported to the merchant as "AI could not draft these right now". It also has to cover a
+   * whole batch of fix proposals, which is larger now that the batch size is configurable.
+   */
+  aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS ?? 45_000),
+  /**
+   * How many resources ONE "Draft with AI" press may plan for.
+   *
+   * Bounded because every target costs prompt tokens, output tokens and latency inside a request.
+   * The output budget is derived from this rather than fixed (see fixOutputTokens in prompt.ts),
+   * so raising it cannot silently truncate the completion the way a flat budget would.
+   */
+  aiFixMaxTargets: Number(process.env.AI_FIX_MAX_TARGETS ?? 25),
+  /**
+   * How many evidence rows each sub-pillar persists on an audit.
+   *
+   * EVERY page is still analyzed and scored — this caps only the per-row table stored as JSON and
+   * rendered in the evidence table, which is also the set the merchant can select for bulk fixes.
+   * At 50 a store with 103 flagged pages could only ever see and act on half of them.
+   */
+  auditEvidenceRowLimit: Number(process.env.AUDIT_EVIDENCE_ROW_LIMIT ?? 200),
   // ─── Storefront crawler ─────────────────────────────────────────────
   // Bounds on the one part of Scorelo that makes requests to a merchant's public storefront.
   // Every value is a safety limit rather than a tuning knob: the defaults are what a polite

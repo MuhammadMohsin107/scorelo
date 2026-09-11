@@ -33,10 +33,13 @@ export const titleTagsAnalysis: SubPillarAnalysis = {
   findings: [],
   evidence: {
     title: 'Affected pages',
-    caption: 'Pages sampled from the latest crawl with their title tag status',
+    // Like meta descriptions, this sub-pillar scores the Shopify Admin inventory rather than
+    // fetched pages — only `internal-links` and `schema` actually crawl. What it DOES read from
+    // the storefront is the theme's title suffix, measured from the pages the crawl loaded.
+    caption: 'Pages from your Shopify catalog, measured as the theme renders each title',
     searchPlaceholder: 'Search URL, title or keyword…',
     searchKeys: ['url', 'title'],
-    sampleNoun: 'crawled pages',
+    sampleNoun: 'analyzed pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
       { key: 'url', header: 'Page URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[15rem]' },

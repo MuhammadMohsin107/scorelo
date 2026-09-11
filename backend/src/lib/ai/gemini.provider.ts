@@ -10,7 +10,7 @@ import type {
 } from './provider.js';
 import {
   FIX_SYSTEM_PROMPT,
-  MAX_FIX_OUTPUT_TOKENS,
+  fixOutputTokens,
   MAX_OUTPUT_TOKENS,
   SOURCE_TEXT_LIMIT,
   SYSTEM_PROMPT,
@@ -41,8 +41,10 @@ import {
  * provider promising a shape is not the same as receiving it.
  */
 
-/** Hard ceiling on a single call, matching the OpenAI provider: this sits in a request path. */
-const TIMEOUT_MS = 20_000;
+/** Hard ceiling on a single call, matching the OpenAI provider: this sits in a request path.
+ * Configurable (AI_TIMEOUT_MS) because it has to cover a whole batch of fix proposals, and the
+ * batch size is itself configurable — see env.aiFixMaxTargets. */
+const TIMEOUT_MS = env.aiTimeoutMs;
 
 const API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -227,7 +229,7 @@ export const geminiProvider: AiProvider = {
       targets: context.targets.map((target) => ({ ...target, sourceText: target.sourceText.slice(0, SOURCE_TEXT_LIMIT) })),
     });
 
-    const response = await generate(FIX_SYSTEM_PROMPT, message, FIX_SCHEMA, MAX_FIX_OUTPUT_TOKENS);
+    const response = await generate(FIX_SYSTEM_PROMPT, message, FIX_SCHEMA, fixOutputTokens(context.targets.length));
     if (!response.ok) return response;
 
     const parsed = parseJson(response.content);

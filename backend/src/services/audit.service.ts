@@ -51,6 +51,8 @@ interface SubPillarScoreDetails {
   contextValue?: string;
   healthyStatus?: string;
   evidenceRows?: unknown[];
+  /** Measured by the title-tags check from the crawl; see audit-engine/types.ts. */
+  titleSuffix?: { value: string; observedOn: number; comparedPages: number } | null;
 }
 
 interface FindingDetails {
@@ -94,6 +96,10 @@ export async function getSubPillarAnalysis(userId: number, pillar: string, subPi
     source: audit.source,
     summary: details.summary ?? '',
     healthChip: details.healthChip ?? '',
+    // Sent so the bulk-fix editor validates against the same budget the audit scored: the theme's
+    // suffix counts against the rendered title, so the merchant's field has less room than the
+    // raw 30-60 range suggests. Null leaves the editor on that raw range, as before.
+    titleSuffix: details.titleSuffix ?? null,
     totals: {
       score: scoreRow.score,
       analyzed: scoreRow.analyzedCount ?? 0,
