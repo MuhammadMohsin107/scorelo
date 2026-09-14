@@ -399,7 +399,10 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
         {/* User Profile Bottom Area */}
         <div className={`flex-shrink-0 border-t border-surface-200 ${isCollapsed ? 'p-2' : 'p-2'}`}>
-          <div className={`flex cursor-pointer items-center gap-2 rounded-md py-1.5 transition-all duration-200 group hover:bg-surface-200/50 ${isCollapsed ? 'justify-center px-2' : 'px-2'}`}>
+          <button
+            onClick={() => { navigate('/settings'); onClose(); }}
+            className={`flex cursor-pointer items-center gap-2 rounded-md py-1.5 transition-all duration-200 group hover:bg-surface-200/50 w-full ${isCollapsed ? 'justify-center px-2' : 'px-2'}`}
+          >
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-surface-300 bg-surface-100 text-surface-900">
               <span className="text-[10.5px] font-bold">{user ? initialsFor(user.fullName) : '··'}</span>
             </div>
@@ -411,7 +414,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                 {planInfo.name} Plan
               </p>
             </div>
-          </div>
+          </button>
         </div>
       </aside>
     </>

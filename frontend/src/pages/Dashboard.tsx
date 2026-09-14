@@ -87,7 +87,7 @@ export default function Dashboard() {
           <button
             onClick={refresh}
             disabled={auditRun.running}
-            className="btn-secondary btn-xs"
+            className="btn-primary btn-xs"
             aria-label="Re-analyze this store and refresh the dashboard"
           >
             <RefreshCw size={12} className={auditRun.running ? 'animate-spin motion-reduce:animate-none' : ''} />
