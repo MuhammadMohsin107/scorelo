@@ -83,7 +83,7 @@ export const contentTables: Record<string, GenericSubPillarDetails> = {
       filters: ['All', 'Highly Templated', 'Potential Duplicate', 'Unique'],
       statusClass: { 'Highly Templated': bad, 'Potential Duplicate': warn, Unique: good },
       columns: [
-        { key: 'page', header: 'Page', variant: 'mono' },
+        { key: 'page', header: 'Page' },
         { key: 'similarity', header: 'Content Similarity', align: 'center', variant: 'number' },
         { key: 'pattern', header: 'Pattern', variant: 'muted' },
         { key: 'status', header: 'Status', align: 'center', variant: 'status' },

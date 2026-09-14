@@ -254,11 +254,13 @@ export default function Header({ onMenuClick, onSearch }: HeaderProps) {
 
           {/* Profile Dropdown Trigger */}
           <button
+            type="button"
             onClick={() => toggleMenu('profile')}
             aria-expanded={openMenu === 'profile'}
             className="flex items-center gap-1.5 p-1 pr-1.5 rounded-md hover:bg-surface-100 transition-colors active:scale-[0.98]"
             aria-label="Account menu"
           >
+            <span className="hidden text-[12.5px] font-semibold text-surface-700 sm:inline">Account</span>
             <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-brand-100 to-brand-50 border border-brand-200 flex items-center justify-center shadow-sm">
               <span className="text-brand-700 text-[10.5px] font-bold tracking-wide">{user ? initialsFor(user.fullName) : '··'}</span>
             </div>
