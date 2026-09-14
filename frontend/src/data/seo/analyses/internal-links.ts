@@ -33,12 +33,14 @@ export const internalLinksAnalysis: SubPillarAnalysis = {
     // internal and external links. `source`, `target`, `anchor` and `httpStatus` were never
     // written — no link is followed, so no HTTP status exists to report.
     caption: 'Crawled pages with their internal linking counts',
-    searchPlaceholder: 'Search page…',
-    searchKeys: ['url', 'recommendation'],
+    searchPlaceholder: 'Search product or page…',
+    searchKeys: ['name', 'url', 'recommendation'],
     sampleNoun: 'crawled pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'url', header: 'Page', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[18rem]' },
+      // The resource's own name from Shopify, as on Title Tags. Falls back to the path for an audit
+      // taken before the check wrote `name`, so those rows still identify themselves.
+      { key: 'name', fallbackKey: 'url', header: 'Product / page', clamp: 'max-w-[18rem]' },
       { key: 'internalLinks', header: 'Internal', align: 'center', variant: 'number' },
       { key: 'externalLinks', header: 'External', align: 'center', variant: 'number' },
       { key: 'recommendation', header: 'Recommendation', variant: 'muted', clamp: 'max-w-[18rem]' },
@@ -47,7 +49,7 @@ export const internalLinksAnalysis: SubPillarAnalysis = {
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('internalLinks', 'Sort: internal links'), sortByCell('url', 'Sort: page')],
+    sorts: [sortByCell('internalLinks', 'Sort: internal links'), sortByCell('name', 'Sort: name')],
   },
   relatedAreas: [
     { label: 'Handles & Redirects', href: '/seo/handles-redirects', hint: 'Where these 404s should redirect' },

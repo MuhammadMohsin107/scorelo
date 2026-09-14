@@ -74,3 +74,25 @@ export function pageLabel(page: CrawledPage): string {
     return page.finalUrl;
   }
 }
+
+/**
+ * The merchant's own name for the resource a crawled page was built from — the product, collection,
+ * page or article title as it is in Shopify — so an evidence row names the thing rather than its
+ * path.
+ *
+ * Read from the Admin snapshot by the id the crawl target carried, never from the rendered <title>:
+ * that is the theme's output (usually with the shop name appended), not the resource's name. Null
+ * when the page came from no snapshot resource, so the UI falls back to the path instead of
+ * showing a name nobody gave it.
+ */
+export function pageName(snapshot: StoreSnapshot, page: CrawledPage): string | null {
+  if (page.pageType === 'home') return 'Homepage';
+  if (!page.resourceId) return null;
+  const resources: Array<{ id: string; title: string }> =
+    page.pageType === 'product' ? snapshot.products
+      : page.pageType === 'collection' ? snapshot.collections
+        : page.pageType === 'page' ? snapshot.pages
+          : page.pageType === 'article' ? snapshot.articles
+            : [];
+  return resources.find((resource) => resource.id === page.resourceId)?.title.trim() || null;
+}

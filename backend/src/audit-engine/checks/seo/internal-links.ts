@@ -1,7 +1,7 @@
 import type { AuditCheck, SubPillarEvidenceRow, SubPillarFindingResult, SubPillarResult } from '../../types.js';
 import { scoreSubPillar } from '../../scoring.js';
 import type { StoreSnapshot } from '../../store-data/types.js';
-import { crawlScopeNote, pageLabel, requireCrawl } from '../shared/crawl.js';
+import { crawlScopeNote, pageLabel, pageName, requireCrawl } from '../shared/crawl.js';
 import { formatCount, takeEvidenceSample } from './page-inventory.js';
 
 /**
@@ -115,6 +115,9 @@ export const internalLinksCheck: AuditCheck = {
         status,
         facet: status,
         cells: {
+          // What identifies the row in the table: the resource's name as it is in Shopify. `url`
+          // stays for search and as the fallback when the page maps to no snapshot resource.
+          name: pageName(snapshot, page),
           url: pageLabel(page),
           pageType: page.pageType,
           internalLinks: internal.length,

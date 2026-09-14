@@ -36,12 +36,14 @@ export const schemaAnalysis: SubPillarAnalysis = {
     // count columns therefore showed nothing on every row. `types` and `detail` were also the
     // wrong keys for `schemaTypes`.
     caption: 'Crawled pages with the structured data they emit',
-    searchPlaceholder: 'Search page or schema type…',
-    searchKeys: ['url', 'schemaTypes'],
+    searchPlaceholder: 'Search product, page or schema type…',
+    searchKeys: ['name', 'url', 'schemaTypes'],
     sampleNoun: 'crawled pages',
     facet: { label: 'Page type', allLabel: 'All page types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'url', header: 'Page URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[16rem]' },
+      // The resource's own name from Shopify, as on Title Tags. Falls back to the path for an audit
+      // taken before the check wrote `name`, so those rows still identify themselves.
+      { key: 'name', fallbackKey: 'url', header: 'Product / page', clamp: 'max-w-[18rem]' },
       { key: 'schemaTypes', header: 'Schema types', emptyText: 'no markup', clamp: 'max-w-[18rem]' },
       { key: 'blocks', header: 'Blocks', align: 'center', variant: 'number' },
       { key: 'recommendation', header: 'Recommendation', variant: 'muted', clamp: 'max-w-[16rem]' },
@@ -50,7 +52,7 @@ export const schemaAnalysis: SubPillarAnalysis = {
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('blocks', 'Sort: blocks', 'desc'), sortByCell('url', 'Sort: URL')],
+    sorts: [sortByCell('blocks', 'Sort: blocks', 'desc'), sortByCell('name', 'Sort: name')],
   },
   relatedAreas: [
     { label: 'Title Tags', href: '/seo/title-tags', hint: 'What the result headline says' },

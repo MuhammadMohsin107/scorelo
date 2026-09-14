@@ -40,13 +40,14 @@ export const canonicalsAnalysis: SubPillarAnalysis = {
     // The subKey was `urlType`; the check writes `pageType`, so the URL's second line was blank
     // too. Every key below is one the check actually writes: url, pageType, title, length.
     caption: 'URLs sampled from the latest audit with their handle-duplication status',
-    searchPlaceholder: 'Search URL or page name…',
-    searchKeys: ['url', 'title'],
+    searchPlaceholder: 'Search product, page or URL…',
+    searchKeys: ['title', 'url'],
     sampleNoun: 'analyzed URLs',
     facet: { label: 'URL type', allLabel: 'All URL types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
-      { key: 'url', header: 'URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[20rem]' },
-      { key: 'title', header: 'Page', variant: 'muted', clamp: 'max-w-[16rem]' },
+      // The resource's own name, as on Title Tags — not the URL. The handle that decides the
+      // family is still in the investigation drawer, and the URL is still searchable.
+      { key: 'title', fallbackKey: 'url', header: 'Product / page', clamp: 'max-w-[18rem]' },
       // Family size. 1 means the handle is unique — which is exactly what "Healthy" means here.
       { key: 'length', header: 'In handle family', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
@@ -54,7 +55,7 @@ export const canonicalsAnalysis: SubPillarAnalysis = {
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('length', 'Sort: family size', 'desc'), sortByCell('url', 'Sort: URL')],
+    sorts: [sortByCell('length', 'Sort: family size', 'desc'), sortByCell('title', 'Sort: name')],
   },
   relatedAreas: [
     { label: 'Handles & Redirects', href: '/seo/handles-redirects', hint: 'Where duplicate URLs are created' },

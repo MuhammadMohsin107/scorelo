@@ -43,12 +43,13 @@ export const imageAltTextAnalysis: SubPillarAnalysis = {
     title: 'Affected products',
     caption: 'Products sampled from the latest audit with their image alt-text coverage',
     searchPlaceholder: 'Search product or URL…',
-    searchKeys: ['url', 'title'],
+    searchKeys: ['title', 'url'],
     sampleNoun: 'analyzed products',
     facet: { label: 'Resource type', allLabel: 'All types', values: ['Product'] },
     columns: [
-      { key: 'url', header: 'Product URL', variant: 'mono', subKey: 'pageType', clamp: 'max-w-[20rem]' },
-      { key: 'title', header: 'Product', variant: 'muted', clamp: 'max-w-[16rem]' },
+      // The product's own name identifies the row, as on Title Tags. The URL column beside it spent
+      // most of its width on the store origin and truncated the handle; the URL stays searchable.
+      { key: 'title', fallbackKey: 'url', header: 'Product', clamp: 'max-w-[18rem]' },
       { key: 'length', header: 'Images without alt', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
