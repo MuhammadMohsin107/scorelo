@@ -58,11 +58,9 @@ export const pillarMeta: Record<PillarKey, PillarMeta> = {
     subPillars: [
       { id: 'product-descriptions', label: 'Product descriptions' },
       { id: 'collection-descriptions', label: 'Collection descriptions' },
-      { id: 'metafields', label: 'Metafield completeness' },
       // Slug stays 'dup-templated' — it is the identifier stored in findings.sub_pillar and in
       // every audit already recorded. Only the LABEL changed: "Duplicate / Templated Copy" named
-      // the defect, while its five siblings all name the quality being measured (Metafield
-      // Completeness, Blog Freshness, Media Richness), so it read as the odd one out.
+      // the defect, while its siblings all name the quality being measured (Blog Freshness, Media Richness), so it read as the odd one out.
       { id: 'dup-templated', label: 'Copy Uniqueness' },
       { id: 'blog-freshness', label: 'Blog freshness' },
       { id: 'media-richness', label: 'Media richness' },

@@ -57,7 +57,6 @@ const contentSubRoutes: { id: string; label: string; path: string }[] = [
   { id: 'dup-templated', label: 'Copy uniqueness', path: '/content/dup-templated' },
   { id: 'product-descriptions', label: 'Product descriptions', path: '/content/product-descriptions' },
   { id: 'collection-descriptions', label: 'Collection descriptions', path: '/content/collection-descriptions' },
-  { id: 'metafields', label: 'Metafield completeness', path: '/content/metafields' },
   { id: 'blog-freshness', label: 'Blog freshness', path: '/content/blog-freshness' },
   { id: 'media-richness', label: 'Media richness', path: '/content/media-richness' },
 ];

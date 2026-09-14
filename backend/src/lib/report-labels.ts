@@ -31,7 +31,6 @@ const SUB_PILLAR_LABELS: Record<string, string> = {
   // Content
   'product-descriptions': 'Product descriptions',
   'collection-descriptions': 'Collection descriptions',
-  metafields: 'Metafield completeness',
   'dup-templated': 'Copy Uniqueness',
   'blog-freshness': 'Blog freshness',
   'media-richness': 'Media richness',

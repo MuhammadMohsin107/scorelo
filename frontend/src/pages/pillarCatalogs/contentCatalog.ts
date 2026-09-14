@@ -1,5 +1,5 @@
 import type { GenericSubPillarConfig } from './genericTypes';
-import { collectionDescriptionsData, metafieldCompletenessData, duplicateTemplatedCopyData, blogFreshnessData, mediaRichnessData, productDescriptionsData, priorityIssues } from '../../data/content/content.mock';
+import { collectionDescriptionsData, duplicateTemplatedCopyData, blogFreshnessData, mediaRichnessData, productDescriptionsData, priorityIssues } from '../../data/content/content.mock';
 
 const status = (score: number) => score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Needs Work' : 'Critical';
 const issueSet = (key: string) => priorityIssues.filter((issue) => issue.areaKey === key).map((issue) => ({ id: issue.id, severity: issue.severity, title: issue.title, affected: issue.affected, recommendation: issue.recommendation }));
@@ -25,14 +25,6 @@ export const contentPillarCatalog: Record<string, GenericSubPillarConfig> = {
     { label: 'Too Short', value: collectionDescriptionsData.tooShort, color: 'bg-warning-500' },
     { label: 'Missing', value: collectionDescriptionsData.missing, color: 'bg-critical-500' },
     { label: 'Duplicate', value: collectionDescriptionsData.duplicate, color: 'bg-surface-400' },
-  ]),
-  'content/metafields': base('metafields', 'Metafield Completeness', 'Complete the structured product attributes that support filtering, trust, and rich product experiences.', metafieldCompletenessData.score, 'Products', metafieldCompletenessData.productsAnalyzed, metafieldCompletenessData.complete, [
-    { label: 'Incomplete products', value: metafieldCompletenessData.incomplete, description: 'products are missing one or more fields' },
-    { label: 'Critical fields missing', value: metafieldCompletenessData.missingCriticalFields, description: 'trust or compliance fields need attention' },
-    { label: 'Complete products', value: metafieldCompletenessData.complete, description: 'products have all applicable attributes' },
-  ], [
-    { label: 'Complete', value: metafieldCompletenessData.complete, color: 'bg-success-500' },
-    { label: 'Incomplete', value: metafieldCompletenessData.incomplete, color: 'bg-warning-500' },
   ]),
   'content/dup-templated': base('dup-templated', 'Copy Uniqueness', 'Find repetitive copy patterns that dilute product value, relevance, and buyer confidence.', duplicateTemplatedCopyData.score, 'Pages', duplicateTemplatedCopyData.pagesAnalyzed, duplicateTemplatedCopyData.unique, [
     { label: 'Potential duplicates', value: duplicateTemplatedCopyData.potentialDuplicates, description: 'pages look substantially alike' },

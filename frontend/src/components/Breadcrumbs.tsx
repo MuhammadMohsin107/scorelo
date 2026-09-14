@@ -22,7 +22,6 @@ const routeLabels: Record<string, string> = {
   'internal-links': 'Internal Links & 404s',
   'product-descriptions': 'Product Descriptions',
   'collection-descriptions': 'Collection Descriptions',
-  metafields: 'Metafield Completeness',
   'dup-templated': 'Copy Uniqueness',
   'blog-freshness': 'Blog Freshness',
   'media-richness': 'Media Richness',

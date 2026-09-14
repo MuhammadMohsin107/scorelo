@@ -1,7 +1,6 @@
 import type { GenericSubPillarDetails } from './genericTypes';
 import {
   collectionDescriptionsData,
-  metafieldCompletenessData,
   duplicateTemplatedCopyData,
   blogFreshnessData,
   mediaRichnessData,
@@ -73,51 +72,6 @@ export const contentTables: Record<string, GenericSubPillarDetails> = {
       { id: 'cd-opp-1', title: `Write intro copy for ${collectionDescriptionsData.missing} collections with none`, description: 'Collections are high-intent category landing pages; without copy they cannot rank for category terms.', impact: 'High', effort: 'Low', ctaLabel: 'Review Collections', filter: 'Missing' },
       { id: 'cd-opp-2', title: `Expand ${collectionDescriptionsData.tooShort} descriptions under 30 words`, description: 'Short intros leave shoppers and search engines guessing what the collection covers.', impact: 'Medium', effort: 'Low', ctaLabel: 'Review Short Copy', filter: 'Too Short' },
       { id: 'cd-opp-3', title: `De-duplicate ${collectionDescriptionsData.duplicate} collections sharing boilerplate`, description: 'Identical category copy dilutes rankings and reads as low effort to shoppers.', impact: 'Medium', effort: 'Low', ctaLabel: 'View Duplicates', filter: 'Duplicate' },
-    ],
-  },
-
-  'content/metafields': {
-    table: {
-      title: 'Metafield Coverage',
-      subtitle: 'Coverage per metafield across applicable products',
-      searchPlaceholder: 'Search by metafield or category…',
-      filters: ['All', 'Critical Gap', 'Gap', 'Complete'],
-      statusClass: { 'Critical Gap': bad, Gap: warn, Complete: good },
-      columns: [
-        { key: 'field', header: 'Metafield', variant: 'mono' },
-        { key: 'label', header: 'Label' },
-        { key: 'category', header: 'Category', variant: 'muted' },
-        { key: 'applicable', header: 'Applicable', align: 'center', variant: 'number' },
-        { key: 'missing', header: 'Missing', align: 'center', variant: 'number' },
-        { key: 'coverage', header: 'Coverage', align: 'center', variant: 'number' },
-        { key: 'status', header: 'Status', align: 'center', variant: 'status' },
-        { key: 'recommendation', header: 'Recommendation', variant: 'muted' },
-      ],
-      rows: [
-        ...metafieldCompletenessData.fields.map((f) => {
-          const pct = Math.round(((f.applicable - f.missing) / f.applicable) * 100);
-          const status = f.missing === 0 ? 'Complete' : f.critical ? 'Critical Gap' : 'Gap';
-          return {
-            id: f.key,
-            status,
-            cells: {
-              field: f.key,
-              label: f.label,
-              category: f.category,
-              applicable: f.applicable,
-              missing: f.missing,
-              coverage: `${pct}%`,
-              recommendation: f.critical ? 'Backfill first — trust/compliance field shown on PDP' : 'Backfill via bulk editor or CSV import',
-            },
-          };
-        }),
-        { id: 'color_family', status: 'Complete', cells: { field: 'color_family', label: 'Color Family', category: 'Product Attributes', applicable: 1284, missing: 0, coverage: '100%', recommendation: '—' } },
-        { id: 'connectivity', status: 'Complete', cells: { field: 'connectivity', label: 'Connectivity', category: 'Technical Specs', applicable: 1188, missing: 0, coverage: '100%', recommendation: '—' } },
-      ],
-    },
-    opportunities: [
-      { id: 'mf-opp-1', title: `Backfill critical trust fields on ${metafieldCompletenessData.missingCriticalFields} products`, description: 'warranty_period and country_of_origin power PDP trust blocks and two storefront filters.', impact: 'High', effort: 'Medium', ctaLabel: 'View Critical Gaps', filter: 'Critical Gap' },
-      { id: 'mf-opp-2', title: `Complete ${metafieldCompletenessData.incomplete} products missing any metafield`, description: 'Full attribute coverage improves faceted navigation, comparison tables and feed quality.', impact: 'Medium', effort: 'Medium', ctaLabel: 'View Gaps', filter: 'Gap' },
     ],
   },
 
