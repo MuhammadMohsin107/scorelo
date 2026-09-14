@@ -64,7 +64,7 @@ export const canonicalsCheck: AuditCheck = {
         id: item.page.id,
         status,
         facet: item.page.facet,
-        cells: { url: item.page.url, pageType: item.page.facet, title: item.page.title, length: family.length },
+        cells: { name: item.page.title, url: item.page.url, pageType: item.page.facet, length: family.length },
         current: {
           label: 'Handle',
           value: item.handle,

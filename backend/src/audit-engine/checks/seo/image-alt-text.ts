@@ -73,9 +73,9 @@ export const imageAltTextCheck: AuditCheck = {
         status,
         facet: 'Product',
         cells: {
+          name: product.title,
           url: product.url,
           pageType: 'Product',
-          title: product.title,
           length: images.length - labelled,
         },
         current: {

@@ -786,15 +786,15 @@
             "status": "Healthy",
             "facet": "Product",
             "cells": {
+              "name": "Wireless Earbuds Pro",
               "url": "/wireless-earbuds-pro",
-              "canonical": "/wireless-earbuds-pro",
-              "expected": "/wireless-earbuds-pro",
-              "urlType": "Product"
+              "pageType": "Product",
+              "length": 1
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "/wireless-earbuds-pro",
-              "meta": "/wireless-earbuds-pro"
+              "label": "Handle",
+              "value": "wireless-earbuds-pro",
+              "meta": "Product"
             }
           },
           {
@@ -802,15 +802,15 @@
             "status": "Healthy",
             "facet": "Product",
             "cells": {
+              "name": "Noise Cancelling Headphones",
               "url": "/noise-cancelling-headphones",
-              "canonical": "/noise-cancelling-headphones",
-              "expected": "/noise-cancelling-headphones",
-              "urlType": "Product"
+              "pageType": "Product",
+              "length": 1
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "/noise-cancelling-headphones",
-              "meta": "/noise-cancelling-headphones"
+              "label": "Handle",
+              "value": "noise-cancelling-headphones",
+              "meta": "Product"
             }
           },
           {
@@ -818,19 +818,15 @@
             "status": "Conflict",
             "facet": "Collection",
             "cells": {
+              "name": "Gaming Audio",
               "url": "/collections/gaming-audio?sort=price-asc",
-              "canonical": "/collections/gaming-audio?sort=price-asc",
-              "expected": "/collections/gaming-audio",
-              "urlType": "Collection"
+              "pageType": "Collection",
+              "length": 2
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "/collections/gaming-audio?sort=price-asc",
-              "meta": "/collections/gaming-audio?sort=price-asc"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/collections/gaming-audio"
+              "label": "Handle",
+              "value": "gaming-audio",
+              "meta": "2 handles share the base \"gaming-audio\""
             },
             "note": "Canonical self-references a sort parameter"
           },
@@ -839,19 +835,15 @@
             "status": "Conflict",
             "facet": "Collection",
             "cells": {
+              "name": "Gaming Audio",
               "url": "/collections/gaming-audio?sort=price-desc",
-              "canonical": "/collections/gaming-audio?sort=price-desc",
-              "expected": "/collections/gaming-audio",
-              "urlType": "Collection"
+              "pageType": "Collection",
+              "length": 2
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "/collections/gaming-audio?sort=price-desc",
-              "meta": "/collections/gaming-audio?sort=price-desc"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/collections/gaming-audio"
+              "label": "Handle",
+              "value": "gaming-audio",
+              "meta": "2 handles share the base \"gaming-audio\""
             },
             "note": "Canonical self-references a sort parameter"
           },
@@ -860,19 +852,15 @@
             "status": "Conflict",
             "facet": "Collection",
             "cells": {
+              "name": "All Products - Page 2",
               "url": "/collections/all?page=2",
-              "canonical": "/collections/all?page=2",
-              "expected": "/collections/all?page=2",
-              "urlType": "Collection"
+              "pageType": "Collection",
+              "length": 2
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "/collections/all?page=2",
-              "meta": "/collections/all?page=2"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/collections/all?page=2"
+              "label": "Handle",
+              "value": "all",
+              "meta": "2 handles share the base \"all\""
             },
             "note": "Paginated page canonicalises to page 1 in the theme, creating a loop"
           },
@@ -881,19 +869,15 @@
             "status": "Conflict",
             "facet": "Product",
             "cells": {
+              "name": "Wireless Earbuds - Black",
               "url": "/wireless-earbuds-black",
-              "canonical": "/wireless-earbuds-white",
-              "expected": "/wireless-earbuds-pro",
-              "urlType": "Product"
+              "pageType": "Product",
+              "length": 3
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "/wireless-earbuds-white",
-              "meta": "/wireless-earbuds-black"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/wireless-earbuds-pro"
+              "label": "Handle",
+              "value": "wireless-earbuds-black",
+              "meta": "3 handles share the base \"wireless-earbuds\""
             },
             "note": "Points at a sibling variant rather than the parent product"
           },
@@ -902,19 +886,15 @@
             "status": "Duplicate",
             "facet": "Collection",
             "cells": {
+              "name": "Gaming Audio - Black",
               "url": "/collections/gaming-audio?color=black",
-              "canonical": "",
-              "expected": "/collections/gaming-audio",
-              "urlType": "Collection"
+              "pageType": "Collection",
+              "length": 2
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "",
-              "meta": "/collections/gaming-audio?color=black"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/collections/gaming-audio"
+              "label": "Handle",
+              "value": "gaming-audio",
+              "meta": "2 handles share the base \"gaming-audio\""
             },
             "note": "Filter combination generates a crawlable URL"
           },
@@ -923,19 +903,15 @@
             "status": "Duplicate",
             "facet": "Collection",
             "cells": {
+              "name": "Gaming Audio - White",
               "url": "/collections/gaming-audio?color=white",
-              "canonical": "",
-              "expected": "/collections/gaming-audio",
-              "urlType": "Collection"
+              "pageType": "Collection",
+              "length": 2
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "",
-              "meta": "/collections/gaming-audio?color=white"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/collections/gaming-audio"
+              "label": "Handle",
+              "value": "gaming-audio",
+              "meta": "2 handles share the base \"gaming-audio\""
             },
             "note": "Filter combination generates a crawlable URL"
           },
@@ -944,19 +920,15 @@
             "status": "Duplicate",
             "facet": "Collection",
             "cells": {
+              "name": "Gaming Audio - Black (Low to High)",
               "url": "/collections/gaming-audio?color=black&sort=price-asc",
-              "canonical": "",
-              "expected": "/collections/gaming-audio",
-              "urlType": "Collection"
+              "pageType": "Collection",
+              "length": 3
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "",
-              "meta": "/collections/gaming-audio?color=black&sort=price-asc"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/collections/gaming-audio"
+              "label": "Handle",
+              "value": "gaming-audio",
+              "meta": "3 handles share the base \"gaming-audio\""
             },
             "note": "Filter combination generates a crawlable URL"
           },
@@ -965,19 +937,15 @@
             "status": "Duplicate",
             "facet": "Product",
             "cells": {
+              "name": "Wireless Earbuds Pro - Variant",
               "url": "/products/earbuds-pro?variant=41822",
-              "canonical": "",
-              "expected": "/wireless-earbuds-pro",
-              "urlType": "Product"
+              "pageType": "Product",
+              "length": 2
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "",
-              "meta": "/products/earbuds-pro?variant=41822"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/wireless-earbuds-pro"
+              "label": "Handle",
+              "value": "earbuds-pro",
+              "meta": "2 handles share the base \"wireless-earbuds-pro\""
             },
             "note": "Variant query string duplicates the product page"
           },
@@ -986,78 +954,63 @@
             "status": "Missing",
             "facet": "Page",
             "cells": {
+              "name": "Warranty Information",
               "url": "/pages/warranty",
-              "canonical": "",
-              "expected": "/pages/warranty",
-              "urlType": "Page"
+              "pageType": "Page",
+              "length": 1
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "",
-              "meta": "/pages/warranty"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/pages/warranty"
-            },
-            "note": "No canonical element emitted"
+              "label": "Handle",
+              "value": "warranty",
+              "meta": "Page"
+            }
           },
           {
             "id": "c12",
             "status": "Missing",
             "facet": "Page",
             "cells": {
+              "name": "Shipping & Delivery",
               "url": "/pages/shipping",
-              "canonical": "",
-              "expected": "/pages/shipping",
-              "urlType": "Page"
+              "pageType": "Page",
+              "length": 1
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "",
-              "meta": "/pages/shipping"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/pages/shipping"
-            },
-            "note": "No canonical element emitted"
+              "label": "Handle",
+              "value": "shipping",
+              "meta": "Page"
+            }
           },
           {
             "id": "c13",
             "status": "Missing",
             "facet": "Blog",
             "cells": {
+              "name": "How to Choose the Right Headphones",
               "url": "/blogs/guides/how-to-choose-headphones",
-              "canonical": "",
-              "expected": "/blogs/guides/how-to-choose-headphones",
-              "urlType": "Blog"
+              "pageType": "Blog",
+              "length": 1
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "",
-              "meta": "/blogs/guides/how-to-choose-headphones"
-            },
-            "suggested": {
-              "label": "Expected canonical",
-              "value": "/blogs/guides/how-to-choose-headphones"
-            },
-            "note": "No canonical element emitted"
+              "label": "Handle",
+              "value": "how-to-choose-headphones",
+              "meta": "Blog"
+            }
           },
           {
             "id": "c14",
             "status": "Healthy",
             "facet": "Collection",
             "cells": {
+              "name": "New Arrivals",
               "url": "/collections/new-arrivals",
-              "canonical": "/collections/new-arrivals",
-              "expected": "/collections/new-arrivals",
-              "urlType": "Collection"
+              "pageType": "Collection",
+              "length": 1
             },
             "current": {
-              "label": "Declared canonical",
-              "value": "/collections/new-arrivals",
-              "meta": "/collections/new-arrivals"
+              "label": "Handle",
+              "value": "new-arrivals",
+              "meta": "Collection"
             }
           },
           {
@@ -1065,13 +1018,13 @@
             "status": "Healthy",
             "facet": "Product",
             "cells": {
+              "name": "Studio Monitor Headphones",
               "url": "/studio-monitor-headphones",
-              "canonical": "/studio-monitor-headphones",
-              "expected": "/studio-monitor-headphones",
-              "urlType": "Product"
+              "pageType": "Product",
+              "length": 1
             },
             "current": {
-              "label": "Declared canonical",
+              "label": "Handle",
               "value": "/studio-monitor-headphones",
               "meta": "/studio-monitor-headphones"
             }

@@ -47,7 +47,7 @@ export const canonicalsAnalysis: SubPillarAnalysis = {
     columns: [
       // The resource's own name, as on Title Tags — not the URL. The handle that decides the
       // family is still in the investigation drawer, and the URL is still searchable.
-      { key: 'title', fallbackKey: 'url', header: 'Product / page', clamp: 'max-w-[18rem]' },
+      { key: 'name', fallbackKey: 'url', header: 'Product / page', clamp: 'max-w-[18rem]' },
       // Family size. 1 means the handle is unique — which is exactly what "Healthy" means here.
       { key: 'length', header: 'In handle family', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },

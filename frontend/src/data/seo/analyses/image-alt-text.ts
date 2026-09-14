@@ -49,7 +49,7 @@ export const imageAltTextAnalysis: SubPillarAnalysis = {
     columns: [
       // The product's own name identifies the row, as on Title Tags. The URL column beside it spent
       // most of its width on the store origin and truncated the handle; the URL stays searchable.
-      { key: 'title', fallbackKey: 'url', header: 'Product', clamp: 'max-w-[18rem]' },
+      { key: 'name', fallbackKey: 'url', header: 'Product', clamp: 'max-w-[18rem]' },
       { key: 'length', header: 'Images without alt', align: 'center', variant: 'number' },
       { key: 'status', header: 'Issue', variant: 'status' },
       { key: 'severity', header: 'Severity', variant: 'severity' },
