@@ -38,10 +38,10 @@ export const canonicalsAnalysis: SubPillarAnalysis = {
     // fact nothing had been read.
     //
     // The subKey was `urlType`; the check writes `pageType`, so the URL's second line was blank
-    // too. Every key below is one the check actually writes: url, pageType, title, length.
+    // too. Every key below is one the check actually writes: url, pageType, name, length.
     caption: 'URLs sampled from the latest audit with their handle-duplication status',
     searchPlaceholder: 'Search product, page or URL…',
-    searchKeys: ['title', 'url'],
+    searchKeys: ['name', 'url'],
     sampleNoun: 'analyzed URLs',
     facet: { label: 'URL type', allLabel: 'All URL types', values: ['Product', 'Collection', 'Blog', 'Page'] },
     columns: [
@@ -55,7 +55,7 @@ export const canonicalsAnalysis: SubPillarAnalysis = {
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('length', 'Sort: family size', 'desc'), sortByCell('title', 'Sort: name')],
+    sorts: [sortByCell('length', 'Sort: family size', 'desc'), sortByCell('name', 'Sort: name')],
   },
   relatedAreas: [
     { label: 'Handles & Redirects', href: '/seo/handles-redirects', hint: 'Where duplicate URLs are created' },

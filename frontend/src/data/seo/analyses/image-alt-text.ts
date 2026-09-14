@@ -43,7 +43,7 @@ export const imageAltTextAnalysis: SubPillarAnalysis = {
     title: 'Affected products',
     caption: 'Products sampled from the latest audit with their image alt-text coverage',
     searchPlaceholder: 'Search product or URL…',
-    searchKeys: ['title', 'url'],
+    searchKeys: ['name', 'url'],
     sampleNoun: 'analyzed products',
     facet: { label: 'Resource type', allLabel: 'All types', values: ['Product'] },
     columns: [
@@ -56,7 +56,7 @@ export const imageAltTextAnalysis: SubPillarAnalysis = {
       { key: 'action', header: 'Action', align: 'right', variant: 'action' },
     ],
     rows: [],
-    sorts: [sortByCell('length', 'Sort: unlabelled images', 'desc'), sortByCell('title', 'Sort: product')],
+    sorts: [sortByCell('length', 'Sort: unlabelled images', 'desc'), sortByCell('name', 'Sort: product')],
   },
   relatedAreas: [
     { label: 'Schema / JSON-LD', href: '/seo/schema', hint: 'Structured data for product imagery' },
