@@ -8,7 +8,7 @@ import { AlertTriangle, Check, Info, Plus, Sparkles, X } from 'lucide-react';
  * like a separate onboarding product. Controls match the 32px height used across Settings.
  *
  * `DetectedNote` and `UnavailableNote` exist to keep one promise visible throughout the flow: a
- * pre-filled value always states where it came from, and a value we could not read says so rather
+ * suggested value always states where it came from, and a value we could not read says so rather
  * than appearing as an empty field the merchant assumes is optional.
  */
 
@@ -81,12 +81,41 @@ export function Stepper({
   );
 }
 
-/** States that a value came from the merchant's own Shopify store, and which part of it. */
-export function DetectedNote({ children }: { children: ReactNode }) {
+/**
+ * States what the merchant's own Shopify store says about a field, and which part of it.
+ *
+ * With an `action`, the value is offered as a one-click answer. It is never written into the field
+ * on its own: a value the merchant did not choose would be saved as theirs the moment they pressed
+ * Continue, and would come back on every reload looking like something they typed.
+ */
+export function DetectedNote({
+  children,
+  action,
+}: {
+  children: ReactNode;
+  action?: { label: string; applied: boolean; onApply: () => void };
+}) {
   return (
     <p className="mt-1 flex items-start gap-1.5 text-[11.5px] leading-[1.45] text-surface-500">
       <Sparkles size={12} className="mt-[3px] flex-shrink-0 text-brand-500" aria-hidden="true" />
-      <span>{children}</span>
+      <span>
+        {children}
+        {action &&
+          (action.applied ? (
+            <span className="ml-1.5 inline-flex items-center gap-0.5 font-semibold text-success-700">
+              <Check size={11} strokeWidth={2.6} aria-hidden="true" />
+              In use
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={action.onApply}
+              className="ml-1.5 rounded font-semibold text-brand-700 underline-offset-2 transition-colors hover:text-brand-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              {action.label}
+            </button>
+          ))}
+      </span>
     </p>
   );
 }

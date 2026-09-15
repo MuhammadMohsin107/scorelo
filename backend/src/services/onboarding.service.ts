@@ -32,10 +32,11 @@ import {
  *
  * Five steps, every one skippable, all state server-side so a merchant resumes on any device.
  *
- * THE RULE THIS FILE IS BUILT AROUND: a pre-filled answer is either read from the merchant's real
+ * THE RULE THIS FILE IS BUILT AROUND: a suggested answer is either read from the merchant's real
  * Shopify store or it is absent. Nothing here substitutes a plausible value for a missing one.
- * When the Admin API cannot be reached, `detection.available` is false and the UI says the fields
- * could not be pre-filled — it does not quietly fall back to blanks that look like answers.
+ * Suggestions are only ever offered — the UI never writes them into a field, so the answer
+ * columns below hold nothing the merchant did not choose. When the Admin API cannot be reached,
+ * `detection.available` is false and the UI says no suggestions could be read.
  *
  * Facts Shopify owns — store name, domain, currency, timezone, country, plan, catalogue size —
  * are read LIVE on every load rather than copied into our tables. A merchant who changes their
@@ -242,7 +243,7 @@ function describeDetectionFailure(error: unknown): string {
 
 /**
  * The state of guided setup for the caller's store, plus the live shop context the first step
- * pre-fills from.
+ * offers as suggestions.
  *
  * Never throws for a disconnected store: this is polled by the app shell to decide whether to
  * route a merchant into setup, and a 400 on every navigation would be both noisy and useless.
@@ -301,7 +302,7 @@ export async function getOnboarding(userId: number, storeId?: number): Promise<O
 }
 
 /**
- * Reads the merchant's catalogue and derives the answers steps 2, 3 and 4 pre-fill with.
+ * Reads the merchant's catalogue and derives the answers steps 2, 3 and 4 suggest.
  *
  * A separate endpoint from `getOnboarding` on purpose: this reads a page of products and every
  * collection, which is far heavier than the single shop query the app shell polls. It is fetched

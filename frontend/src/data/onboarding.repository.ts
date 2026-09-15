@@ -3,14 +3,15 @@ import { api, ApiError } from '../lib/api';
 /**
  * ─── Guided setup ────────────────────────────────────────────────────
  *
- * Five steps a merchant completes after connecting their Shopify store. Every pre-filled value in
- * this flow is read from THEIR store — the shop name, domain, currency and country from the shop
+ * Five steps a merchant completes after connecting their Shopify store. Every suggestion in this
+ * flow is read from THEIR store — the shop name, domain, currency and country from the shop
  * record, the industry and keyword seeds derived from their own collections and product types.
+ * Suggestions are offered beside a field, never written into it.
  *
  * Where the backend could not read something it says so explicitly (`detection.available: false`,
  * `suggestions.available: false`, `languages: null`). The UI must render those states as unknown.
- * It must never substitute an example value: a merchant who accepts a pre-filled answer they did
- * not check has handed Scorelo a wrong input for every title tag it later writes.
+ * It must never substitute an example value: a merchant who accepts an answer they did not check
+ * has handed Scorelo a wrong input for every title tag it later writes.
  */
 
 export type StepStatus = 'complete' | 'skipped' | 'pending';
@@ -210,7 +211,7 @@ let countryCache: string[] | null = null;
  * Every country name, sorted. Used for the step 3 picker.
  *
  * Names — not codes — because `stores.country` and Shopify's `billingAddress.country` both hold a
- * name, and the detected country has to match an option in this list for the pre-fill to select.
+ * name, and the detected country has to match an option in this list for the suggestion to apply.
  */
 export function countryNames(): string[] {
   if (countryCache) return countryCache;

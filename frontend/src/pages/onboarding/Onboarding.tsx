@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Check, Loader2, Store } from 'lucide-react';
 import ScoreloLogo from '../../components/auth/ScoreloLogo';
@@ -38,10 +38,11 @@ import {
  * answer to a component unmounting. Each step is persisted when the merchant leaves it, which is
  * what makes "finish later" resume exactly where they were on any device.
  *
- * PRE-FILL RULES. A field is pre-filled only from something read out of the merchant's real store,
- * and only while they have not edited it themselves. Two fields are deliberately never pre-filled:
- * the primary goal, and permission to change the store. Both are decisions only the merchant can
- * make, and a pre-selected answer to either would be us deciding on their behalf.
+ * NOTHING IS PRE-FILLED. Every field opens empty unless the merchant saved an answer to it. What
+ * Shopify tells us about the store is shown beside a field as a one-click suggestion, never written
+ * into it: each step is saved on Continue, Skip and Finish later, so a value placed in a field for
+ * the merchant would be stored as their answer, tick the step as complete, and reappear on every
+ * reload as if they had typed it.
  */
 
 const STEP_FIELDS: Record<number, Array<keyof StepPayload>> = {
@@ -60,10 +61,6 @@ const STEP_COMPONENTS: Record<number, (props: StepProps) => ReactElement> = {
   5: StepGoals,
 };
 
-/** How many derived keywords are placed in the field. The rest stay as one-click suggestions —
- * ten pre-filled terms is a list to prune, which is the work the seeding exists to remove. */
-const SEEDED_KEYWORD_COUNT = 5;
-
 export default function Onboarding() {
   const navigate = useNavigate();
 
@@ -76,24 +73,9 @@ export default function Onboarding() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  /** Fields the merchant has edited. A pre-fill never overwrites one of these, so suggestions
-   * arriving late cannot undo something already typed. */
-  const touched = useRef(new Set<keyof StepPayload>());
-
   const patch = useCallback((changes: Partial<StepPayload>) => {
-    for (const key of Object.keys(changes) as Array<keyof StepPayload>) touched.current.add(key);
     setDraft((previous) => ({ ...previous, ...changes }));
     setSaveError(null);
-  }, []);
-
-  /** Fills a field only if it is still empty and untouched. */
-  const seed = useCallback((current: StepPayload, key: keyof StepPayload, value: unknown): StepPayload => {
-    if (touched.current.has(key)) return current;
-    const existing = current[key];
-    const isEmpty = existing === null || existing === undefined || (Array.isArray(existing) && existing.length === 0);
-    if (!isEmpty || value === null || value === undefined) return current;
-    if (Array.isArray(value) && value.length === 0) return current;
-    return { ...current, [key]: value };
   }, []);
 
   // ── Initial load ───────────────────────────────────────────────────
@@ -111,17 +93,8 @@ export default function Onboarding() {
         setSnapshot(state);
         setStep(state.completedAt ? 1 : state.currentStep);
 
-        // Answers already saved take precedence over anything derived — they are the merchant's.
-        let next: StepPayload = { step: state.currentStep, ...state.answers };
-        const shop = state.detection.shop;
-        if (shop) {
-          next = seed(next, 'organizationName', shop.name);
-          next = seed(next, 'brandName', shop.name);
-          next = seed(next, 'primaryDomain', shop.primaryUrl);
-        }
-        // The pillar order is a real default (the product's own order), not a guess about them.
-        next = seed(next, 'priorityPillars', state.options.pillars);
-        setDraft(next);
+        // Only what the merchant saved. Shopify's values are offered by the steps as suggestions.
+        setDraft({ step: state.currentStep, ...state.answers });
       } catch (error) {
         if (!cancelled) setLoadError(describeOnboardingError(error));
       }
@@ -130,11 +103,11 @@ export default function Onboarding() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, seed]);
+  }, [navigate]);
 
   // ── Catalogue-derived suggestions ──────────────────────────────────
   // Fetched once, in parallel with the merchant reading step 1, so steps 2–4 are ready when they
-  // arrive rather than making them wait on a catalogue read.
+  // arrive rather than making them wait on a catalogue read. Shown as suggestions only.
   useEffect(() => {
     if (!snapshot?.connected) {
       setSuggestionsLoading(false);
@@ -145,38 +118,7 @@ export default function Onboarding() {
     (async () => {
       try {
         const derived = await fetchOnboardingSuggestions();
-        if (cancelled) return;
-        setSuggestions(derived);
-
-        setDraft((current) => {
-          let next = current;
-          // Only pre-select an industry we are reasonably sure of. A weak match is shown as a
-          // note under the field instead, for the merchant to accept deliberately.
-          if (derived.industry && derived.industry.confidence !== 'low') {
-            next = seed(next, 'industry', derived.industry.value);
-          }
-          if (derived.catalogShape) next = seed(next, 'catalogShape', derived.catalogShape.value);
-          if (derived.detectedCountry) next = seed(next, 'targetCountries', [derived.detectedCountry]);
-          if (derived.detectedCountry) next = seed(next, 'primaryMarket', derived.detectedCountry);
-          if (derived.languages) {
-            const published = derived.languages.filter((locale) => locale.published).map((locale) => locale.locale);
-            next = seed(next, 'targetLanguages', published);
-          }
-          if (derived.brandedTerms.length > 0) {
-            next = seed(next, 'brandedTerms', derived.brandedTerms);
-            // The shortest variant is the one that belongs in a title tag suffix.
-            const shortest = [...derived.brandedTerms].sort((a, b) => a.length - b.length)[0];
-            next = seed(next, 'brandName', shortest);
-          }
-          if (derived.keywords.length > 0) {
-            next = seed(
-              next,
-              'targetKeywords',
-              derived.keywords.slice(0, SEEDED_KEYWORD_COUNT).map((keyword) => keyword.value),
-            );
-          }
-          return next;
-        });
+        if (!cancelled) setSuggestions(derived);
       } catch {
         // Suggestions are an accelerant, not a dependency. A failure leaves the fields empty and
         // the steps say so — it never blocks setup.
@@ -189,7 +131,7 @@ export default function Onboarding() {
     return () => {
       cancelled = true;
     };
-  }, [snapshot?.connected, seed]);
+  }, [snapshot?.connected]);
 
   /** Only the current step's fields, so a save can never write across the form. */
   const payloadForStep = (target: number): StepPayload => {
@@ -296,7 +238,7 @@ export default function Onboarding() {
     );
   }
 
-  // Setup pre-fills every answer from the connected store, so there is nothing useful to do
+  // Setup's suggestions all come from the connected store, so there is nothing useful to do
   // without one. Sending the merchant to connect is the only honest next step.
   if (!snapshot.connected) {
     return (
@@ -309,7 +251,7 @@ export default function Onboarding() {
             <div className="min-w-0">
               <h1 className="text-[15px] font-bold tracking-tight text-surface-950">Connect your Shopify store first</h1>
               <p className="mt-1 max-w-md text-[12.5px] leading-[1.5] text-surface-500">
-                Guided setup fills in your business details, markets and keyword suggestions from your real store data.
+                Guided setup suggests your business details, markets and keywords from your real store data.
                 Connect Shopify and it will take about two minutes.
               </p>
             </div>
@@ -417,10 +359,14 @@ export default function Onboarding() {
   );
 }
 
-/** The page frame: logo, a single card, nothing else competing for attention. */
+/** The page frame: logo, a single card, nothing else competing for attention.
+ *
+ * `h-full`, not `min-h-full`: html, body and #root are fixed to the viewport with overflow hidden,
+ * so this div must be exactly viewport-high to become the scroll container. With `min-h-full` it
+ * grew to fit the card and the bottom of a long step was clipped with no way to scroll to it. */
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-full overflow-y-auto bg-surface-50">
+    <div className="h-full overflow-y-auto overscroll-contain bg-surface-50">
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6 sm:py-10">
         <div className="mb-4 flex justify-center">
           <ScoreloLogo />

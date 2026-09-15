@@ -26,9 +26,9 @@ import {
  * that belongs to the page, so a merchant moving between steps cannot lose an answer to a
  * component unmounting.
  *
- * Where a field was pre-filled from the merchant's store, a `DetectedNote` under it says which
- * part of the store it came from. Where something could not be read, an `UnavailableNote` says so.
- * There is no third case: no field is ever populated with an example.
+ * No field is ever filled in for the merchant. Where the store has something to say about a field,
+ * a `DetectedNote` under it names the source and offers the value as a one-click answer. Where
+ * something could not be read, an `UnavailableNote` says so.
  */
 
 export interface StepProps {
@@ -109,8 +109,8 @@ export function StepBusiness({ draft, patch, snapshot }: StepProps) {
     <div className="space-y-3.5">
       {!snapshot.detection.available && snapshot.detection.unavailableReason && (
         <UnavailableNote>
-          {snapshot.detection.unavailableReason} Nothing below could be filled in from your store — you can still
-          type your answers, and they will be saved.
+          {snapshot.detection.unavailableReason} No suggestions could be read from your store — you can still type
+          your answers, and they will be saved.
         </UnavailableNote>
       )}
 
@@ -125,7 +125,17 @@ export function StepBusiness({ draft, patch, snapshot }: StepProps) {
           onChange={(value) => patch({ organizationName: value })}
           placeholder="Your business name"
         />
-        {shop?.name && <DetectedNote>From your Shopify store name, “{shop.name}”.</DetectedNote>}
+        {shop?.name && (
+          <DetectedNote
+            action={{
+              label: 'Use this',
+              applied: draft.organizationName === shop.name,
+              onApply: () => patch({ organizationName: shop.name }),
+            }}
+          >
+            Your Shopify store name is “{shop.name}”.
+          </DetectedNote>
+        )}
       </Field>
 
       <Field
@@ -139,6 +149,17 @@ export function StepBusiness({ draft, patch, snapshot }: StepProps) {
           onChange={(value) => patch({ brandName: value })}
           placeholder="Brand name"
         />
+        {shop?.name && (
+          <DetectedNote
+            action={{
+              label: 'Use this',
+              applied: draft.brandName === shop.name,
+              onApply: () => patch({ brandName: shop.name }),
+            }}
+          >
+            Your Shopify store name is “{shop.name}”. Shorten it if it is long.
+          </DetectedNote>
+        )}
       </Field>
 
       <Field
@@ -153,7 +174,13 @@ export function StepBusiness({ draft, patch, snapshot }: StepProps) {
           placeholder="https://example.com"
         />
         {shop?.primaryUrl ? (
-          <DetectedNote>
+          <DetectedNote
+            action={{
+              label: 'Use this',
+              applied: draft.primaryDomain === shop.primaryUrl,
+              onApply: () => patch({ primaryDomain: shop.primaryUrl }),
+            }}
+          >
             Your Shopify primary domain is {shop.primaryUrl}
             {shop.myshopifyDomain && shop.myshopifyDomain !== hostOf(shop.primaryUrl)
               ? ` (store address: ${shop.myshopifyDomain})`
@@ -197,7 +224,13 @@ export function StepProducts({ draft, patch, snapshot, suggestions, suggestionsL
         />
         {suggestionsLoading && <div className="mt-1"><SuggestionsPending /></div>}
         {derivedIndustry && (
-          <DetectedNote>
+          <DetectedNote
+            action={{
+              label: `Use “${derivedIndustry.value}”`,
+              applied: draft.industry === derivedIndustry.value,
+              onApply: () => patch({ industry: derivedIndustry.value }),
+            }}
+          >
             {derivedIndustry.basis}
             {derivedIndustry.confidence === 'low' && ' This is a weak match — please check it.'}
           </DetectedNote>
@@ -261,7 +294,17 @@ export function StepProducts({ draft, patch, snapshot, suggestions, suggestionsL
           ))}
         </div>
         {suggestionsLoading && <div className="mt-1"><SuggestionsPending /></div>}
-        {derivedShape && <DetectedNote>{derivedShape.basis}</DetectedNote>}
+        {derivedShape && (
+          <DetectedNote
+            action={{
+              label: `Use “${derivedShape.value}”`,
+              applied: draft.catalogShape === derivedShape.value,
+              onApply: () => patch({ catalogShape: derivedShape.value }),
+            }}
+          >
+            {derivedShape.basis}
+          </DetectedNote>
+        )}
       </div>
 
       {!suggestionsLoading && suggestions && !suggestions.available && suggestions.unavailableReason && (
@@ -343,7 +386,18 @@ export function StepMarkets({ draft, patch, suggestions, suggestionsLoading }: S
         )}
 
         {suggestions?.detectedCountry && (
-          <DetectedNote>Your Shopify billing address is in {suggestions.detectedCountry}.</DetectedNote>
+          <DetectedNote
+            action={{
+              label: `Add ${suggestions.detectedCountry}`,
+              applied: countries.includes(suggestions.detectedCountry),
+              onApply: () => {
+                const country = suggestions.detectedCountry as string;
+                patch({ targetCountries: [...countries, country], primaryMarket: draft.primaryMarket ?? country });
+              },
+            }}
+          >
+            Your Shopify billing address is in {suggestions.detectedCountry}.
+          </DetectedNote>
         )}
       </Field>
 
@@ -364,7 +418,9 @@ export function StepMarkets({ draft, patch, suggestions, suggestionsLoading }: S
 
       <div>
         <p className="text-[12.5px] font-semibold text-surface-800">Languages your storefront publishes</p>
-        <p className="mt-0.5 text-[11.5px] text-surface-500">Read from the locales enabled on your Shopify store.</p>
+        <p className="mt-0.5 text-[11.5px] text-surface-500">
+          Read from the locales enabled on your Shopify store. Tick the ones you want audited.
+        </p>
 
         {suggestionsLoading && <div className="mt-1.5"><SuggestionsPending /></div>}
 
@@ -514,7 +570,8 @@ export function StepKeywords({ draft, patch, suggestions, suggestionsLoading }: 
 // ─── Step 5 · Goals and permissions ──────────────────────────────────
 
 export function StepGoals({ draft, patch, snapshot }: StepProps) {
-  const pillars = draft.priorityPillars ?? snapshot.options.pillars;
+  // An unsaved order arrives as an empty list; the product's own order is shown until they move one.
+  const pillars = draft.priorityPillars?.length ? draft.priorityPillars : snapshot.options.pillars;
   const consent = (draft.automationConsent ?? null) as AutomationConsent | null;
 
   return (
