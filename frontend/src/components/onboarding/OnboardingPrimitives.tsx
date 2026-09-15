@@ -236,8 +236,24 @@ function Badge({ children, tone }: { children: ReactNode; tone: 'required' | 'op
 }
 
 /**
- * One labelled control. The description sits BETWEEN the label and the control, so a suggestion
- * rendered under the control stays attached to it rather than being separated by help text.
+ * The grid every step lays its fields out on: two equal columns from `md`, one below.
+ *
+ * WHY THE FIELDS ALIGN. `FormField` and `FormSection` place themselves on this grid's rows with
+ * CSS subgrid — a field spans four row tracks (label, description, control, extras), a section
+ * three. Items side by side share those tracks, so when one description wraps to two lines and its
+ * neighbour's does not, both controls still start on the same line. A plain two-column grid lets
+ * the longer description push its input down, and the pair stops lining up.
+ *
+ * Anything that should take the whole row passes `className="md:col-span-2"`.
+ */
+export function FormGrid({ children }: { children: ReactNode }) {
+  return <div className="grid gap-x-6 gap-y-8 md:grid-cols-2">{children}</div>;
+}
+
+/**
+ * One labelled control. The description sits between the label and the control; anything that
+ * belongs under the control — a suggestion from Shopify, a list of chips — goes in `extras`, so it
+ * stays attached to the control instead of shifting the next row.
  */
 export function FormField({
   label,
@@ -245,6 +261,7 @@ export function FormField({
   hint,
   badge,
   children,
+  extras,
   className = '',
 }: {
   label: string;
@@ -252,50 +269,90 @@ export function FormField({
   hint?: string;
   badge?: 'required' | 'optional';
   children: ReactNode;
+  extras?: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={`min-w-0 ${className}`}>
-      <div className="flex flex-wrap items-center gap-2">
+    // Always four children, even when a hint or extras are absent, so the subgrid rows line up.
+    <div className={`row-span-4 grid min-w-0 grid-rows-subgrid gap-y-0 ${className}`}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <label htmlFor={htmlFor} className="text-[13px] font-semibold text-surface-800">
           {label}
         </label>
         {badge && <Badge tone={badge}>{badge === 'required' ? 'Required' : 'Optional'}</Badge>}
       </div>
-      {hint && (
-        <p id={`${htmlFor}-hint`} className="mt-0.5 text-[12px] leading-[1.45] text-surface-500">
-          {hint}
-        </p>
-      )}
-      <div className="mt-2">{children}</div>
+      <p id={`${htmlFor}-hint`} className="mt-1 text-[12px] leading-[1.45] text-surface-500">
+        {hint}
+      </p>
+      <div className="mt-2.5 min-w-0">{children}</div>
+      <div className="min-w-0">{extras}</div>
     </div>
   );
 }
 
-/** A group of cards or other non-input controls, announced as one group. */
+/** A group of cards or other non-input controls, announced as one group. Aligns on FormGrid rows
+ * exactly as FormField does, over three tracks: title, description, content. */
 export function FormSection({
   title,
   description,
   badge,
   children,
+  className = '',
 }: {
   title: string;
   description?: string;
   badge?: 'required' | 'optional';
   children: ReactNode;
+  className?: string;
 }) {
   const headingId = useId();
   return (
-    <section role="group" aria-labelledby={headingId} className="min-w-0">
-      <div className="flex flex-wrap items-center gap-2">
+    <section
+      role="group"
+      aria-labelledby={headingId}
+      className={`row-span-3 grid min-w-0 grid-rows-subgrid gap-y-0 ${className}`}
+    >
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <h2 id={headingId} className="text-[13px] font-semibold text-surface-800">
           {title}
         </h2>
         {badge && <Badge tone={badge}>{badge === 'required' ? 'Required' : 'Optional'}</Badge>}
       </div>
-      {description && <p className="mt-0.5 text-[12px] leading-[1.45] text-surface-500">{description}</p>}
-      <div className="mt-2.5">{children}</div>
+      <p className="mt-1 text-[12px] leading-[1.45] text-surface-500">{description}</p>
+      <div className="mt-3 min-w-0">{children}</div>
     </section>
+  );
+}
+
+/** The setup page's buttons: a size up from the app's compact `.btn-*` classes, which are built
+ * for dense panels rather than a page's primary actions. Colours mirror `.btn-primary`. */
+export function ActionButton({
+  children,
+  onClick,
+  disabled = false,
+  variant = 'primary',
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: 'primary' | 'secondary' | 'ghost';
+}) {
+  const tone = {
+    primary:
+      'border-brand-700 bg-brand-600 text-surface-0 shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.2)] hover:bg-brand-500',
+    secondary: 'border-surface-200 bg-surface-0 text-surface-700 shadow-sm hover:border-surface-300 hover:bg-surface-50 hover:text-surface-900',
+    ghost: 'border-transparent bg-transparent text-surface-600 hover:bg-surface-100 hover:text-surface-900',
+  }[variant];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 text-[13.5px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${tone}`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -485,12 +542,12 @@ export function QuietNote({ children }: { children: ReactNode }) {
 
 // ─── Choice cards ────────────────────────────────────────────────────
 
-function cardClasses(selected: boolean) {
+function cardClasses(selected: boolean, className = '') {
   return `relative flex h-full cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 transition-[border-color,background-color,box-shadow] ${
     selected
       ? 'border-brand-500 bg-brand-50/60 shadow-[0_0_0_1px_var(--c-brand-500)]'
       : 'border-surface-200 bg-surface-0 hover:border-surface-300 hover:bg-surface-50/70'
-  }`;
+  } ${className}`;
 }
 
 /** A selectable option with a title and an explanation of what choosing it does. */
@@ -501,6 +558,7 @@ export function ChoiceCard({
   label,
   description,
   onSelect,
+  className,
 }: {
   name: string;
   value: string;
@@ -508,10 +566,12 @@ export function ChoiceCard({
   label: string;
   description?: string;
   onSelect: (value: string) => void;
+  /** Grid placement, e.g. letting the last card of an odd row span it. */
+  className?: string;
 }) {
   const id = `${name}-${value.replace(/\W+/g, '-').toLowerCase()}`;
   return (
-    <label htmlFor={id} className={cardClasses(selected)}>
+    <label htmlFor={id} className={cardClasses(selected, className)}>
       <input
         id={id}
         type="radio"

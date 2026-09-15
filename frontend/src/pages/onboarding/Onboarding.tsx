@@ -15,8 +15,13 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import ScoreloLogo from '../../components/auth/ScoreloLogo';
-import { Button } from '../../components/workflows/WorkflowPrimitives';
-import { StepHeader, StepRail, Stepper, UnavailableNote } from '../../components/onboarding/OnboardingPrimitives';
+import {
+  ActionButton,
+  StepHeader,
+  StepRail,
+  Stepper,
+  UnavailableNote,
+} from '../../components/onboarding/OnboardingPrimitives';
 import {
   StepBusiness,
   StepGoals,
@@ -86,6 +91,23 @@ const STEP_ICONS: Record<number, LucideIcon> = {
   5: Target,
 };
 
+/**
+ * Where setup opens. A merchant who has answered nothing always starts at step 1.
+ *
+ * Derived from what is actually answered, not from the stored `currentStep` pointer: setup opens at
+ * the first step that is neither answered nor deliberately skipped. The pointer only ever moved
+ * forward, so clearing an earlier answer — or pressing Continue past steps without answering them —
+ * could still send the merchant to a later step than the first one that needs them. A completed
+ * setup opens at step 1, because arriving then means reviewing answers from the top.
+ */
+function openingStep(state: OnboardingSnapshot): number {
+  if (state.completedAt) return 1;
+  const firstOpen = [...state.progress]
+    .sort((a, b) => a.step - b.step)
+    .find((entry) => entry.status === 'pending');
+  return firstOpen?.step ?? TOTAL_STEPS;
+}
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -122,11 +144,12 @@ export default function Onboarding() {
         // A completed setup is not redirected away — the gate never sends anyone here once it is
         // finished, so arriving with `completedAt` set means the merchant came deliberately to
         // change an answer. The page becomes an edit surface, and saving leaves it complete.
+        const opening = openingStep(state);
         setSnapshot(state);
-        setStep(state.completedAt ? 1 : state.currentStep);
+        setStep(opening);
 
         // Only what the merchant saved. Shopify's values are offered by the steps as suggestions.
-        setDraft({ step: state.currentStep, ...state.answers });
+        setDraft({ step: opening, ...state.answers });
       } catch (error) {
         if (!cancelled) setLoadError(describeOnboardingError(error));
       }
@@ -227,6 +250,13 @@ export default function Onboarding() {
 
   const onFinish = async () => {
     if (busy) return;
+    // The one answer setup cannot finish without: whether Scorelo may write to the store. Every
+    // other question can be skipped, but finishing without this would leave the write gate on a
+    // default the merchant never saw chosen.
+    if (!draft.automationConsent) {
+      setSaveError('Choose whether Scorelo may change your store before finishing setup.');
+      return;
+    }
     setBusy(true);
     try {
       const saved = await persist(TOTAL_STEPS);
@@ -250,9 +280,9 @@ export default function Onboarding() {
         <Card>
           <div className="space-y-4 px-5 py-6 sm:px-7">
             <UnavailableNote>{loadError}</UnavailableNote>
-            <Button variant="secondary" onClick={() => window.location.reload()}>
+            <ActionButton variant="secondary" onClick={() => window.location.reload()}>
               Try again
-            </Button>
+            </ActionButton>
           </div>
         </Card>
       </Frame>
@@ -292,10 +322,10 @@ export default function Onboarding() {
               </div>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button onClick={() => navigate('/integrations')}>Go to Integrations</Button>
-              <Button variant="ghost" onClick={() => navigate('/')}>
+              <ActionButton onClick={() => navigate('/integrations')}>Go to Integrations</ActionButton>
+              <ActionButton variant="ghost" onClick={() => navigate('/')}>
                 Skip for now
-              </Button>
+              </ActionButton>
             </div>
           </div>
         </Card>
@@ -353,44 +383,36 @@ export default function Onboarding() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-1">
               {step > 1 && (
-                <button
-                  type="button"
-                  onClick={() => void goTo(step - 1)}
-                  disabled={busy}
-                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-semibold text-surface-600 transition-colors hover:bg-surface-100 hover:text-surface-900 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                >
-                  <ArrowLeft size={14} aria-hidden="true" />
+                <ActionButton variant="ghost" onClick={() => void goTo(step - 1)} disabled={busy}>
+                  <ArrowLeft size={15} aria-hidden="true" />
                   Back
-                </button>
+                </ActionButton>
               )}
-              <button
-                type="button"
-                onClick={() => void onFinishLater()}
-                disabled={busy}
-                className="rounded-md px-2 py-1.5 text-[13px] font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-800 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
+              <ActionButton variant="ghost" onClick={() => void onFinishLater()} disabled={busy}>
                 {editing ? 'Save and close' : 'Finish later'}
-              </button>
+              </ActionButton>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Skipping is meaningless once setup is complete — there is nothing left to defer, and
-                  recording a skip against a finished step would misreport it on the dashboard. */}
-              {!editing && (
-                <Button variant="secondary" onClick={() => void onSkip()} disabled={busy}>
+            {/* ml-auto keeps the forward actions on the right even when the bar wraps on a phone. */}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {/* Skipping is offered on every step but the last. Once setup is complete there is
+                  nothing left to defer, and on the last step a skip would only record itself and
+                  leave the merchant where they are — Finish later is the honest way out there. */}
+              {!editing && step < TOTAL_STEPS && (
+                <ActionButton variant="secondary" onClick={() => void onSkip()} disabled={busy}>
                   Skip this step
-                </Button>
+                </ActionButton>
               )}
               {step < TOTAL_STEPS ? (
-                <Button onClick={() => void goTo(step + 1)} disabled={busy}>
+                <ActionButton onClick={() => void goTo(step + 1)} disabled={busy}>
                   {busy ? 'Saving…' : editing ? 'Next' : 'Continue'}
-                  {!busy && <ArrowRight size={14} aria-hidden="true" />}
-                </Button>
+                  {!busy && <ArrowRight size={15} aria-hidden="true" />}
+                </ActionButton>
               ) : (
-                <Button onClick={() => void onFinish()} disabled={busy}>
+                <ActionButton onClick={() => void onFinish()} disabled={busy}>
                   {busy ? 'Saving…' : editing ? 'Save changes' : 'Finish setup'}
-                  {!busy && <Check size={14} aria-hidden="true" />}
-                </Button>
+                  {!busy && <Check size={15} aria-hidden="true" />}
+                </ActionButton>
               )}
             </div>
           </div>
@@ -419,7 +441,13 @@ function Frame({
   scrollRef: RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto overscroll-contain bg-surface-50">
+    <div
+      ref={scrollRef}
+      className="h-full overflow-y-auto overscroll-contain bg-surface-50"
+      // A soft brand wash at the top of the page. Built from the theme's own tokens, so it follows
+      // light and dark mode instead of fixing a colour.
+      style={{ backgroundImage: 'radial-gradient(1200px 420px at 50% -120px, var(--c-brand-100), transparent 70%)' }}
+    >
       <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 py-5 sm:px-6 lg:py-8">
         <header className="mb-5 flex items-center justify-between gap-4 lg:mb-7">
           <ScoreloLogo />

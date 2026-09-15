@@ -111,7 +111,7 @@ export default function SetupResumeCard() {
         <div className="flex flex-shrink-0 items-center gap-1.5">
           <Button onClick={() => void resume()} disabled={opening}>
             {opening ? 'Opening…' : done > 0 ? 'Resume setup' : 'Start setup'}
-            <ArrowRight size={13} className="ml-1 inline align-[-1px]" aria-hidden="true" />
+            <ArrowRight size={13} aria-hidden="true" />
           </Button>
         </div>
       </div>
