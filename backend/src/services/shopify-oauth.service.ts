@@ -95,7 +95,7 @@ const REFRESH_SKEW_MS = 5 * 60 * 1000;
 
 type ShopifyConnection = typeof shopifyConnections.$inferSelect;
 
-interface TokenResponse {
+export interface TokenResponse {
   accessToken: string;
   scope: string;
   /** Null for a legacy non-expiring token; Shopify omits these fields when `expiring` is unset. */
@@ -104,15 +104,21 @@ interface TokenResponse {
   refreshTokenExpiresAt: Date | null;
 }
 
-function requireConfigured() {
+export function requireConfigured() {
   if (!shopifyConfigured()) {
     throw new ApiError(500, 'Shopify app is not configured on this server (missing SHOPIFY_API_KEY/SECRET/BACKEND_URL/TOKEN_ENCRYPTION_KEY)', 'SHOPIFY_NOT_CONFIGURED');
   }
 }
 
-export function buildInstallUrl(userId: number, storeId: number, shop: string): string {
+/**
+ * Shopify's authorization screen for `shop`, returning to the one registered callback.
+ *
+ * Connecting a store and signing in with Shopify both come through here, and both land on the same
+ * redirect URI — only the signed `state` differs. Keeping one URI means neither flow needs a new
+ * entry in the app's redirect_urls, which only `shopify app deploy` can change.
+ */
+export function buildAuthorizeUrl(shop: string, state: string): string {
   requireConfigured();
-  const state = signShopifyState(userId, storeId, shop);
   const redirectUri = new URL('/api/shopify/callback', env.backendUrl).toString();
   const authorizeUrl = new URL(`https://${shop}/admin/oauth/authorize`);
   authorizeUrl.searchParams.set('client_id', env.shopifyApiKey!);
@@ -122,9 +128,17 @@ export function buildInstallUrl(userId: number, storeId: number, shop: string): 
   return authorizeUrl.toString();
 }
 
+export function buildInstallUrl(userId: number, storeId: number, shop: string): string {
+  requireConfigured();
+  return buildAuthorizeUrl(shop, signShopifyState(userId, storeId, shop));
+}
+
 /** Shopify's documented OAuth-callback HMAC check: sort every param except hmac/signature,
- * join as key=value with '&', HMAC-SHA256 with the app secret, compare to the sent hmac. */
-function verifyCallbackHmac(query: Record<string, unknown>): boolean {
+ * join as key=value with '&', HMAC-SHA256 with the app secret, compare to the sent hmac.
+ *
+ * The same signature covers the query Shopify appends when it opens the app from the admin or the
+ * App Store (`shop`, `timestamp`, `host`, …), which is how sign-in trusts a shop it did not type. */
+export function verifyCallbackHmac(query: Record<string, unknown>): boolean {
   const { hmac, signature: _signature, ...rest } = query as Record<string, string>;
   if (!hmac) return false;
   const message = Object.keys(rest)
@@ -174,7 +188,7 @@ async function postTokenRequest(shop: string, body: Record<string, string>, fail
 
 /** `expiring=1` asks Shopify for a 1-hour access token plus a 90-day refresh token, which public
  * apps must use for Admin API requests from 2027-01-01. */
-async function exchangeCodeForToken(shop: string, code: string): Promise<TokenResponse> {
+export async function exchangeCodeForToken(shop: string, code: string): Promise<TokenResponse> {
   return postTokenRequest(
     shop,
     { client_id: env.shopifyApiKey!, client_secret: env.shopifyApiSecret!, code, expiring: '1' },

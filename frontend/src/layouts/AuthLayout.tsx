@@ -85,8 +85,8 @@ export default function AuthLayout({
                   Welcome to Scorelo
                 </h2>
                 <p className="mt-4 text-[14.5px] leading-[1.7] text-white/75">
-                  Know exactly what&apos;s holding your store back. Connect your Shopify store
-                  with read-only access — nothing is ever modified — and see what to fix first.
+                  Know exactly what&apos;s holding your store back. Sign in with your Shopify store
+                  and see what to fix first — Scorelo only changes your store when you allow it.
                 </p>
               </div>
 

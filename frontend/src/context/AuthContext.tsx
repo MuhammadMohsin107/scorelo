@@ -9,11 +9,10 @@ type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 interface AuthContextValue {
   status: AuthStatus;
   user: UserRow | null;
-  /** Resolves with what the server decided — whether verification is needed, and whether the code
-   * actually reached the customer's inbox. */
-  signup: (input: authRepository.SignupInput) => Promise<authRepository.SignupResult>;
   /** Resolves with whether the sign-in completed or is waiting on a second factor. */
   login: (input: authRepository.LoginInput) => Promise<authRepository.LoginResult>;
+  /** Finishes a Shopify sign-in from the grant it returned with. Same two outcomes as `login`. */
+  completeShopifySignIn: (grant: string) => Promise<authRepository.LoginResult>;
   /**
    * Finishes a 2FA sign-in with either the emailed code or a recovery code. Resolves with how many
    * recovery codes are left when one was spent, so the page can warn the customer.
@@ -61,20 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
   }, []);
 
-  /**
-   * Signs up, and adopts a session ONLY if the server actually granted one.
-   *
-   * When email verification is enforced the backend deliberately withholds tokens from an
-   * unverified account, so the customer stays unauthenticated until they verify and sign in. The
-   * decision is read from the server's answer rather than from any local flag — a client that
-   * marked itself authenticated here would be inventing a session the API will not honour.
-   *
-   * The result is returned so the signup page can route to verification.
-   */
-  const signup = useCallback(
-    async (input: authRepository.SignupInput) => {
-      const result = await authRepository.signup(input);
-      if (!result.needsVerification) adoptSession(result.user);
+  /** Adopts a session only when Shopify sign-in actually produced one — a second factor pauses it
+   * exactly as it pauses a password sign-in. */
+  const completeShopifySignIn = useCallback(
+    async (grant: string) => {
+      const result = await authRepository.completeShopifySignIn(grant);
+      if (result.status === 'authenticated') adoptSession(result.user);
       return result;
     },
     [adoptSession],
@@ -119,8 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, signup, login, completeTwoFactorLogin, logout }),
-    [status, user, signup, login, completeTwoFactorLogin, logout],
+    () => ({ status, user, login, completeShopifySignIn, completeTwoFactorLogin, logout }),
+    [status, user, login, completeShopifySignIn, completeTwoFactorLogin, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

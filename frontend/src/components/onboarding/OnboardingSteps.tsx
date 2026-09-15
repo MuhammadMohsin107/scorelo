@@ -1,13 +1,20 @@
 import { Loader2 } from 'lucide-react';
-import { Field, SelectInput, TextInput } from '../settings/SettingsPrimitives';
 import {
   CheckCard,
+  Chip,
   ChoiceCard,
   DetectedNote,
+  FactTile,
+  FormField,
+  FormSection,
   InfoNote,
   PriorityList,
+  QuietNote,
+  SelectField,
   SuggestionRow,
   TagInput,
+  TextArea,
+  TextField,
   UnavailableNote,
 } from './OnboardingPrimitives';
 import {
@@ -25,6 +32,9 @@ import {
  * Each step edits a slice of one draft object held by the page. They never fetch and never save —
  * that belongs to the page, so a merchant moving between steps cannot lose an answer to a
  * component unmounting.
+ *
+ * LAID OUT IN TWO COLUMNS on wide screens: short fields that belong together share a row, so a step
+ * fits in far less scrolling. Every grid collapses to one column on narrow screens.
  *
  * No field is ever filled in for the merchant. Where the store has something to say about a field,
  * a `DetectedNote` under it names the source and offers the value as a one-click answer. Where
@@ -48,39 +58,6 @@ export const PILLAR_LABELS: Record<string, string> = {
   'ai-discovery': 'AI Discovery',
 };
 
-function Textarea({
-  id,
-  value,
-  onChange,
-  placeholder,
-  maxLength,
-  rows = 3,
-}: {
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  maxLength: number;
-  rows?: number;
-}) {
-  return (
-    <div>
-      <textarea
-        id={id}
-        rows={rows}
-        value={value}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full resize-y rounded-md border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-[12.5px] leading-[1.5] text-surface-900 outline-none transition-colors placeholder:text-surface-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-      />
-      <p className="mt-1 text-right font-mono text-[11px] text-surface-400">
-        {value.length}/{maxLength}
-      </p>
-    </div>
-  );
-}
-
 /** Hostname of a URL, or null if it will not parse. Guarded because this runs during render, and
  * an unexpected value from the API must not take the step down with it. */
 function hostOf(url: string): string | null {
@@ -93,10 +70,10 @@ function hostOf(url: string): string | null {
 
 function SuggestionsPending() {
   return (
-    <p className="flex items-center gap-1.5 text-[11.5px] text-surface-500">
+    <QuietNote>
       <Loader2 size={12} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
       Reading your catalogue…
-    </p>
+    </QuietNote>
   );
 }
 
@@ -106,7 +83,7 @@ export function StepBusiness({ draft, patch, snapshot }: StepProps) {
   const shop = snapshot.detection.shop;
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-7">
       {!snapshot.detection.available && snapshot.detection.unavailableReason && (
         <UnavailableNote>
           {snapshot.detection.unavailableReason} No suggestions could be read from your store — you can still type
@@ -114,90 +91,100 @@ export function StepBusiness({ draft, patch, snapshot }: StepProps) {
         </UnavailableNote>
       )}
 
-      <Field
-        label="Organisation name"
-        htmlFor="onboarding-organization"
-        hint="The business name used across your reports."
-      >
-        <TextInput
-          id="onboarding-organization"
-          value={draft.organizationName ?? ''}
-          onChange={(value) => patch({ organizationName: value })}
-          placeholder="Your business name"
-        />
-        {shop?.name && (
-          <DetectedNote
-            action={{
-              label: 'Use this',
-              applied: draft.organizationName === shop.name,
-              onApply: () => patch({ organizationName: shop.name }),
-            }}
-          >
-            Your Shopify store name is “{shop.name}”.
-          </DetectedNote>
-        )}
-      </Field>
+      <div className="grid items-start gap-x-6 gap-y-6 md:grid-cols-2">
+        <FormField
+          label="Organisation name"
+          htmlFor="onboarding-organization"
+          hint="The business name used across your reports."
+        >
+          <TextField
+            id="onboarding-organization"
+            value={draft.organizationName ?? ''}
+            onChange={(value) => patch({ organizationName: value })}
+            placeholder="Enter your business name"
+          />
+          {shop?.name && (
+            <DetectedNote
+              action={{
+                label: 'Use this',
+                applied: draft.organizationName === shop.name,
+                onApply: () => patch({ organizationName: shop.name }),
+              }}
+            >
+              Your Shopify store name is “{shop.name}”.
+            </DetectedNote>
+          )}
+        </FormField>
 
-      <Field
-        label="Brand name for page titles"
-        htmlFor="onboarding-brand"
-        hint="Appended to product and collection titles, so keep it short — “Northline”, not “Northline Outdoor Supply Co.”"
-      >
-        <TextInput
-          id="onboarding-brand"
-          value={draft.brandName ?? ''}
-          onChange={(value) => patch({ brandName: value })}
-          placeholder="Brand name"
-        />
-        {shop?.name && (
-          <DetectedNote
-            action={{
-              label: 'Use this',
-              applied: draft.brandName === shop.name,
-              onApply: () => patch({ brandName: shop.name }),
-            }}
-          >
-            Your Shopify store name is “{shop.name}”. Shorten it if it is long.
-          </DetectedNote>
-        )}
-      </Field>
+        <FormField
+          label="Brand name for page titles"
+          htmlFor="onboarding-brand"
+          hint="Added to product and collection titles, so keep it to the name customers know you by."
+        >
+          <TextField
+            id="onboarding-brand"
+            value={draft.brandName ?? ''}
+            onChange={(value) => patch({ brandName: value })}
+            placeholder="Enter your brand name"
+          />
+          {shop?.name && (
+            <DetectedNote
+              action={{
+                label: 'Use this',
+                applied: draft.brandName === shop.name,
+                onApply: () => patch({ brandName: shop.name }),
+              }}
+            >
+              Your Shopify store name is “{shop.name}”. Shorten it if it is long.
+            </DetectedNote>
+          )}
+        </FormField>
 
-      <Field
-        label="Primary storefront domain"
-        htmlFor="onboarding-domain"
-        hint="The address Scorelo crawls and treats as canonical."
-      >
-        <TextInput
-          id="onboarding-domain"
-          value={draft.primaryDomain ?? ''}
-          onChange={(value) => patch({ primaryDomain: value })}
-          placeholder="https://example.com"
-        />
-        {shop?.primaryUrl ? (
-          <DetectedNote
-            action={{
-              label: 'Use this',
-              applied: draft.primaryDomain === shop.primaryUrl,
-              onApply: () => patch({ primaryDomain: shop.primaryUrl }),
-            }}
-          >
-            Your Shopify primary domain is {shop.primaryUrl}
-            {shop.myshopifyDomain && shop.myshopifyDomain !== hostOf(shop.primaryUrl)
-              ? ` (store address: ${shop.myshopifyDomain})`
-              : ''}
-            . Change it only if you publish canonical content elsewhere.
-          </DetectedNote>
-        ) : (
-          shop && <DetectedNote>Shopify did not return a primary domain for this store.</DetectedNote>
-        )}
-      </Field>
+        <FormField
+          label="Primary storefront domain"
+          htmlFor="onboarding-domain"
+          hint="The address Scorelo crawls and treats as canonical."
+          className="md:col-span-2"
+        >
+          <div className="md:max-w-[calc(50%-12px)]">
+            <TextField
+              id="onboarding-domain"
+              value={draft.primaryDomain ?? ''}
+              onChange={(value) => patch({ primaryDomain: value })}
+              placeholder="Enter your storefront address"
+            />
+          </div>
+          {shop?.primaryUrl ? (
+            <DetectedNote
+              action={{
+                label: 'Use this',
+                applied: draft.primaryDomain === shop.primaryUrl,
+                onApply: () => patch({ primaryDomain: shop.primaryUrl }),
+              }}
+            >
+              Your Shopify primary domain is {shop.primaryUrl}
+              {shop.myshopifyDomain && shop.myshopifyDomain !== hostOf(shop.primaryUrl)
+                ? ` (store address: ${shop.myshopifyDomain})`
+                : ''}
+              . Change it only if you publish canonical content elsewhere.
+            </DetectedNote>
+          ) : (
+            shop && <DetectedNote>Shopify did not return a primary domain for this store.</DetectedNote>
+          )}
+        </FormField>
+      </div>
 
       {shop && (
-        <InfoNote>
-          Scorelo already knows your currency ({shop.currencyCode ?? 'not reported'}), timezone (
-          {shop.ianaTimezone ?? 'not reported'}) and country ({shop.country ?? 'not reported'}) from Shopify, so
-          you are not asked for them.
-        </InfoNote>
+        <FormSection
+          title="Already known from Shopify"
+          description="You are not asked for these. They are read from your store each time, so changes in Shopify show up here."
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            <FactTile label="Currency" value={shop.currencyCode} />
+            <FactTile label="Timezone" value={shop.ianaTimezone} />
+            <FactTile label="Country" value={shop.country} />
+          </div>
+        </FormSection>
       )}
     </div>
   );
@@ -210,56 +197,64 @@ export function StepProducts({ draft, patch, snapshot, suggestions, suggestionsL
   const derivedShape = suggestions?.catalogShape ?? null;
 
   return (
-    <div className="space-y-3.5">
-      <Field
-        label="Industry"
-        htmlFor="onboarding-industry"
-        hint="Decides which checks apply — a B2B parts store is not judged on consumer retail signals."
-      >
-        <SelectInput
-          id="onboarding-industry"
-          value={draft.industry ?? ''}
-          options={['', ...snapshot.options.industries] as string[]}
-          onChange={(value) => patch({ industry: value || null })}
-        />
-        {suggestionsLoading && <div className="mt-1"><SuggestionsPending /></div>}
-        {derivedIndustry && (
-          <DetectedNote
-            action={{
-              label: `Use “${derivedIndustry.value}”`,
-              applied: draft.industry === derivedIndustry.value,
-              onApply: () => patch({ industry: derivedIndustry.value }),
-            }}
-          >
-            {derivedIndustry.basis}
-            {derivedIndustry.confidence === 'low' && ' This is a weak match — please check it.'}
-          </DetectedNote>
-        )}
-        {!suggestionsLoading && suggestions?.available && !derivedIndustry && (
-          <DetectedNote>
-            We could not tell your industry from your collections and product types — please choose one.
-          </DetectedNote>
-        )}
-      </Field>
+    <div className="space-y-8">
+      {!suggestionsLoading && suggestions && !suggestions.available && suggestions.unavailableReason && (
+        <UnavailableNote>{suggestions.unavailableReason} Choose your answers manually below.</UnavailableNote>
+      )}
 
-      <Field
-        label="What you sell, in one line"
-        htmlFor="onboarding-sells"
-        hint="Written for a person, not a search engine. This is the single most useful input for generated copy."
-      >
-        <Textarea
-          id="onboarding-sells"
-          value={draft.sellsDescription ?? ''}
-          onChange={(value) => patch({ sellsDescription: value })}
-          placeholder="Hand-thrown stoneware tableware for cafés and restaurants."
-          maxLength={500}
-        />
-      </Field>
+      <div className="grid items-start gap-x-6 gap-y-6 md:grid-cols-2">
+        <FormField
+          label="Industry"
+          htmlFor="onboarding-industry"
+          hint="Decides which checks apply — a B2B parts store is not judged on consumer retail signals."
+        >
+          <SelectField
+            id="onboarding-industry"
+            value={draft.industry ?? ''}
+            options={snapshot.options.industries}
+            placeholder="Select your industry"
+            onChange={(value) => patch({ industry: value || null })}
+          />
+          {suggestionsLoading && (
+            <div className="mt-2">
+              <SuggestionsPending />
+            </div>
+          )}
+          {derivedIndustry && (
+            <DetectedNote
+              action={{
+                label: `Use “${derivedIndustry.value}”`,
+                applied: draft.industry === derivedIndustry.value,
+                onApply: () => patch({ industry: derivedIndustry.value }),
+              }}
+            >
+              {derivedIndustry.basis}
+              {derivedIndustry.confidence === 'low' && ' This is a weak match — please check it.'}
+            </DetectedNote>
+          )}
+          {!suggestionsLoading && suggestions?.available && !derivedIndustry && (
+            <DetectedNote>We could not tell your industry from your collections and product types — please choose one.</DetectedNote>
+          )}
+        </FormField>
 
-      <div>
-        <p className="text-[12.5px] font-semibold text-surface-800">How you sell</p>
-        <p className="mt-0.5 text-[11.5px] text-surface-500">Changes which conversion and structured-data checks run.</p>
-        <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+        <FormField
+          label="What you sell, in one line"
+          htmlFor="onboarding-sells"
+          hint="Written for a person, not a search engine. The most useful input for generated copy."
+        >
+          <TextArea
+            id="onboarding-sells"
+            value={draft.sellsDescription ?? ''}
+            onChange={(value) => patch({ sellsDescription: value })}
+            placeholder="Describe what you sell in one sentence"
+            maxLength={500}
+            rows={3}
+          />
+        </FormField>
+      </div>
+
+      <FormSection title="How you sell" description="Changes which conversion and structured-data checks run.">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {snapshot.options.businessModels.map((model) => (
             <ChoiceCard
               key={model}
@@ -271,12 +266,10 @@ export function StepProducts({ draft, patch, snapshot, suggestions, suggestionsL
             />
           ))}
         </div>
-      </div>
+      </FormSection>
 
-      <div>
-        <p className="text-[12.5px] font-semibold text-surface-800">Catalogue shape</p>
-        <p className="mt-0.5 text-[11.5px] text-surface-500">Sets how Scorelo plans a crawl of your store.</p>
-        <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+      <FormSection title="Catalogue shape" description="Sets how Scorelo plans a crawl of your store.">
+        <div className="grid gap-2.5 sm:grid-cols-2">
           {snapshot.options.catalogShapes.map((shape) => (
             <ChoiceCard
               key={shape}
@@ -293,7 +286,11 @@ export function StepProducts({ draft, patch, snapshot, suggestions, suggestionsL
             />
           ))}
         </div>
-        {suggestionsLoading && <div className="mt-1"><SuggestionsPending /></div>}
+        {suggestionsLoading && (
+          <div className="mt-2">
+            <SuggestionsPending />
+          </div>
+        )}
         {derivedShape && (
           <DetectedNote
             action={{
@@ -305,11 +302,7 @@ export function StepProducts({ draft, patch, snapshot, suggestions, suggestionsL
             {derivedShape.basis}
           </DetectedNote>
         )}
-      </div>
-
-      {!suggestionsLoading && suggestions && !suggestions.available && suggestions.unavailableReason && (
-        <UnavailableNote>{suggestions.unavailableReason} Choose your answers manually below.</UnavailableNote>
-      )}
+      </FormSection>
     </div>
   );
 }
@@ -322,110 +315,96 @@ export function StepMarkets({ draft, patch, suggestions, suggestionsLoading }: S
   const available = countryNames();
   const selectable = available.filter((name) => !countries.includes(name));
 
-  return (
-    <div className="space-y-3.5">
-      <Field
-        label="Countries you sell to"
-        htmlFor="onboarding-country-add"
-        hint="Used to judge hreflang, canonical URLs and duplicate content across markets."
-      >
-        <div className="flex flex-wrap gap-1.5">
-          {countries.map((country) => (
-            <span
-              key={country}
-              className="inline-flex items-center gap-1 rounded bg-brand-50 py-0.5 pl-2 pr-1 text-[11.5px] font-medium text-brand-800"
-            >
-              {country}
-              <button
-                type="button"
-                aria-label={`Remove ${country}`}
-                onClick={() => {
-                  const next = countries.filter((item) => item !== country);
-                  patch({
-                    targetCountries: next,
-                    // The primary market must stay one of the selected countries.
-                    primaryMarket: draft.primaryMarket === country ? (next[0] ?? null) : draft.primaryMarket,
-                  });
-                }}
-                className="rounded p-0.5 text-brand-500 transition-colors hover:bg-brand-100 hover:text-brand-800"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-          {countries.length === 0 && <p className="text-[11.5px] text-surface-500">No countries selected yet.</p>}
-        </div>
+  const removeCountry = (country: string) => {
+    const next = countries.filter((item) => item !== country);
+    patch({
+      targetCountries: next,
+      // The primary market must stay one of the selected countries.
+      primaryMarket: draft.primaryMarket === country ? (next[0] ?? null) : draft.primaryMarket,
+    });
+  };
 
-        {available.length > 0 ? (
-          <select
-            id="onboarding-country-add"
-            value=""
-            onChange={(event) => {
-              const value = event.target.value;
-              if (!value) return;
-              patch({
-                targetCountries: [...countries, value],
-                primaryMarket: draft.primaryMarket ?? value,
-              });
-            }}
-            className="mt-2 w-full cursor-pointer rounded-md border border-surface-200 bg-surface-0 px-2.5 py-1.5 text-[12.5px] text-surface-900 outline-none transition-colors focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-          >
-            <option value="">Add a country…</option>
-            {selectable.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <div className="mt-2">
+  const addCountry = (country: string) => {
+    if (!country) return;
+    patch({ targetCountries: [...countries, country], primaryMarket: draft.primaryMarket ?? country });
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="grid items-start gap-x-6 gap-y-6 md:grid-cols-2">
+        <FormField
+          label="Countries you sell to"
+          htmlFor="onboarding-country-add"
+          hint="Used to judge hreflang, canonical URLs and duplicate content across markets."
+        >
+          {available.length > 0 ? (
+            <SelectField
+              id="onboarding-country-add"
+              value=""
+              options={selectable}
+              placeholder="Add a country…"
+              onChange={addCountry}
+            />
+          ) : (
             <UnavailableNote>
               Your browser could not provide a country list. You can continue and set markets later in Settings.
             </UnavailableNote>
+          )}
+
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {countries.map((country) => (
+              <Chip key={country} label={country} onRemove={() => removeCountry(country)} />
+            ))}
+            {countries.length === 0 && <QuietNote>No countries selected yet.</QuietNote>}
           </div>
-        )}
 
-        {suggestions?.detectedCountry && (
-          <DetectedNote
-            action={{
-              label: `Add ${suggestions.detectedCountry}`,
-              applied: countries.includes(suggestions.detectedCountry),
-              onApply: () => {
-                const country = suggestions.detectedCountry as string;
-                patch({ targetCountries: [...countries, country], primaryMarket: draft.primaryMarket ?? country });
-              },
-            }}
-          >
-            Your Shopify billing address is in {suggestions.detectedCountry}.
-          </DetectedNote>
-        )}
-      </Field>
+          {suggestions?.detectedCountry && (
+            <DetectedNote
+              action={{
+                label: `Add ${suggestions.detectedCountry}`,
+                applied: countries.includes(suggestions.detectedCountry),
+                onApply: () => addCountry(suggestions.detectedCountry as string),
+              }}
+            >
+              Your Shopify billing address is in {suggestions.detectedCountry}.
+            </DetectedNote>
+          )}
+        </FormField>
 
-      {countries.length > 1 && (
-        <Field
+        <FormField
           label="Primary market"
           htmlFor="onboarding-primary-market"
           hint="Which country wins when market signals conflict."
         >
-          <SelectInput
-            id="onboarding-primary-market"
-            value={draft.primaryMarket ?? countries[0]}
-            options={countries}
-            onChange={(value) => patch({ primaryMarket: value })}
-          />
-        </Field>
-      )}
+          {countries.length > 1 ? (
+            <SelectField
+              id="onboarding-primary-market"
+              value={draft.primaryMarket ?? ''}
+              options={countries}
+              placeholder="Select your primary market"
+              onChange={(value) => patch({ primaryMarket: value || null })}
+            />
+          ) : (
+            <p
+              id="onboarding-primary-market"
+              className="flex min-h-10 items-center rounded-lg border border-dashed border-surface-300 bg-surface-50/70 px-3 py-2 text-[12.5px] text-surface-500"
+            >
+              {countries.length === 0
+                ? 'Add a country first.'
+                : `${countries[0]} is your only market, so it is your primary one.`}
+            </p>
+          )}
+        </FormField>
+      </div>
 
-      <div>
-        <p className="text-[12.5px] font-semibold text-surface-800">Languages your storefront publishes</p>
-        <p className="mt-0.5 text-[11.5px] text-surface-500">
-          Read from the locales enabled on your Shopify store. Tick the ones you want audited.
-        </p>
-
-        {suggestionsLoading && <div className="mt-1.5"><SuggestionsPending /></div>}
+      <FormSection
+        title="Languages your storefront publishes"
+        description="Read from the locales enabled on your Shopify store. Tick the ones you want audited."
+      >
+        {suggestionsLoading && <SuggestionsPending />}
 
         {!suggestionsLoading && suggestions?.languages && suggestions.languages.length > 0 && (
-          <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {suggestions.languages.map((locale) => (
               <CheckCard
                 key={locale.locale}
@@ -447,15 +426,17 @@ export function StepMarkets({ draft, patch, suggestions, suggestionsLoading }: S
           </div>
         )}
 
-        {!suggestionsLoading && suggestions && suggestions.languages === null && (
-          <div className="mt-1.5">
-            <UnavailableNote>
-              Scorelo could not read the languages enabled on your store. International checks will be judged against
-              your primary market only until this is available.
-            </UnavailableNote>
-          </div>
+        {!suggestionsLoading && suggestions?.languages && suggestions.languages.length === 0 && (
+          <QuietNote>Shopify reported no enabled locales for this store.</QuietNote>
         )}
-      </div>
+
+        {!suggestionsLoading && suggestions && suggestions.languages === null && (
+          <UnavailableNote>
+            Scorelo could not read the languages enabled on your store. International checks will be judged against
+            your primary market only until this is available.
+          </UnavailableNote>
+        )}
+      </FormSection>
     </div>
   );
 }
@@ -477,92 +458,98 @@ export function StepKeywords({ draft, patch, suggestions, suggestionsLoading }: 
   }));
 
   return (
-    <div className="space-y-3.5">
-      <Field
+    <div className="space-y-8">
+      <FormField
         label="Target keywords"
         htmlFor="onboarding-keywords"
-        hint="The non-branded terms your audit measures you against. Start with the ones below and edit freely."
+        hint="The non-branded terms your audit measures you against. Pick from the suggestions below or type your own."
       >
         <TagInput
           id="onboarding-keywords"
           values={keywords}
           onChange={(next) => patch({ targetKeywords: next })}
-          placeholder="e.g. merino base layers"
+          placeholder="Type a keyword"
           max={10}
           transform={(raw) => {
             const value = raw.trim().replace(/\s+/g, ' ').toLowerCase();
             return value.length >= 3 ? value : null;
           }}
         />
-      </Field>
 
-      {suggestionsLoading && <SuggestionsPending />}
+        <div className="mt-3 space-y-3">
+          {suggestionsLoading && <SuggestionsPending />}
 
-      {!suggestionsLoading && keywordSuggestions.length > 0 && (
-        <SuggestionRow
-          label="From your collections and product types"
-          suggestions={keywordSuggestions}
-          selected={keywords}
-          onAdd={(value) => keywords.length < 10 && patch({ targetKeywords: [...keywords, value] })}
-        />
-      )}
+          {!suggestionsLoading && keywordSuggestions.length > 0 && (
+            <SuggestionRow
+              label="From your collections and product types"
+              suggestions={keywordSuggestions}
+              selected={keywords}
+              onAdd={(value) => keywords.length < 10 && patch({ targetKeywords: [...keywords, value] })}
+            />
+          )}
 
-      {!suggestionsLoading && suggestions?.available && keywordSuggestions.length === 0 && (
-        <InfoNote>
-          Your store has no collections or product types we could turn into keyword suggestions yet, so this list
-          starts empty. Add the terms you want to rank for — you can refine them any time.
-        </InfoNote>
-      )}
+          {!suggestionsLoading && suggestions?.available && keywordSuggestions.length === 0 && (
+            <InfoNote>
+              Your store has no collections or product types we could turn into keyword suggestions yet, so this list
+              starts empty. Add the terms you want to rank for — you can refine them any time.
+            </InfoNote>
+          )}
 
-      {!suggestionsLoading && suggestions && !suggestions.available && suggestions.unavailableReason && (
-        <UnavailableNote>{suggestions.unavailableReason} Add your keywords manually.</UnavailableNote>
-      )}
+          {!suggestionsLoading && suggestions && !suggestions.available && suggestions.unavailableReason && (
+            <UnavailableNote>{suggestions.unavailableReason} Add your keywords manually.</UnavailableNote>
+          )}
+        </div>
+      </FormField>
 
-      <Field
-        label="Branded terms"
-        htmlFor="onboarding-branded"
-        hint="Kept separate so branded search never flatters your non-branded performance."
-      >
-        <TagInput
-          id="onboarding-branded"
-          values={branded}
-          onChange={(next) => patch({ brandedTerms: next })}
-          placeholder="Your brand name and its variants"
-          max={10}
-        />
-      </Field>
+      <div className="grid items-start gap-x-6 gap-y-6 md:grid-cols-2">
+        <FormField
+          label="Branded terms"
+          htmlFor="onboarding-branded"
+          hint="Kept separate so branded search never flatters your non-branded performance."
+        >
+          <TagInput
+            id="onboarding-branded"
+            values={branded}
+            onChange={(next) => patch({ brandedTerms: next })}
+            placeholder="Type a brand term"
+            max={10}
+          />
+          {!suggestionsLoading && brandSuggestions.length > 0 && (
+            <div className="mt-3">
+              <SuggestionRow
+                label="From your store name"
+                suggestions={brandSuggestions}
+                selected={branded}
+                onAdd={(value) => branded.length < 10 && patch({ brandedTerms: [...branded, value] })}
+              />
+            </div>
+          )}
+        </FormField>
 
-      {!suggestionsLoading && brandSuggestions.length > 0 && (
-        <SuggestionRow
-          label="Derived from your store name"
-          suggestions={brandSuggestions}
-          selected={branded}
-          onAdd={(value) => branded.length < 10 && patch({ brandedTerms: [...branded, value] })}
-        />
-      )}
-
-      <Field
-        label="Competitors"
-        htmlFor="onboarding-competitors"
-        hint="Optional. Up to three storefronts to compare against."
-      >
-        <TagInput
-          id="onboarding-competitors"
-          values={competitors}
-          onChange={(next) => patch({ competitorDomains: next })}
-          placeholder="competitor.com"
-          max={3}
-          transform={(raw) => {
-            const host = raw
-              .trim()
-              .toLowerCase()
-              .replace(/^https?:\/\//, '')
-              .replace(/^www\./, '')
-              .replace(/\/.*$/, '');
-            return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(host) ? host : null;
-          }}
-        />
-      </Field>
+        <FormField
+          label="Competitors"
+          htmlFor="onboarding-competitors"
+          badge="optional"
+          hint="Up to three storefronts to compare against."
+        >
+          <TagInput
+            id="onboarding-competitors"
+            values={competitors}
+            onChange={(next) => patch({ competitorDomains: next })}
+            placeholder="Type a competitor’s domain"
+            max={3}
+            transform={(raw) => {
+              const host = raw
+                .trim()
+                .toLowerCase()
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/\/.*$/, '');
+              return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(host) ? host : null;
+            }}
+          />
+        </FormField>
+      </div>
     </div>
   );
 }
@@ -570,16 +557,16 @@ export function StepKeywords({ draft, patch, suggestions, suggestionsLoading }: 
 // ─── Step 5 · Goals and permissions ──────────────────────────────────
 
 export function StepGoals({ draft, patch, snapshot }: StepProps) {
-  // An unsaved order arrives as an empty list; the product's own order is shown until they move one.
-  const pillars = draft.priorityPillars?.length ? draft.priorityPillars : snapshot.options.pillars;
+  // An unsaved order arrives as an empty list; the product's own order is shown — and labelled as
+  // such — until they move one.
+  const ordered = Boolean(draft.priorityPillars?.length);
+  const pillars = ordered ? (draft.priorityPillars as string[]) : snapshot.options.pillars;
   const consent = (draft.automationConsent ?? null) as AutomationConsent | null;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-[12.5px] font-semibold text-surface-800">What matters most right now</p>
-        <p className="mt-0.5 text-[11.5px] text-surface-500">Sets what your dashboard leads with.</p>
-        <div className="mt-1.5 grid gap-1.5">
+    <div className="space-y-8">
+      <FormSection title="What matters most right now" description="Sets what your dashboard leads with.">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {snapshot.options.primaryGoals.map((goal) => (
             <ChoiceCard
               key={goal}
@@ -591,62 +578,67 @@ export function StepGoals({ draft, patch, snapshot }: StepProps) {
             />
           ))}
         </div>
-      </div>
+      </FormSection>
 
-      <div>
-        <p className="text-[12.5px] font-semibold text-surface-800">Priority order</p>
-        <p className="mt-0.5 text-[11.5px] text-surface-500">
-          Findings are ranked in this order when their severity is equal.
-        </p>
-        <div className="mt-1.5">
-          <PriorityList
-            items={pillars.map((key) => ({ key, label: PILLAR_LABELS[key] ?? key }))}
-            onReorder={(keys) => patch({ priorityPillars: keys })}
-          />
-        </div>
-      </div>
-
-      <div>
-        <p className="text-[12.5px] font-semibold text-surface-800">
-          May Scorelo change your store?
-          <span className="ml-1.5 align-middle text-[10px] font-bold uppercase tracking-[0.12em] text-critical-600">
-            Required
-          </span>
-        </p>
-        <p className="mt-0.5 text-[11.5px] text-surface-500">
-          This governs every fix Scorelo offers. You can change it whenever you like.
-        </p>
-        <div className="mt-1.5 grid gap-1.5">
-          {AUTOMATION_CONSENT_OPTIONS.map((option) => (
-            <ChoiceCard
-              key={option.value}
-              name="automation-consent"
-              value={option.value}
-              label={option.label}
-              description={option.description}
-              selected={consent === option.value}
-              onSelect={(value) => patch({ automationConsent: value as AutomationConsent })}
-            />
-          ))}
-        </div>
-        {consent === null && (
-          <div className="mt-1.5">
-            <InfoNote>
-              Until you choose, Scorelo asks before every change — an unanswered question is never treated as
-              permission to write to your store.
-            </InfoNote>
+      <div className="grid items-start gap-x-6 gap-y-8 lg:grid-cols-2">
+        <FormSection
+          title="May Scorelo change your store?"
+          badge="required"
+          description="This governs every fix Scorelo offers. You can change it whenever you like."
+        >
+          <div className="grid gap-2.5">
+            {AUTOMATION_CONSENT_OPTIONS.map((option) => (
+              <ChoiceCard
+                key={option.value}
+                name="automation-consent"
+                value={option.value}
+                label={option.label}
+                description={option.description}
+                selected={consent === option.value}
+                onSelect={(value) => patch({ automationConsent: value as AutomationConsent })}
+              />
+            ))}
           </div>
-        )}
-      </div>
+          {consent === null && (
+            <div className="mt-2.5">
+              <InfoNote>
+                Until you choose, Scorelo asks before every change — an unanswered question is never treated as
+                permission to write to your store.
+              </InfoNote>
+            </div>
+          )}
+        </FormSection>
 
-      <Field label="Audit alerts" htmlFor="onboarding-alerts" hint="Applied to your email notification settings when you finish.">
-        <SelectInput
-          id="onboarding-alerts"
-          value={draft.alertFrequency ?? ''}
-          options={['', ...snapshot.options.alertFrequencies] as string[]}
-          onChange={(value) => patch({ alertFrequency: value || null })}
-        />
-      </Field>
+        <div className="space-y-7">
+          <FormSection
+            title="Priority order"
+            description={
+              ordered
+                ? 'Findings are ranked in this order when their severity is equal.'
+                : 'Findings are ranked in this order when their severity is equal. This is Scorelo’s default order until you move something.'
+            }
+          >
+            <PriorityList
+              items={pillars.map((key) => ({ key, label: PILLAR_LABELS[key] ?? key }))}
+              onReorder={(keys) => patch({ priorityPillars: keys })}
+            />
+          </FormSection>
+
+          <FormField
+            label="Audit alerts"
+            htmlFor="onboarding-alerts"
+            hint="Applied to your email notification settings when you finish."
+          >
+            <SelectField
+              id="onboarding-alerts"
+              value={draft.alertFrequency ?? ''}
+              options={snapshot.options.alertFrequencies}
+              placeholder="Choose how often to be emailed"
+              onChange={(value) => patch({ alertFrequency: value || null })}
+            />
+          </FormField>
+        </div>
+      </div>
     </div>
   );
 }

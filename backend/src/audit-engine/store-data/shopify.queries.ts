@@ -324,6 +324,42 @@ export async function fetchShopIdentity(client: ShopifyClient): Promise<ShopIden
   };
 }
 
+/** The shop OWNER, as distinct from the shop. `email` is where Shopify writes to the owner;
+ * `contactEmail` above is the public address customers use, which is often a shared inbox. */
+export const SHOP_OWNER_QUERY = `
+  query ScoreloShopOwner {
+    shop {
+      email
+      shopOwnerName
+    }
+  }
+`;
+
+export interface ShopOwner {
+  email: string | null;
+  name: string | null;
+}
+
+/**
+ * Reads who owns the shop, for creating the Scorelo account that signing in with Shopify opens.
+ *
+ * Kept out of SHOP_IDENTITY_QUERY on purpose: identity is read by every audit and every sync, and a
+ * field Shopify declines to return here must not be able to fail those. Never throws — an absent
+ * value comes back as null, and the caller decides what an account can be created without.
+ */
+export async function fetchShopOwner(client: ShopifyClient): Promise<ShopOwner> {
+  try {
+    const data = await client.graphql<{ shop: { email: string | null; shopOwnerName: string | null } | null }>(SHOP_OWNER_QUERY);
+    return {
+      email: data.shop?.email?.trim() || null,
+      name: data.shop?.shopOwnerName?.trim() || null,
+    };
+  } catch (error) {
+    console.warn(`[scorelo-api] shopify: shop owner read failed — ${error instanceof Error ? error.message : 'unknown error'}`);
+    return { email: null, name: null };
+  }
+}
+
 export type ProductsResponse = { products: Connection<GqlProduct> | null };
 export type CollectionsResponse = { collections: Connection<GqlCollection> | null };
 export type PagesResponse = { pages: Connection<GqlPage> | null };

@@ -141,10 +141,10 @@ export default function VerifyEmail() {
         <>
           Wrong address?{' '}
           <Link
-            to="/signup"
+            to="/login"
             className="font-semibold text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded"
           >
-            Start again
+            Back to sign in
           </Link>
         </>
       }

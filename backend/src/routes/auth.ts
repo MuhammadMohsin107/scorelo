@@ -6,6 +6,9 @@ import {
   postRefresh,
   postResendVerification,
   postResetPassword,
+  postShopifyComplete,
+  postShopifyLaunch,
+  postShopifyStart,
   postSignup,
   postTwoFactorLogin,
   postTwoFactorResend,
@@ -30,6 +33,7 @@ import {
   verifyEmailSchema,
   verifyResetCodeSchema,
 } from '../schemas/auth.schema.js';
+import { shopifyLoginCompleteSchema, shopifyLoginLaunchSchema, shopifyLoginStartSchema } from '../schemas/shopify.schema.js';
 import { ipAndEmailKey, rateLimit } from '../middleware/rateLimit.js';
 
 export const authRouter = Router();
@@ -83,6 +87,21 @@ authRouter.post(
   rateLimit({ windowMs: 15 * 60 * 1000, max: 3, message: 'Too many requests. Please wait a few minutes before requesting another code.' }),
   validateRequest({ body: twoFactorResendSchema }),
   asyncHandler(postTwoFactorResend),
+);
+
+// ─── Sign in with Shopify ────────────────────────────────────────────
+// Unauthenticated by necessity. Starting only builds an authorization URL — Shopify, not Scorelo,
+// authenticates the merchant — so the limit there is about abuse, not guessing. Completion redeems
+// a grant and is limited like the other credential-redeeming endpoints.
+const shopifyStartLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many sign-in attempts. Please wait a few minutes and try again.' });
+
+authRouter.post('/shopify/start', shopifyStartLimit, validateRequest({ body: shopifyLoginStartSchema }), asyncHandler(postShopifyStart));
+authRouter.post('/shopify/launch', shopifyStartLimit, validateRequest({ body: shopifyLoginLaunchSchema }), asyncHandler(postShopifyLaunch));
+authRouter.post(
+  '/shopify/complete',
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many sign-in attempts. Please wait a few minutes and try again.' }),
+  validateRequest({ body: shopifyLoginCompleteSchema }),
+  asyncHandler(postShopifyComplete),
 );
 
 authRouter.post('/refresh', validateRequest({ body: refreshSchema }), asyncHandler(postRefresh));

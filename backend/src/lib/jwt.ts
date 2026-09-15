@@ -88,6 +88,61 @@ export function verifyGoogleState(token: string): { sub: number; storeId: number
   return { sub: payload.sub, storeId: payload.storeId };
 }
 
+/**
+ * ─── Sign in with Shopify ────────────────────────────────────────────
+ *
+ * Two tokens, both short-lived, neither naming a Scorelo user until Shopify has vouched for one.
+ *
+ * STATE travels through Shopify's OAuth redirect. It carries no user — the merchant is signed out —
+ * only the shop the flow was started for and a SHA-256 of a nonce the starting browser holds in
+ * sessionStorage.
+ *
+ * GRANT is what the callback hands back to the frontend once Shopify has authenticated the shop.
+ * It names the account, but is redeemable only together with the raw nonce, so a grant lifted from
+ * one browser (or planted into another, which is login CSRF) cannot start a session anywhere else.
+ * Two minutes is enough for one redirect and one POST.
+ */
+interface ShopifyLoginStatePayload {
+  shop: string;
+  nonceHash: string;
+  type: 'shopify_login_state';
+}
+
+export function signShopifyLoginState(shop: string, nonceHash: string): string {
+  return jwt.sign({ shop, nonceHash, type: 'shopify_login_state' } satisfies ShopifyLoginStatePayload, env.jwtAccessSecret, { expiresIn: '10m' });
+}
+
+export function verifyShopifyLoginState(token: string): { shop: string; nonceHash: string } {
+  const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
+  if (payload.type !== 'shopify_login_state' || typeof payload.shop !== 'string' || typeof payload.nonceHash !== 'string') {
+    throw new Error('Not a shopify_login_state token');
+  }
+  return { shop: payload.shop, nonceHash: payload.nonceHash };
+}
+
+/** Whether an OAuth state belongs to sign-in rather than to connecting a store from Integrations.
+ * Both flows share one registered redirect URI, so the callback branches on this. */
+export function isShopifyLoginState(token: string): boolean {
+  try {
+    verifyShopifyLoginState(token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function signShopifyLoginGrant(userId: number, nonceHash: string): string {
+  return jwt.sign({ sub: userId, nonceHash, type: 'shopify_login_grant' }, env.jwtAccessSecret, { expiresIn: '2m' });
+}
+
+export function verifyShopifyLoginGrant(token: string): { sub: number; nonceHash: string } {
+  const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
+  if (payload.type !== 'shopify_login_grant' || typeof payload.sub !== 'number' || typeof payload.nonceHash !== 'string') {
+    throw new Error('Not a shopify_login_grant token');
+  }
+  return { sub: payload.sub, nonceHash: payload.nonceHash };
+}
+
 export function verifyShopifyState(token: string): ShopifyStatePayload {
   const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
   if (payload.type !== 'shopify_state' || typeof payload.sub !== 'number' || typeof payload.shop !== 'string') {

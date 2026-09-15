@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppShell from './layouts/AppShell';
 import Dashboard from './pages/Dashboard';
@@ -24,17 +24,39 @@ import Login from './pages/auth/Login';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import VerifyEmail from './pages/auth/VerifyEmail';
-import Signup from './pages/auth/Signup';
 import RequireAuth from './components/auth/RequireAuth';
 import Onboarding from './pages/onboarding/Onboarding';
 import OnboardingGate from './components/onboarding/OnboardingGate';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { readShopifyGrant, readShopifyLaunch } from './data/auth.repository';
 
-/** Sends an already-signed-in visitor away from /login and /signup. */
+/**
+ * Sends an already-signed-in visitor away from /login — unless Shopify sign-in is arriving there.
+ *
+ * Opening Scorelo from a Shopify admin names a shop, and that shop decides which account opens. A
+ * session left over in this browser (possibly for a different store) must not swallow the launch or
+ * the returning grant by bouncing straight to the dashboard.
+ */
 function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
-  if (status === 'authenticated') return <Navigate to="/" replace />;
+  const location = useLocation();
+  const shopifyArriving = Boolean(readShopifyLaunch(location.search) || readShopifyGrant(location.hash));
+  if (status === 'authenticated' && !shopifyArriving) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+/**
+ * Shopify opens the app at its root URL with a signed query (App Store install, or Apps in the
+ * admin). Wherever that lands, it is forwarded — query intact — to /login, which starts Shopify's
+ * authorization. Without this, the in-app guard would redirect to /login and drop the query, and an
+ * App Store install would stop at a sign-in form instead of authenticating immediately.
+ */
+function ShopifyLaunchForwarder({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  if (location.pathname !== '/login' && readShopifyLaunch(location.search)) {
+    return <Navigate to={{ pathname: '/login', search: location.search }} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -46,10 +68,13 @@ export default function App() {
     <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
+        <ShopifyLaunchForwarder>
         <Routes>
           {/* Auth routes render outside AppShell — no sidebar/header before sign-in. */}
           <Route path="/login" element={<RedirectIfAuthenticated><Login /></RedirectIfAuthenticated>} />
-          <Route path="/signup" element={<RedirectIfAuthenticated><Signup /></RedirectIfAuthenticated>} />
+          {/* New merchants get their account by signing in with Shopify, so there is no separate
+              signup form. Old links land on the sign-in page, where that starts. */}
+          <Route path="/signup" element={<Navigate to="/login" replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           {/* Not wrapped in RedirectIfAuthenticated: while verification is enforced a signing-up
@@ -62,6 +87,7 @@ export default function App() {
           <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
           <Route path="*" element={<AuthenticatedApp />} />
           </Routes>
+        </ShopifyLaunchForwarder>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

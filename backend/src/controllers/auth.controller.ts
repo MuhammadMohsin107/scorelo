@@ -3,6 +3,7 @@ import { completeTwoFactorLogin, login, logout, refresh, resendEmailVerification
 import { resendTwoFactorCode, sendTwoFactorCode } from '../services/two-factor.service.js';
 import { requestPasswordReset, resetPassword, verifyResetCode } from '../services/password-reset.service.js';
 import { challengeRejected } from '../services/auth-challenge.service.js';
+import { beginShopifyLaunch, beginShopifyLogin, completeShopifyLogin } from '../services/shopify-login.service.js';
 import { requireUserId } from '../lib/requestContext.js';
 import { requestMetadata } from '../lib/requestMetadata.js';
 
@@ -106,6 +107,34 @@ export async function postTwoFactorLogin(req: Request, res: Response) {
 export async function postTwoFactorResend(req: Request, res: Response) {
   await resendTwoFactorCode(req.body.ticket);
   res.status(202).json({ data: { message: 'If your sign-in is still in progress, a new code has been sent.' } });
+}
+
+// ─── Sign in with Shopify ────────────────────────────────────────────
+// Both starts return the authorization URL as JSON rather than redirecting, for the same reason
+// GET /shopify/install does: the browser needs to keep the nonce it generated, and a fetch it
+// initiated is how it stays in control of the navigation.
+
+/** The merchant typed their store address on the sign-in page. */
+export async function postShopifyStart(req: Request, res: Response) {
+  res.json({ data: { url: beginShopifyLogin(req.body.shop, req.body.nonce) } });
+}
+
+/** Shopify opened Scorelo with a signed query — the App Store install or the admin's Apps list. */
+export async function postShopifyLaunch(req: Request, res: Response) {
+  res.json({ data: { url: beginShopifyLaunch(req.body.launch, req.body.nonce) } });
+}
+
+/** Same two response shapes as POST /auth/login, so the client finishes both routes identically. */
+export async function postShopifyComplete(req: Request, res: Response) {
+  const result = await completeShopifyLogin(req.body.grant, req.body.nonce, requestMetadata(req));
+
+  if (result.twoFactorRequired) {
+    res.json({ data: { twoFactorRequired: true, ticket: result.ticket } });
+    return;
+  }
+
+  const { user, accessToken, refreshToken } = result;
+  res.json({ data: { twoFactorRequired: false, user, accessToken, refreshToken } });
 }
 
 export async function postRefresh(req: Request, res: Response) {

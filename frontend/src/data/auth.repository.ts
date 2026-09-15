@@ -1,4 +1,4 @@
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { clearTokens, getRefreshToken, setTokens } from '../lib/authTokens';
 import type { UserRow } from './api.types';
 
@@ -8,28 +8,6 @@ interface AuthPayload {
   refreshToken: string;
 }
 
-/**
- * Signup's reply. The shape is the same whether or not the server enforces verification — only
- * `emailVerificationRequired` and the presence of tokens change — so this client keeps working
- * across a flag flip on the server without a redeploy.
- */
-interface SignupPayload {
-  user: UserRow;
-  emailVerificationRequired: boolean;
-  /** False when the account was created but the code could not be mailed. Not a failure: the
-   * account exists and the customer needs the resend flow. */
-  verificationSent: boolean;
-  accessToken?: string;
-  refreshToken?: string;
-}
-
-export interface SignupResult {
-  user: UserRow;
-  /** True when the customer must verify before they can sign in — no session was created. */
-  needsVerification: boolean;
-  verificationSent: boolean;
-}
-
 /** Client-only session preference. It is deliberately NOT part of the request body: the backend
  * schemas are `.strict()`, so an unexpected key is rejected with a 400. */
 interface SessionPreference {
@@ -37,36 +15,132 @@ interface SessionPreference {
   rememberMe?: boolean;
 }
 
-export interface SignupInput extends SessionPreference {
-  fullName: string;
-  email: string;
-  password: string;
-}
-
 export interface LoginInput extends SessionPreference {
   email: string;
   password: string;
 }
 
-/**
- * Creates an account and sends a verification code.
- *
- * Whether a session starts here is the SERVER's decision, not this client's: tokens arrive only
- * while verification is not enforced. Storing them is conditional on their presence rather than on
- * any local flag, so the browser can never manufacture a session the backend did not grant.
- */
-export async function signup({ rememberMe, ...credentials }: SignupInput): Promise<SignupResult> {
-  const payload = await api.post<SignupPayload>('/auth/signup', credentials, { skipAuth: true });
+// ─── Sign in with Shopify ────────────────────────────────────────────
+//
+// New merchants get their account from Shopify rather than from a form: they approve Scorelo on
+// Shopify's own screen, and the backend creates the account from the shop's records. Existing
+// email-and-password accounts keep signing in the way they always have.
+//
+// THE NONCE is what ties the end of a sign-in to the browser that started it. It is generated here,
+// kept in sessionStorage (which survives the redirect to Shopify and back in the same tab), and only
+// its hash travels through Shopify. Without it, a grant copied out of one browser — or planted into
+// someone else's — could start a session.
 
-  if (payload.accessToken && payload.refreshToken) {
-    setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken }, { remember: rememberMe });
+const SHOPIFY_NONCE_KEY = 'scorelo.shopifySignInNonce';
+
+function base64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Mints and stores a fresh nonce. Throws when storage is unavailable, because a sign-in that
+ * cannot remember its nonce can never be completed and should not be started. */
+function beginNonce(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const nonce = base64Url(bytes);
+  try {
+    window.sessionStorage.setItem(SHOPIFY_NONCE_KEY, nonce);
+  } catch {
+    throw new ApiError('Your browser is blocking site storage, which Shopify sign-in needs. Allow it for this site and try again.', 0, 'STORAGE_UNAVAILABLE');
+  }
+  return nonce;
+}
+
+/** Reads the nonce and removes it — a nonce is good for one completion attempt only. */
+function takeNonce(): string | null {
+  try {
+    const nonce = window.sessionStorage.getItem(SHOPIFY_NONCE_KEY);
+    window.sessionStorage.removeItem(SHOPIFY_NONCE_KEY);
+    return nonce;
+  } catch {
+    return null;
+  }
+}
+
+/** Sends the merchant to Shopify for the store address they typed. */
+export async function startShopifySignIn(shop: string): Promise<void> {
+  const nonce = beginNonce();
+  const { url } = await api.post<{ url: string }>('/auth/shopify/start', { shop, nonce }, { skipAuth: true });
+  window.location.assign(url);
+}
+
+/** Sends the merchant to Shopify for the store Shopify itself named when it opened Scorelo. */
+export async function startShopifyLaunch(launch: Record<string, string>): Promise<void> {
+  const nonce = beginNonce();
+  const { url } = await api.post<{ url: string }>('/auth/shopify/launch', { launch, nonce }, { skipAuth: true });
+  window.location.assign(url);
+}
+
+/**
+ * Redeems the grant Shopify sign-in returned with, in this browser.
+ *
+ * Returns the same two outcomes as a password sign-in, and stores tokens only when the server
+ * actually issued them.
+ */
+export async function completeShopifySignIn(grant: string): Promise<LoginResult> {
+  const nonce = takeNonce();
+  if (!nonce) {
+    throw new ApiError('This Shopify sign-in has expired. Please start again.', 401, 'SHOPIFY_LOGIN_INVALID');
   }
 
-  return {
-    user: payload.user,
-    needsVerification: payload.emailVerificationRequired,
-    verificationSent: payload.verificationSent,
-  };
+  const payload = await api.post<LoginPayload>('/auth/shopify/complete', { grant, nonce }, { skipAuth: true });
+  if (payload.twoFactorRequired) return { status: 'two-factor', ticket: payload.ticket };
+
+  setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+  return { status: 'authenticated', user: payload.user };
+}
+
+/**
+ * The signed query Shopify appends when it opens Scorelo (App Store install, or the admin's Apps
+ * list), or null when this is an ordinary visit. Every key is kept exactly as sent — the backend
+ * verifies an HMAC over all of them.
+ */
+export function readShopifyLaunch(search: string): Record<string, string> | null {
+  const params = new URLSearchParams(search);
+  if (!params.get('shop') || !params.get('hmac')) return null;
+  const launch: Record<string, string> = {};
+  params.forEach((value, key) => {
+    launch[key] = value;
+  });
+  return launch;
+}
+
+/** The grant a completed Shopify sign-in returns with, carried in the URL fragment. */
+export function readShopifyGrant(hash: string): string | null {
+  return new URLSearchParams(hash.replace(/^#/, '')).get('shopify_grant');
+}
+
+/** Merchant-facing wording for a Shopify sign-in failure — a redirect `reason` or an API error code.
+ * Raw codes are never shown. */
+export function describeShopifySignInFailure(code: string | null | undefined): string {
+  switch (code) {
+    case 'access_denied':
+      return 'Shopify sign-in was cancelled. Nothing was connected.';
+    case 'SHOPIFY_LOGIN_EMAIL_TAKEN':
+      return 'A Scorelo account already uses this store’s email address. Sign in with your email and password, then connect the store from Integrations.';
+    case 'SHOPIFY_LOGIN_NO_EMAIL':
+      return 'Shopify did not share an email address for this store, so we could not create your account.';
+    case 'SHOPIFY_LOGIN_INVALID':
+    case 'SHOPIFY_STATE_INVALID':
+      return 'This Shopify sign-in has expired. Please start again.';
+    case 'SHOPIFY_HMAC_INVALID':
+    case 'SHOPIFY_STATE_MISMATCH':
+    case 'SHOPIFY_LAUNCH_INVALID':
+      return 'Shopify sign-in failed its security check. Please try again.';
+    case 'SHOPIFY_NOT_CONFIGURED':
+      return 'Shopify sign-in is not configured on this server yet. Contact your administrator.';
+    case 'STORAGE_UNAVAILABLE':
+      return 'Your browser is blocking site storage, which Shopify sign-in needs. Allow it for this site and try again.';
+    default:
+      return 'We could not sign you in with Shopify. Please try again.';
+  }
 }
 
 // ─── Email verification ──────────────────────────────────────────────

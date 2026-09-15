@@ -1,9 +1,22 @@
-import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, Check, Loader2, Store } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  Check,
+  Globe,
+  Loader2,
+  Package,
+  Search,
+  Store,
+  Target,
+  type LucideIcon,
+} from 'lucide-react';
 import ScoreloLogo from '../../components/auth/ScoreloLogo';
 import { Button } from '../../components/workflows/WorkflowPrimitives';
-import { StepHeader, Stepper, UnavailableNote } from '../../components/onboarding/OnboardingPrimitives';
+import { StepHeader, StepRail, Stepper, UnavailableNote } from '../../components/onboarding/OnboardingPrimitives';
 import {
   StepBusiness,
   StepGoals,
@@ -34,6 +47,10 @@ import {
  * these has nothing to navigate to yet, and a sidebar full of empty dashboards is a distraction
  * from the only task on screen.
  *
+ * WIDE, NOT TALL. A progress rail sits beside the step on large screens and the step's fields pair
+ * up in two columns, so most steps fit with little scrolling. The action bar is pinned to the bottom
+ * of the card so Continue is always in reach on the longer ones.
+ *
  * ONE DRAFT, HELD HERE. The step components are presentational, so switching steps cannot lose an
  * answer to a component unmounting. Each step is persisted when the merchant leaves it, which is
  * what makes "finish later" resume exactly where they were on any device.
@@ -61,8 +78,17 @@ const STEP_COMPONENTS: Record<number, (props: StepProps) => ReactElement> = {
   5: StepGoals,
 };
 
+const STEP_ICONS: Record<number, LucideIcon> = {
+  1: Building2,
+  2: Package,
+  3: Globe,
+  4: Search,
+  5: Target,
+};
+
 export default function Onboarding() {
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const [snapshot, setSnapshot] = useState<OnboardingSnapshot | null>(null);
   const [suggestions, setSuggestions] = useState<OnboardingSuggestions | null>(null);
@@ -77,6 +103,12 @@ export default function Onboarding() {
     setDraft((previous) => ({ ...previous, ...changes }));
     setSaveError(null);
   }, []);
+
+  // A new step starts at its top. The action bar is pinned to the bottom, so without this the
+  // merchant would land halfway down the next step with its heading scrolled out of view.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [step]);
 
   // ── Initial load ───────────────────────────────────────────────────
   useEffect(() => {
@@ -214,27 +246,29 @@ export default function Onboarding() {
 
   if (loadError) {
     return (
-      <Shell>
-        <div className="px-4 py-6">
-          <UnavailableNote>{loadError}</UnavailableNote>
-          <div className="mt-3">
+      <Frame scrollRef={scrollRef}>
+        <Card>
+          <div className="space-y-4 px-5 py-6 sm:px-7">
+            <UnavailableNote>{loadError}</UnavailableNote>
             <Button variant="secondary" onClick={() => window.location.reload()}>
               Try again
             </Button>
           </div>
-        </div>
-      </Shell>
+        </Card>
+      </Frame>
     );
   }
 
   if (!snapshot) {
     return (
-      <Shell>
-        <div className="flex items-center gap-2 px-4 py-8 text-[12.5px] text-surface-500">
-          <Loader2 size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-          Loading your store…
-        </div>
-      </Shell>
+      <Frame scrollRef={scrollRef}>
+        <Card>
+          <div role="status" className="flex items-center gap-2.5 px-5 py-8 text-[13px] text-surface-500 sm:px-7">
+            <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            Loading your store…
+          </div>
+        </Card>
+      </Frame>
     );
   }
 
@@ -242,28 +276,30 @@ export default function Onboarding() {
   // without one. Sending the merchant to connect is the only honest next step.
   if (!snapshot.connected) {
     return (
-      <Shell>
-        <div className="px-4 py-6">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
-              <Store size={17} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <h1 className="text-[15px] font-bold tracking-tight text-surface-950">Connect your Shopify store first</h1>
-              <p className="mt-1 max-w-md text-[12.5px] leading-[1.5] text-surface-500">
-                Guided setup suggests your business details, markets and keywords from your real store data.
-                Connect Shopify and it will take about two minutes.
-              </p>
+      <Frame scrollRef={scrollRef}>
+        <Card>
+          <div className="px-5 py-6 sm:px-7">
+            <div className="flex items-start gap-4">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+                <Store size={20} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-[18px] font-semibold tracking-tight text-surface-950">Connect your Shopify store first</h1>
+                <p className="mt-1.5 text-[13px] leading-[1.55] text-surface-500">
+                  Guided setup suggests your business details, markets and keywords from your real store data.
+                  Connect Shopify and it will take about two minutes.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button onClick={() => navigate('/integrations')}>Go to Integrations</Button>
+              <Button variant="ghost" onClick={() => navigate('/')}>
+                Skip for now
+              </Button>
             </div>
           </div>
-          <div className="mt-4 flex gap-2">
-            <Button onClick={() => navigate('/integrations')}>Go to Integrations</Button>
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              Skip for now
-            </Button>
-          </div>
-        </div>
-      </Shell>
+        </Card>
+      </Frame>
     );
   }
 
@@ -275,109 +311,142 @@ export default function Onboarding() {
     title: entry.title,
     status: snapshot.progress.find((progress) => progress.step === entry.step)?.status ?? 'pending',
   }));
+  const jump = (target: number) => void goTo(target);
 
   return (
-    <Shell>
-      {editing && (
-        <div className="flex items-center gap-2 border-b border-success-100 bg-success-50 px-4 py-2">
-          <Check size={13} className="flex-shrink-0 text-success-700" aria-hidden="true" />
-          <p className="text-[11.5px] leading-[1.45] text-success-700">
-            Setup is complete. Change anything you like — every step stays available, and saving keeps your setup
-            finished.
-          </p>
+    <Frame scrollRef={scrollRef} rail={<StepRail current={step} steps={stepperSteps} onJump={jump} />}>
+      <Card>
+        {editing && (
+          <div className="flex items-center gap-2 rounded-t-xl border-b border-success-100 bg-success-50 px-5 py-2.5 sm:px-7">
+            <Check size={14} className="flex-shrink-0 text-success-700" aria-hidden="true" />
+            <p className="text-[12px] leading-[1.45] text-success-700">
+              Setup is complete. Change anything you like — every step stays available, and saving keeps your setup
+              finished.
+            </p>
+          </div>
+        )}
+
+        <div className="border-b border-surface-200 lg:hidden">
+          <Stepper current={step} steps={stepperSteps} onJump={jump} />
         </div>
-      )}
 
-      <div className="border-b border-surface-200 bg-surface-50/60">
-        <Stepper current={step} steps={stepperSteps} onJump={(target) => void goTo(target)} />
-      </div>
+        <StepHeader step={step} total={TOTAL_STEPS} title={meta.title} purpose={meta.purpose} icon={STEP_ICONS[step]} />
 
-      <StepHeader step={step} total={TOTAL_STEPS} title={meta.title} purpose={meta.purpose} />
-
-      <div className="px-4 py-3.5">
-        <StepComponent
-          draft={draft}
-          patch={patch}
-          snapshot={snapshot}
-          suggestions={suggestions}
-          suggestionsLoading={suggestionsLoading}
-        />
-      </div>
-
-      {saveError && (
-        <div className="px-4 pb-2">
-          <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-critical-700">
-            <AlertTriangle size={12} aria-hidden="true" />
-            {saveError}
-          </p>
+        <div className="px-5 py-6 sm:px-7 sm:py-7">
+          <StepComponent
+            draft={draft}
+            patch={patch}
+            snapshot={snapshot}
+            suggestions={suggestions}
+            suggestionsLoading={suggestionsLoading}
+          />
         </div>
-      )}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-surface-200 bg-surface-50/60 px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          {step > 1 && (
-            <button
-              type="button"
-              onClick={() => void goTo(step - 1)}
-              disabled={busy}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-semibold text-surface-600 transition-colors hover:text-surface-900 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-            >
-              <ArrowLeft size={13} aria-hidden="true" />
-              Back
-            </button>
+        <footer className="sticky bottom-0 z-10 rounded-b-xl border-t border-surface-200 bg-surface-0/95 px-5 py-3.5 backdrop-blur-sm sm:px-7">
+          {saveError && (
+            <p role="alert" className="mb-2.5 flex items-center gap-1.5 text-[12px] font-medium text-critical-700">
+              <AlertTriangle size={13} aria-hidden="true" />
+              {saveError}
+            </p>
           )}
-          <button
-            type="button"
-            onClick={() => void onFinishLater()}
-            disabled={busy}
-            className="rounded-md px-1.5 py-1 text-[12px] font-medium text-surface-500 underline-offset-2 transition-colors hover:text-surface-800 hover:underline disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-          >
-            {editing ? 'Save and close' : 'Finish later'}
-          </button>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {/* Skipping is meaningless once setup is complete — there is nothing left to defer, and
-              recording a skip against a finished step would misreport it on the dashboard. */}
-          {!editing && (
-            <Button variant="secondary" onClick={() => void onSkip()} disabled={busy}>
-              Skip this step
-            </Button>
-          )}
-          {step < TOTAL_STEPS ? (
-            <Button onClick={() => void goTo(step + 1)} disabled={busy}>
-              {busy ? 'Saving…' : editing ? 'Next' : 'Continue'}
-            </Button>
-          ) : (
-            <Button onClick={() => void onFinish()} disabled={busy}>
-              {busy ? 'Saving…' : editing ? 'Save changes' : 'Finish setup'}
-            </Button>
-          )}
-        </div>
-      </footer>
-    </Shell>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => void goTo(step - 1)}
+                  disabled={busy}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-semibold text-surface-600 transition-colors hover:bg-surface-100 hover:text-surface-900 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
+                  <ArrowLeft size={14} aria-hidden="true" />
+                  Back
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void onFinishLater()}
+                disabled={busy}
+                className="rounded-md px-2 py-1.5 text-[13px] font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-800 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                {editing ? 'Save and close' : 'Finish later'}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Skipping is meaningless once setup is complete — there is nothing left to defer, and
+                  recording a skip against a finished step would misreport it on the dashboard. */}
+              {!editing && (
+                <Button variant="secondary" onClick={() => void onSkip()} disabled={busy}>
+                  Skip this step
+                </Button>
+              )}
+              {step < TOTAL_STEPS ? (
+                <Button onClick={() => void goTo(step + 1)} disabled={busy}>
+                  {busy ? 'Saving…' : editing ? 'Next' : 'Continue'}
+                  {!busy && <ArrowRight size={14} aria-hidden="true" />}
+                </Button>
+              ) : (
+                <Button onClick={() => void onFinish()} disabled={busy}>
+                  {busy ? 'Saving…' : editing ? 'Save changes' : 'Finish setup'}
+                  {!busy && <Check size={14} aria-hidden="true" />}
+                </Button>
+              )}
+            </div>
+          </div>
+        </footer>
+      </Card>
+    </Frame>
   );
 }
 
-/** The page frame: logo, a single card, nothing else competing for attention.
+/**
+ * The page frame: logo, an optional progress rail, and the step card.
  *
  * `h-full`, not `min-h-full`: html, body and #root are fixed to the viewport with overflow hidden,
  * so this div must be exactly viewport-high to become the scroll container. With `min-h-full` it
- * grew to fit the card and the bottom of a long step was clipped with no way to scroll to it. */
-function Shell({ children }: { children: ReactNode }) {
+ * grew to fit the card and the bottom of a long step was clipped with no way to scroll to it.
+ *
+ * Without a rail (loading, errors, not connected) the card is centred at a reading width.
+ */
+function Frame({
+  children,
+  rail,
+  scrollRef,
+}: {
+  children: ReactNode;
+  rail?: ReactNode;
+  scrollRef: RefObject<HTMLDivElement | null>;
+}) {
   return (
-    <div className="h-full overflow-y-auto overscroll-contain bg-surface-50">
-      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6 sm:py-10">
-        <div className="mb-4 flex justify-center">
+    <div ref={scrollRef} className="h-full overflow-y-auto overscroll-contain bg-surface-50">
+      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 py-5 sm:px-6 lg:py-8">
+        <header className="mb-5 flex items-center justify-between gap-4 lg:mb-7">
           <ScoreloLogo />
-        </div>
-        <div className="overflow-hidden rounded-lg border border-surface-200 bg-surface-0 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.45)]">
-          {children}
-        </div>
-        <p className="mt-3 text-center text-[11.5px] text-surface-500">
-          Your answers are saved as you go. You can change any of them later in Settings.
-        </p>
+          <p className="hidden text-right text-[12px] text-surface-500 sm:block">
+            Your answers are saved as you go. You can change any of them later in Settings.
+          </p>
+        </header>
+
+        {rail ? (
+          <div className="grid flex-1 items-start gap-6 lg:grid-cols-[264px_minmax(0,1fr)] xl:gap-8">
+            <aside className="hidden lg:sticky lg:top-6 lg:block">{rail}</aside>
+            <div className="min-w-0">{children}</div>
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-xl">{children}</div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** No `overflow-hidden`: it would stop the action bar from sticking. Corners are rounded on the
+ * first and last children instead. */
+function Card({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-surface-200 bg-surface-0 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)]">
+      {children}
     </div>
   );
 }

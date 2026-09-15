@@ -1,13 +1,22 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { KeyRound, Lock, Mail } from 'lucide-react';
+import { KeyRound, Loader2, Lock, Mail, Store } from 'lucide-react';
 import AuthLayout from '../../layouts/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
 import AuthAlert from '../../components/auth/AuthAlert';
 import AuthSubmitButton from '../../components/auth/AuthSubmitButton';
 import OtpInput from '../../components/auth/OtpInput';
 import { useAuth } from '../../context/AuthContext';
-import { resendTwoFactorCode, sendTwoFactorCode } from '../../data/auth.repository';
+import {
+  describeShopifySignInFailure,
+  readShopifyGrant,
+  readShopifyLaunch,
+  resendTwoFactorCode,
+  sendTwoFactorCode,
+  startShopifyLaunch,
+  startShopifySignIn,
+} from '../../data/auth.repository';
+import { normalizeShopDomain } from '../../data/shopify.repository';
 import { ApiError } from '../../lib/api';
 
 interface FieldErrors {
@@ -18,10 +27,36 @@ interface FieldErrors {
 /** Matches the backend's resend limit with room to spare. */
 const RESEND_COOLDOWN_SECONDS = 60;
 
+/**
+ * ─── Sign in ─────────────────────────────────────────────────────────
+ *
+ * SHOPIFY FIRST. A merchant signs in — and a new merchant gets their account — by naming their
+ * store and approving Scorelo on Shopify's own screen. Email and password remain for accounts that
+ * were created that way, one click away.
+ *
+ * This page is also where Shopify sign-in ARRIVES, in two ways that need no form at all:
+ *   • Shopify opened Scorelo (App Store install, or Apps in the admin) with a signed query — the
+ *     page sends the merchant straight on to Shopify's authorization, with nothing typed.
+ *   • Shopify's authorization finished and the backend returned a grant in the URL fragment — the
+ *     page redeems it and signs the merchant in.
+ */
+function describeShopifyError(error: unknown): string {
+  if (error instanceof ApiError) {
+    // The rate limiter's wording is already merchant-safe.
+    if (error.status === 429) return error.message;
+    return describeShopifySignInFailure(error.code);
+  }
+  return 'We could not reach Scorelo. Check your connection and try again.';
+}
+
 export default function Login() {
-  const { login, completeTwoFactorLogin } = useAuth();
+  const { login, completeShopifySignIn, completeTwoFactorLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [method, setMethod] = useState<'shopify' | 'email'>('shopify');
+  const [shopInput, setShopInput] = useState('');
+  const [shopError, setShopError] = useState('');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,10 +64,22 @@ export default function Login() {
   const [formError, setFormError] = useState('');
   const [pending, setPending] = useState(false);
 
+  /**
+   * What the page is doing because of HOW it was opened, before any form is shown. Derived from the
+   * URL on first render so a merchant arriving from Shopify never sees a form flash before the
+   * redirect or the sign-in completes.
+   */
+  const [arrival, setArrival] = useState<'none' | 'redirecting' | 'completing'>(() =>
+    readShopifyGrant(location.hash) ? 'completing' : readShopifyLaunch(location.search) ? 'redirecting' : 'none',
+  );
+  // A grant's nonce is single-use, so the arrival must be handled exactly once — including under
+  // StrictMode, which runs mount effects twice in development.
+  const arrivalHandled = useRef(false);
+
   // ─── Second factor ──────────────────────────────────────────────────
-  // A non-empty ticket means the password step succeeded. It is held here and nowhere else: never
-  // in localStorage, never in the URL. A page refresh loses it and the customer signs in again —
-  // the correct outcome for a half-finished authentication, not something to work around.
+  // A non-empty ticket means the first factor succeeded — a password, or Shopify. It is held here
+  // and nowhere else: never in localStorage, never in the URL. A page refresh loses it and the
+  // customer signs in again — the correct outcome for a half-finished authentication.
   //
   // THREE STEPS, because no code is sent until the customer confirms where it should go:
   //   'password' → 'confirm-email' → 'code'
@@ -59,12 +106,99 @@ export default function Login() {
     return () => window.clearTimeout(timer);
   }, [cooldown]);
 
+  // ─── Arriving from Shopify ──────────────────────────────────────────
+  // Reads the URL the page was OPENED with, once. What arrived is stripped from the address bar
+  // straight away with replaceState rather than a router navigation, so a grant never lingers in
+  // history and the page does not re-render into a state that has lost it.
+  useEffect(() => {
+    if (arrivalHandled.current) return;
+    arrivalHandled.current = true;
+
+    const grant = readShopifyGrant(location.hash);
+    const launch = readShopifyLaunch(location.search);
+    const params = new URLSearchParams(location.search);
+    const outcome = params.get('shopify');
+
+    if (grant || launch || outcome) {
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+    }
+
+    if (grant) {
+      void finishShopifySignIn(grant);
+      return;
+    }
+
+    if (launch) {
+      startShopifyLaunch(launch).catch((error: unknown) => {
+        setArrival('none');
+        setFormError(describeShopifyError(error));
+      });
+      return;
+    }
+
+    if (outcome === 'cancelled') setFormError(describeShopifySignInFailure('access_denied'));
+    else if (outcome === 'failed') setFormError(describeShopifySignInFailure(params.get('reason')));
+    // Deliberately no dependencies: this reads the URL the page was opened with, once.
+  }, []);
+
+  async function finishShopifySignIn(grant: string) {
+    setArrival('completing');
+    try {
+      const result = await completeShopifySignIn(grant);
+
+      // Shopify proved the store; the account's own second factor is still owed. Nothing was typed
+      // on this page, so the address field starts empty — the customer confirms their own address.
+      if (result.status === 'two-factor') {
+        setTicket(result.ticket);
+        setTwoFactorEmail('');
+        setStep('confirm-email');
+        setArrival('none');
+        return;
+      }
+
+      navigate('/', { replace: true });
+    } catch (error) {
+      setArrival('none');
+      setFormError(describeShopifyError(error));
+    }
+  }
+
+  async function handleShopifySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    setFormError('');
+
+    const shop = normalizeShopDomain(shopInput);
+    if (!shop) {
+      setShopError('Enter your store’s .myshopify.com address.');
+      return;
+    }
+    setShopError('');
+
+    setPending(true);
+    try {
+      await startShopifySignIn(shop);
+      // The browser is on its way to Shopify. The button stays pending until the page unloads, so
+      // a second click cannot start a second sign-in over the first one's nonce.
+    } catch (error) {
+      setFormError(describeShopifyError(error));
+      setPending(false);
+    }
+  }
+
+  function switchMethod(next: 'shopify' | 'email') {
+    setMethod(next);
+    setFormError('');
+    setFieldErrors({});
+    setShopError('');
+  }
+
   /**
    * Step 2a: confirm the address, and the server sends the code.
    *
-   * The field is prefilled with what was typed at the password step, so for almost everyone this is
-   * one click. It is still a real check — the server compares it against the account's registered
-   * address and mails that row, never this value.
+   * After a password sign-in the field is prefilled with what was typed at the password step, so
+   * for almost everyone this is one click. It is still a real check — the server compares it
+   * against the account's registered address and mails that row, never this value.
    */
   async function submitEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,10 +213,10 @@ export default function Login() {
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (error) {
       // 400 is the address not matching the account — specific, actionable, and safe to show to a
-      // caller who has already passed the password step. 401 means the ticket died; send them back
+      // caller who has already passed the first factor. 401 means the ticket died; send them back
       // rather than leaving them on a step that can no longer succeed.
       if (error instanceof ApiError && error.status === 401) {
-        resetToPassword('Your sign-in timed out. Please enter your password again.');
+        resetToPassword('Your sign-in timed out. Please sign in again.');
         return;
       }
       setFormError(
@@ -95,7 +229,7 @@ export default function Login() {
     }
   }
 
-  /** Drops every trace of the half-finished sign-in and returns to the password form. */
+  /** Drops every trace of the half-finished sign-in and returns to the sign-in form. */
   function resetToPassword(message = '') {
     setStep('password');
     setTicket('');
@@ -207,8 +341,7 @@ export default function Login() {
     } catch (error) {
       // An unverified address is not a failed sign-in — the password was correct, the account
       // simply is not confirmed yet. Send the customer to finish that rather than showing an
-      // error they cannot act on. The backend has already sent (or will resend) the code; nothing
-      // here decides whether they are allowed in, it only routes them to the right screen.
+      // error they cannot act on.
       if (error instanceof ApiError && error.code === 'EMAIL_NOT_VERIFIED') {
         navigate('/verify-email', { replace: true, state: { email: email.trim().toLowerCase() } });
         return;
@@ -228,13 +361,37 @@ export default function Login() {
     }
   }
 
+  // ─── Arriving from Shopify: nothing to fill in ──────────────────────
+  if (arrival !== 'none') {
+    const completing = arrival === 'completing';
+    return (
+      <AuthLayout
+        title={completing ? 'Signing you in' : 'Opening Shopify'}
+        subtitle={
+          completing
+            ? 'Shopify confirmed your store. Finishing your sign-in…'
+            : 'Taking you to Shopify to confirm your store…'
+        }
+      >
+        <div role="status" aria-live="polite" className="flex justify-center py-6">
+          <Loader2
+            size={30}
+            strokeWidth={2.25}
+            className="animate-spin text-[color:var(--auth-accent)] motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+          <span className="sr-only">{completing ? 'Signing you in' : 'Opening Shopify'}</span>
+        </div>
+      </AuthLayout>
+    );
+  }
+
   // ─── Step 2a: where the code should go ──────────────────────────────
-  // Replaces the password form rather than sitting beside it, so there is one thing to do. The
+  // Replaces the sign-in form rather than sitting beside it, so there is one thing to do. The
   // customer is NOT signed in at this point — no tokens exist, and no code has been sent yet.
   //
-  // The field is prefilled from the password step, so for a normal sign-in this is one click. It is
-  // a CONFIRMATION, not a choice: the server checks it against the account's own address and mails
-  // that row. Typing someone else's address here sends nothing anywhere.
+  // It is a CONFIRMATION, not a choice: the server checks it against the account's own address and
+  // mails that row. Typing someone else's address here sends nothing anywhere.
   if (step === 'confirm-email') {
     return (
       <AuthLayout
@@ -258,7 +415,7 @@ export default function Login() {
             type="email"
             name="twoFactorEmail"
             autoComplete="email"
-            placeholder="you@company.com"
+            placeholder="Enter the email on your account"
             icon={Mail}
             value={twoFactorEmail}
             onChange={(event) => setTwoFactorEmail(event.target.value)}
@@ -341,7 +498,7 @@ export default function Login() {
                 type="text"
                 name="recoveryCode"
                 autoComplete="one-time-code"
-                placeholder="ABCD-EFGH-JKMN-PQRS"
+                placeholder="Enter a recovery code"
                 icon={KeyRound}
                 value={recoveryCode}
                 onChange={(event) => setRecoveryCode(event.target.value)}
@@ -406,70 +563,136 @@ export default function Login() {
     );
   }
 
+  // ─── Step 1: sign in ────────────────────────────────────────────────
   return (
     <AuthLayout
       title="Sign in to Scorelo"
-      subtitle="Welcome back. Enter your details to view your store audits."
+      subtitle={
+        method === 'shopify'
+          ? 'Use your Shopify store to sign in. New to Scorelo? The same step creates your account.'
+          : 'Sign in with the email address and password on your Scorelo account.'
+      }
       footer={
         <>
-          Don't have an account?{' '}
-          <Link
-            to="/signup"
-            className="font-semibold text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded"
-          >
-            Create one
-          </Link>
+          Installed Scorelo from the Shopify App Store? Open it from{' '}
+          <span className="font-semibold text-white">Apps</span> in your Shopify admin to sign in without typing
+          anything.
         </>
       }
     >
-      <form onSubmit={handleSubmit} noValidate>
-        {formError && <AuthAlert message={formError} />}
+      {method === 'shopify' ? (
+        <form onSubmit={handleShopifySubmit} noValidate>
+          {formError && <AuthAlert message={formError} />}
 
-        <div className="space-y-4">
           <AuthField
-            label="Email address"
-            type="email"
-            name="email"
-            autoComplete="email"
-            placeholder="you@company.com"
-            icon={Mail}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            error={fieldErrors.email}
+            label="Shopify store address"
+            type="text"
+            name="shop"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            inputMode="url"
+            placeholder="your-store.myshopify.com"
+            icon={Store}
+            value={shopInput}
+            onChange={(event) => {
+              setShopInput(event.target.value);
+              setShopError('');
+            }}
+            error={shopError || undefined}
+            hint="Find it in your Shopify admin under Settings → Domains."
             disabled={pending}
             required
           />
 
-          <AuthField
-            label="Password"
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            icon={Lock}
-            placeholder="Enter your password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            error={fieldErrors.password}
-            disabled={pending}
-            required
-          />
-        </div>
+          <div className="mt-5">
+            <AuthSubmitButton pending={pending} pendingLabel="Opening Shopify…">
+              Continue with Shopify
+            </AuthSubmitButton>
+          </div>
 
-        <div className="mt-3 flex justify-end">
-          <Link
-            to="/forgot-password"
-            className="text-sm font-semibold text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded"
-          >
-            Forgot password?
-          </Link>
-        </div>
+          <p className="mt-3 text-center text-[12px] leading-5 text-surface-500">
+            You approve access on Shopify’s own screen. Scorelo never asks for your Shopify password.
+          </p>
+        </form>
+      ) : (
+        <form onSubmit={handleSubmit} noValidate>
+          {formError && <AuthAlert message={formError} />}
 
-        <div className="mt-4">
-          <AuthSubmitButton pending={pending} pendingLabel="Signing in…">
-            Sign in
-          </AuthSubmitButton>
-        </div>
-      </form>
+          <div className="space-y-4">
+            <AuthField
+              label="Email address"
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="Enter your email address"
+              icon={Mail}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              error={fieldErrors.email}
+              disabled={pending}
+              required
+            />
+
+            <AuthField
+              label="Password"
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              icon={Lock}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              error={fieldErrors.password}
+              disabled={pending}
+              required
+            />
+          </div>
+
+          <div className="mt-3 flex justify-end">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-semibold text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 rounded"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
+          <div className="mt-4">
+            <AuthSubmitButton pending={pending} pendingLabel="Signing in…">
+              Sign in
+            </AuthSubmitButton>
+          </div>
+        </form>
+      )}
+
+      <div
+        className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em]"
+        style={{ color: 'var(--auth-divider-text)' }}
+      >
+        <span aria-hidden="true" className="h-px flex-1" style={{ background: 'var(--auth-divider)' }} />
+        or
+        <span aria-hidden="true" className="h-px flex-1" style={{ background: 'var(--auth-divider)' }} />
+      </div>
+
+      <button
+        type="button"
+        className="auth-sso-btn"
+        onClick={() => switchMethod(method === 'shopify' ? 'email' : 'shopify')}
+        disabled={pending}
+      >
+        {method === 'shopify' ? (
+          <>
+            <Mail size={16} strokeWidth={2} aria-hidden="true" />
+            Sign in with email and password
+          </>
+        ) : (
+          <>
+            <Store size={16} strokeWidth={2} aria-hidden="true" />
+            Sign in with your Shopify store
+          </>
+        )}
+      </button>
     </AuthLayout>
   );
 }

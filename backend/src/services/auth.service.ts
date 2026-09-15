@@ -300,6 +300,32 @@ export async function login(input: LoginInput, metadata: RequestMetadata) {
 }
 
 /**
+ * Finishes a sign-in whose first factor was proven somewhere other than a Scorelo password — today,
+ * by Shopify, which only completes its OAuth screen for someone signed in to that shop's admin.
+ *
+ * SAME OUTCOMES AS login(), deliberately. A customer who switched on Scorelo's second factor asked
+ * for it on every way in, so this stops for it exactly as the password path does, and returns the
+ * same two shapes so the client handles both routes with one branch.
+ *
+ * The email-verification gate is NOT applied. That gate asks "does this person control the address
+ * on the account?" as a stand-in for authentication; here the authentication is Shopify's own, and
+ * the address itself came from Shopify rather than from a form.
+ */
+export async function completeExternalSignIn(userId: number, metadata: RequestMetadata) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new ApiError(401, 'That sign-in could not be completed. Please start again.', 'SIGN_IN_INVALID');
+
+  if (user.twoFactorEnabledAt !== null) {
+    const challenge = await beginTwoFactorChallenge(user);
+    return { twoFactorRequired: true as const, ticket: challenge.ticket };
+  }
+
+  const tokens = await issueTokenPair(user.id, metadata);
+  await recordSecurityEvent({ userId: user.id, type: 'login_success', metadata });
+  return { twoFactorRequired: false as const, user: toPublicUser(user), ...tokens };
+}
+
+/**
  * Finishes a sign-in that stopped for a second factor.
  *
  * TWO CREDENTIALS, BOTH REQUIRED. The ticket proves the password step happened; the code proves
