@@ -5,7 +5,7 @@ import { checkRegistry } from './index.js';
 import { scoreOverall, scorePillar } from './scoring.js';
 import { resolveStoreDataProvider, StoreDataError, type StoreDataProvider, type StoreSnapshot } from './store-data/index.js';
 import { unavailableResult, type AuditCheck, type PillarKey, type SubPillarResult } from './types.js';
-import { createNotification, notifyScoreMovement } from '../services/notification.service.js';
+import { createNotification, notifyAuditOutcome, notifyScoreMovement } from '../services/notification.service.js';
 
 /** Seams for integration tests to drive the worker without a live Shopify shop.
  * Production always uses the defaults. */
@@ -220,33 +220,29 @@ export async function runAuditJob(jobId: number, deps: RunnerDeps = {}): Promise
     // An audit runs in the background and can take minutes; the merchant has usually navigated
     // away by the time it lands. Counts are taken from what was just persisted, so the message
     // states a real result rather than "an audit finished".
+    //
+    // notifyAuditOutcome keeps ONE live notice per kind: re-running an audit on an unchanged store
+    // updates the unread notices already in the bell instead of stacking identical ones, and
+    // critical issues are announced only when they are new since the previous audit.
     const allFindings = outcomes.flatMap((outcome) => outcome.subPillarResults.flatMap((result) => result.findings));
-    const criticalCount = allFindings.filter((finding) => finding.severity === 'critical').length;
+    const critical = outcomes.flatMap((outcome) =>
+      outcome.subPillarResults.flatMap((result) =>
+        result.findings
+          .filter((finding) => finding.severity === 'critical')
+          .map((finding) => ({ pillar: outcome.pillar, subPillar: result.subPillar, title: finding.title })),
+      ),
+    );
 
-    await createNotification({
-      storeId: job.storeId,
-      type: 'analysis_complete',
-      title: 'Store analysis finished',
-      message: `Scorelo checked ${outcomes.length} ${outcomes.length === 1 ? 'pillar' : 'pillars'} and recorded ${allFindings.length} ${allFindings.length === 1 ? 'finding' : 'findings'}.`,
-      tone: 'success',
+    await notifyAuditOutcome(job.storeId, {
+      auditId,
+      pillarCount: outcomes.length,
+      findingCount: allFindings.length,
+      critical,
     });
 
     // Compares this audit against the previous one and reports the largest pillar move. Gated by
-    // `notifyScoreChanges`, which until now was a Settings toggle that nothing read.
+    // `notifyScoreChanges`. Silent when no pillar moved, so an unchanged store adds nothing here.
     await notifyScoreMovement(job.storeId, auditId);
-
-    // Raised separately from the completion notice, and gated by its own preference: a merchant
-    // who wants to hear only about critical problems can turn the routine one off and still be
-    // told when something is actually wrong.
-    if (criticalCount > 0) {
-      await createNotification({
-        storeId: job.storeId,
-        type: 'critical_issue',
-        title: `${criticalCount} critical ${criticalCount === 1 ? 'issue' : 'issues'} found`,
-        message: 'The latest audit found issues marked critical. Open Fix Center to review them.',
-        tone: 'critical',
-      });
-    }
   } catch (error) {
     const message =
       error instanceof StoreDataError

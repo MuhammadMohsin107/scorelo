@@ -1,7 +1,7 @@
-import { and, count, desc, eq, gt, isNull, lt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, isNull, lt } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { insertReturning, updateReturning } from '../db/returning.js';
-import { auditScores, audits, notifications, stores, users } from '../db/schema.js';
+import { auditScores, audits, findings, notifications, stores, users } from '../db/schema.js';
 import { ApiError } from '../middleware/error.js';
 import { pillarLabel } from '../lib/report-labels.js';
 import { getCurrentStoreId } from './store.service.js';
@@ -67,26 +67,33 @@ export interface CreateNotificationInput {
  * being recorded is not the caller's actual job: a notification that could not be written must not
  * fail an uninstall webhook or roll back a completed audit. Failures are logged and swallowed.
  */
+/**
+ * Whether the store's owner has this notification type switched on.
+ *
+ * False when the store has no owner. Not an error — a store row can outlive its user during a
+ * deletion cascade, and the webhook that triggered the notification still has to return 200.
+ */
+async function ownerWants(storeId: number, type: NotificationType): Promise<boolean> {
+  const [owner] = await db
+    .select({
+      notifyAnalysisComplete: users.notifyAnalysisComplete,
+      notifyCriticalIssues: users.notifyCriticalIssues,
+      notifyScoreChanges: users.notifyScoreChanges,
+      notifyWeeklySummary: users.notifyWeeklySummary,
+      notifyIntegrationAlerts: users.notifyIntegrationAlerts,
+      notifyProductUpdates: users.notifyProductUpdates,
+    })
+    .from(stores)
+    .innerJoin(users, eq(stores.ownerId, users.id))
+    .where(eq(stores.id, storeId))
+    .limit(1);
+
+  return Boolean(owner && owner[PREFERENCE_BY_TYPE[type]]);
+}
+
 export async function createNotification(input: CreateNotificationInput): Promise<typeof notifications.$inferSelect | null> {
   try {
-    const [owner] = await db
-      .select({
-        notifyAnalysisComplete: users.notifyAnalysisComplete,
-        notifyCriticalIssues: users.notifyCriticalIssues,
-        notifyScoreChanges: users.notifyScoreChanges,
-        notifyWeeklySummary: users.notifyWeeklySummary,
-        notifyIntegrationAlerts: users.notifyIntegrationAlerts,
-        notifyProductUpdates: users.notifyProductUpdates,
-      })
-      .from(stores)
-      .innerJoin(users, eq(stores.ownerId, users.id))
-      .where(eq(stores.id, input.storeId))
-      .limit(1);
-
-    // No owner means no one to notify. Not an error — a store row can outlive its user during a
-    // deletion cascade, and the webhook that triggered this still has to return 200.
-    if (!owner) return null;
-    if (!owner[PREFERENCE_BY_TYPE[input.type]]) return null;
+    if (!(await ownerWants(input.storeId, input.type))) return null;
 
     if (input.dedupeMinutes && input.dedupeMinutes > 0) {
       const since = new Date(Date.now() - input.dedupeMinutes * 60_000);
@@ -180,6 +187,205 @@ export async function notifyScoreMovement(storeId: number, auditId: number): Pro
     });
   } catch (error) {
     console.warn(`[scorelo-api] score-change notification not evaluated: ${error instanceof Error ? error.message : 'unknown error'}`);
+  }
+}
+
+// ─── What an audit tells the bell ────────────────────────────────────
+//
+// THE BUG THIS REPLACES. Every finished audit inserted "Store analysis finished", plus "N critical
+// issues found" whenever any critical finding existed — unconditionally. Nothing asked whether an
+// unread notice saying the same thing was already in the bell, or whether those critical issues
+// were the very ones already reported. So every press of Refresh, every "Run an audit" and every
+// scheduled run stacked another identical unread pair, and a merchant re-analysing a store they
+// had not changed was told the same two things again each time.
+//
+// THE RULE NOW: one live (unread) notice per kind.
+//   • Analysis finished — a newer completion updates the unread notice already there, rather than
+//     adding a second one beside it. Once read, the next completion is genuinely new and is added.
+//   • Critical issues — announced when an audit finds critical issues the previous audit did not
+//     have. Issues that were already reported are not re-announced; an unread notice about them is
+//     kept current instead. When an audit finds no critical issues at all, any unread notice
+//     claiming otherwise is marked read — it is no longer true.
+//
+// Superseded notices are MARKED READ, never deleted: they stay in the history on /notifications.
+
+/** A critical finding, reduced to what identifies it from one audit to the next. */
+export interface CriticalFindingRef {
+  pillar: string;
+  subPillar: string;
+  title: string;
+}
+
+/**
+ * Identifies the same critical finding across audits: same pillar, same sub-pillar, same title.
+ *
+ * Finding titles are templates that name the problem rather than a count ("Products with no
+ * description"), so the title stays stable while the number of affected items changes — which is
+ * exactly the case that must not be re-announced as a new issue.
+ */
+export function criticalFindingKey(finding: CriticalFindingRef): string {
+  return `${finding.pillar}|${finding.subPillar}|${finding.title.trim().toLowerCase()}`;
+}
+
+/** Critical findings in `current` that were not critical in `previous`, each counted once. */
+export function newCriticalFindings(current: CriticalFindingRef[], previous: CriticalFindingRef[]): CriticalFindingRef[] {
+  const before = new Set(previous.map(criticalFindingKey));
+  const seen = new Set<string>();
+  return current.filter((finding) => {
+    const key = criticalFindingKey(finding);
+    if (before.has(key) || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export type CriticalNoticeAction = 'none' | 'resolve' | 'refresh' | 'create';
+
+/**
+ * What an audit does to the critical-issue notice. Pure, so the whole rule is tested directly.
+ *
+ *   resolve  no critical issues now, and an unread notice still says there are
+ *   refresh  critical issues now, and an unread notice exists — keep that one current
+ *   create   critical issues the merchant has not been told about, and nothing unread to update
+ *   none     nothing new to say, or nothing to correct
+ */
+export function planCriticalNotice(input: { currentCount: number; newCount: number; hasUnreadNotice: boolean }): CriticalNoticeAction {
+  if (input.currentCount === 0) return input.hasUnreadNotice ? 'resolve' : 'none';
+  if (input.hasUnreadNotice) return 'refresh';
+  return input.newCount > 0 ? 'create' : 'none';
+}
+
+/** The wording for a critical-issue notice, from the real counts. */
+export function criticalNoticeCopy(currentCount: number, newCount: number): { title: string; message: string } {
+  const issues = (n: number) => `${n} critical ${n === 1 ? 'issue' : 'issues'}`;
+
+  if (newCount === 0) {
+    return {
+      title: `${issues(currentCount)} still open`,
+      message: 'The latest audit still finds these critical issues. Open Fix Center to review them.',
+    };
+  }
+  if (newCount >= currentCount) {
+    return {
+      title: `${issues(currentCount)} found`,
+      message: 'The latest audit found issues marked critical. Open Fix Center to review them.',
+    };
+  }
+  return {
+    title: `${newCount} new critical ${newCount === 1 ? 'issue' : 'issues'} found`,
+    message: `The latest audit found ${issues(newCount)} that ${newCount === 1 ? 'was' : 'were'} not in the previous audit — ${currentCount} critical in total. Open Fix Center to review them.`,
+  };
+}
+
+export interface AuditOutcomeSummary {
+  auditId: number;
+  pillarCount: number;
+  findingCount: number;
+  critical: CriticalFindingRef[];
+}
+
+/** Unread notices of one type for a store, newest first. */
+async function unreadOfType(storeId: number, type: NotificationType) {
+  return db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(and(eq(notifications.storeId, storeId), eq(notifications.type, type), eq(notifications.isRead, false)))
+    .orderBy(desc(notifications.createdAt), desc(notifications.id));
+}
+
+async function markIdsRead(ids: number[]): Promise<void> {
+  if (ids.length > 0) await db.update(notifications).set({ isRead: true }).where(inArray(notifications.id, ids));
+}
+
+/** The critical findings of the store's previous real audit. A seeded fixture is not a previous
+ * analysis of this store, so only engine audits count. */
+async function previousAuditCriticalFindings(storeId: number, auditId: number): Promise<CriticalFindingRef[]> {
+  const [previous] = await db
+    .select({ id: audits.id })
+    .from(audits)
+    .where(and(eq(audits.storeId, storeId), eq(audits.source, 'engine'), lt(audits.id, auditId)))
+    .orderBy(desc(audits.id))
+    .limit(1);
+  if (!previous) return [];
+
+  return db
+    .select({ pillar: findings.pillar, subPillar: findings.subPillar, title: findings.title })
+    .from(findings)
+    .where(and(eq(findings.auditId, previous.id), eq(findings.severity, 'critical')));
+}
+
+async function recordAnalysisComplete(storeId: number, outcome: AuditOutcomeSummary): Promise<void> {
+  if (!(await ownerWants(storeId, 'analysis_complete'))) return;
+
+  const title = 'Store analysis finished';
+  const message = `Scorelo checked ${outcome.pillarCount} ${outcome.pillarCount === 1 ? 'pillar' : 'pillars'} and recorded ${outcome.findingCount} ${outcome.findingCount === 1 ? 'finding' : 'findings'}.`;
+
+  const [latest, ...older] = await unreadOfType(storeId, 'analysis_complete');
+  if (!latest) {
+    await insertReturning(notifications, { storeId, type: 'analysis_complete', title, message, tone: 'success' });
+    return;
+  }
+
+  // The unread notice now describes this run — moved to the top, because this run is what just
+  // finished. Any older unread duplicates, left by the previous behaviour, are folded into it.
+  await db
+    .update(notifications)
+    .set({ title, message, tone: 'success', createdAt: new Date() })
+    .where(eq(notifications.id, latest.id));
+  await markIdsRead(older.map((row) => row.id));
+}
+
+async function recordCriticalIssues(storeId: number, outcome: AuditOutcomeSummary): Promise<void> {
+  const currentCount = new Set(outcome.critical.map(criticalFindingKey)).size;
+  const fresh = newCriticalFindings(outcome.critical, await previousAuditCriticalFindings(storeId, outcome.auditId));
+  const unread = await unreadOfType(storeId, 'critical_issue');
+  const action = planCriticalNotice({ currentCount, newCount: fresh.length, hasUnreadNotice: unread.length > 0 });
+
+  if (action === 'none') return;
+
+  // Applied whatever the preference: a notice claiming critical issues that no longer exist is
+  // wrong, and correcting it is not sending anything new.
+  if (action === 'resolve') {
+    await markIdsRead(unread.map((row) => row.id));
+    return;
+  }
+
+  if (!(await ownerWants(storeId, 'critical_issue'))) return;
+
+  const { title, message } = criticalNoticeCopy(currentCount, fresh.length);
+
+  if (action === 'create') {
+    await insertReturning(notifications, { storeId, type: 'critical_issue', title, message, tone: 'critical' });
+    return;
+  }
+
+  // refresh: the unread notice is brought up to date. It moves to the top only when there is
+  // something genuinely new in it — the same open issues are not news.
+  const [latest, ...older] = unread;
+  await db
+    .update(notifications)
+    .set({ title, message, tone: 'critical', ...(fresh.length > 0 ? { createdAt: new Date() } : {}) })
+    .where(eq(notifications.id, latest.id));
+  await markIdsRead(older.map((row) => row.id));
+}
+
+/**
+ * Records what a completed audit means for the bell. See the section header for the rules.
+ *
+ * Never throws — it runs at the end of a completed audit and must not fail one. The two notices are
+ * independent, so a failure in one does not stop the other.
+ */
+export async function notifyAuditOutcome(storeId: number, outcome: AuditOutcomeSummary): Promise<void> {
+  try {
+    await recordAnalysisComplete(storeId, outcome);
+  } catch (error) {
+    console.warn(`[scorelo-api] analysis-complete notification not recorded: ${error instanceof Error ? error.message : 'unknown error'}`);
+  }
+
+  try {
+    await recordCriticalIssues(storeId, outcome);
+  } catch (error) {
+    console.warn(`[scorelo-api] critical-issue notification not recorded: ${error instanceof Error ? error.message : 'unknown error'}`);
   }
 }
 
