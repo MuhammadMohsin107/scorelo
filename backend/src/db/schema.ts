@@ -870,3 +870,112 @@ export const aiFixProposals = mysqlTable(
     ),
   ],
 );
+
+// ─── onboarding_state ────────────────────────────────────────────────
+// The merchant's answers to the five-step guided setup, one row per store.
+//
+// WHY A TABLE AND NOT localStorage: the setup is explicitly resumable and skippable. A merchant
+// who closes the tab on step 3 must come back to step 3 — on any device — and a browser-local
+// draft cannot promise that. It also means the audit engine can read the answers, which is the
+// entire point of asking.
+//
+// EVERY ANSWER COLUMN IS NULLABLE. Null means "not answered", which is materially different from
+// an empty string ("answered, deliberately blank"). A skipped step leaves nulls behind and the
+// step number in `skipped_steps`; nothing is back-filled with a guess, and the UI renders what is
+// actually missing rather than a default dressed up as the merchant's choice.
+//
+// WHAT IS *NOT* HERE: the store's name, country, timezone, currency, plan, domain and catalogue
+// counts. Shopify already knows all of those and they are read live from the Admin API (see
+// onboarding.service.ts → detectShopContext). Copying them in would create a second, staler
+// source of truth for facts we do not own.
+export const onboardingState = mysqlTable(
+  'onboarding_state',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    storeId: int('store_id')
+      .notNull()
+      .unique()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+
+    /** 1–5. Where "Resume setup" lands. Advances only on a completed step, never on a skip. */
+    currentStep: int('current_step').notNull().default(1),
+
+    // ── Step 1 · Confirm your business ──────────────────────────────
+    /** Pre-filled from shop.name, but stored separately: a merchant may trade under a name that
+     * differs from the Shopify store name, and correcting it here must not imply a rename there. */
+    organizationName: varchar('organization_name', { length: 255 }),
+    /** The brand string as it should appear in generated title tags — often shorter than the
+     * organisation name ("Northline" for "Northline Outdoor Supply Co."). */
+    brandName: varchar('brand_name', { length: 255 }),
+    /** The canonical storefront origin the merchant confirmed. Usually Shopify's primary domain;
+     * stored because a store can serve its canonical content from a domain Shopify does not rank
+     * first, and the audit must crawl the one the merchant actually publishes. */
+    primaryDomain: varchar('primary_domain', { length: 512 }),
+
+    // ── Step 2 · What you sell ──────────────────────────────────────
+    industry: varchar('industry', { length: 128 }),
+    /** One line of free text. The most useful single input for generated copy, and the reason the
+     * step exists at all — a product taxonomy cannot express "hand-thrown stoneware for cafés". */
+    sellsDescription: text('sells_description'),
+    businessModel: varchar('business_model', { length: 64 }),
+    catalogShape: varchar('catalog_shape', { length: 64 }),
+
+    // ── Step 3 · Markets and languages ──────────────────────────────
+    /**
+     * string[] of country NAMES, not ISO codes — matching `stores.country`, which already holds a
+     * name, and matching what Shopify's `billingAddress.country` returns. One vocabulary for
+     * countries across the schema beats two that need translating at every boundary.
+     *
+     * json, not a join table: a short list read as a whole and never queried by element.
+     */
+    targetCountries: json('target_countries'),
+    /** string[] of Shopify locale codes ("en", "fr-CA"). */
+    targetLanguages: json('target_languages'),
+    /** The country to optimise for when the others conflict — hreflang and canonical strategy
+     * need a winner, not a set. */
+    primaryMarket: varchar('primary_market', { length: 128 }),
+
+    // ── Step 4 · Keywords and competitors ───────────────────────────
+    /** string[]. Seeded from the merchant's own catalogue, then edited. */
+    targetKeywords: json('target_keywords'),
+    brandedTerms: json('branded_terms'),
+    competitorDomains: json('competitor_domains'),
+
+    // ── Step 5 · Goals and permission to act ────────────────────────
+    primaryGoal: varchar('primary_goal', { length: 64 }),
+    /** PillarKey[] in the merchant's own priority order. Order is the data — an unordered set
+     * would not tell the dashboard what to lead with. */
+    priorityPillars: json('priority_pillars'),
+    /**
+     * THE WRITE GATE. 'none' | 'ask' | 'low_risk'.
+     *
+     * Null is not "no preference" — it is "never asked", and both null and 'ask' must behave as
+     * ask-first. Nothing may treat an absent answer as consent to write to a merchant's store.
+     */
+    automationConsent: varchar('automation_consent', { length: 32 }),
+    /** Mapped onto the existing per-user notification toggles when setup completes, so choosing
+     * it here actually changes what gets sent rather than recording a preference nothing reads. */
+    alertFrequency: varchar('alert_frequency', { length: 32 }),
+
+    // ── Lifecycle ───────────────────────────────────────────────────
+    /** int[] of step numbers the merchant explicitly skipped. Kept after a later completion so
+     * "they came back and finished step 4" is distinguishable from "they never skipped it". */
+    skippedSteps: json('skipped_steps'),
+    startedAt: datetime('started_at', { mode: 'date' }).notNull().default(now),
+    updatedAt: datetime('updated_at', { mode: 'date' }).notNull().default(now),
+    /**
+     * When the merchant chose "Finish later". This is what stops the app redirecting them into
+     * setup on every navigation — the difference between a guided flow and a nag. Cleared when
+     * they re-enter setup, so deferring twice is a deliberate act both times.
+     */
+    deferredAt: datetime('deferred_at', { mode: 'date' }),
+    completedAt: datetime('completed_at', { mode: 'date' }),
+  },
+  (table) => [
+    check('onboarding_state_step_range', sql`${table.currentStep} BETWEEN 1 AND 5`),
+    check(
+      'onboarding_state_consent_valid',
+      sql`${table.automationConsent} IS NULL OR ${table.automationConsent} IN ('none', 'ask', 'low_risk')`,
+    ),
+  ],
+);

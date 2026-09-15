@@ -11,6 +11,7 @@ import ScoreOverview from '../components/dashboard/ScoreOverview';
 import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
 import DashboardError from '../components/dashboard/DashboardError';
 import DashboardEmpty from '../components/dashboard/DashboardEmpty';
+import SetupResumeCard from '../components/onboarding/SetupResumeCard';
 import { ApiError } from '../lib/api';
 import { useAuditRun } from '../data/useAuditRun';
 
@@ -55,7 +56,16 @@ export default function Dashboard() {
   }
 
   if (state === 'empty') {
-    return <DashboardEmpty onAuditComplete={() => loadData()} />;
+    // A store with no audit yet is the likeliest place to find unfinished setup, so the resume
+    // card sits above the empty state rather than only on a populated dashboard.
+    return (
+      <>
+        <div className="page-shell pb-0">
+          <SetupResumeCard />
+        </div>
+        <DashboardEmpty onAuditComplete={() => loadData()} />
+      </>
+    );
   }
 
   if (state === 'error' || !data) {
@@ -64,6 +74,8 @@ export default function Dashboard() {
 
   return (
     <div className="page-shell section-stack">
+      {/* Renders nothing once guided setup is finished — see SetupResumeCard. */}
+      <SetupResumeCard />
       {/* Page header. The "Store performance" eyebrow is gone: the sidebar wordmark already says
           it, and it cost a whole line above the only title on the page. */}
       <div className="page-head motion-safe:animate-fade-in">

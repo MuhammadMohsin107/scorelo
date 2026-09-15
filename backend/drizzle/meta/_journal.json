@@ -92,6 +92,13 @@
       "when": 1789134981218,
       "tag": "0012_clear_starbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1789454914474,
+      "tag": "0013_jittery_glorian",
+      "breakpoints": true
     }
   ]
 }

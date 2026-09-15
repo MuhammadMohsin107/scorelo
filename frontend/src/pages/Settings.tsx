@@ -35,6 +35,7 @@ import { ApiError } from '../lib/api';
 import { Button, ModuleHeader, StatusBadge } from '../components/workflows/WorkflowPrimitives';
 import ProfileSection from '../components/settings/ProfileSection';
 import SecuritySection from '../components/settings/SecuritySection';
+import GuidedSetupCard from '../components/onboarding/GuidedSetupCard';
 import { useTheme, type ThemePreference } from '../context/ThemeContext';
 import {
   ConfirmDialog,
@@ -368,15 +369,14 @@ export default function Settings() {
 
         {/* ── Active section ────────────────────────────────────── */}
         <div className="min-w-0">
-          <header className="mb-2 flex flex-wrap items-start justify-between gap-2 border-b border-surface-200 pb-2">
-            <div className="min-w-0">
-              <h2 className="section-title">{activeMeta.title}</h2>
-              <p className="section-subtitle max-w-2xl">{activeMeta.description}</p>
-            </div>
-            <span className="meta-chip flex-shrink-0 font-semibold">
-              <activeMeta.icon size={12} aria-hidden="true" className="text-surface-400" />
-              {activeMeta.group}
-            </span>
+          {/* A `meta-chip` repeating the section's group ("Account", "Workspace", "Platform") used
+              to sit at the right of this row. It is gone: the group is already a heading in the
+              nav beside it, with the active section highlighted underneath — so the chip restated
+              what was on screen, and its chip styling read as a control while being an inert
+              <span>. Every click on it did nothing, which is the only thing it reliably taught. */}
+          <header className="mb-2 min-w-0 border-b border-surface-200 pb-2">
+            <h2 className="section-title">{activeMeta.title}</h2>
+            <p className="section-subtitle max-w-2xl">{activeMeta.description}</p>
           </header>
 
           {saveError && (
@@ -412,6 +412,11 @@ export default function Settings() {
 
             {active === 'workspace' && (
               <>
+                {/* The way back into guided setup. Without an entry point here, the answers given
+                    during onboarding — including whether Scorelo may write to the store — would be
+                    fixed at whatever was chosen on the first run. */}
+                <GuidedSetupCard />
+
                 <SettingsCard title="Workspace" description="The organisation this Scorelo workspace belongs to.">
                   <Field label="Workspace name" htmlFor="workspaceName" error={errors.workspaceName} hint="Shown in reports and shared exports.">
                     <TextInput

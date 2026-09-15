@@ -353,6 +353,154 @@ export async function fetchCatalogTotals(client: ShopifyClient): Promise<Catalog
   }
 }
 
+// ─── Onboarding signals ──────────────────────────────────────────────
+//
+// Read once, when a merchant opens guided setup, to pre-fill answers from what the store already
+// contains. Everything here is DERIVED FROM THE MERCHANT'S OWN CATALOGUE — there is no fallback
+// list of example industries or specimen keywords. When a store has no collections and no product
+// types, these functions return empty arrays and the UI says nothing could be detected, because
+// that is the truth.
+//
+// Deliberately cheap. The full snapshot reads every product with media and metafields; this reads
+// names only, from one page each, because a pre-fill that costs a merchant a 90-second wait has
+// already failed at its job.
+
+/** One page of collections and products, names and classification fields only. */
+export const ONBOARDING_CATALOG_SIGNALS_QUERY = `
+  query ScoreloOnboardingCatalogSignals($products: Int!, $collections: Int!) {
+    productsCount { count precision }
+    collections(first: $collections) {
+      nodes { title handle productsCount { count } }
+    }
+    products(first: $products) {
+      nodes { productType vendor tags }
+    }
+  }
+`;
+
+/**
+ * Published storefront locales.
+ *
+ * Its own query, and its own try/catch at the call site, because `shopLocales` is not covered by
+ * the scopes Scorelo requests today. A store that denies it must still get the other four steps —
+ * so a failure here degrades to "languages could not be detected" rather than failing setup.
+ */
+export const ONBOARDING_LOCALES_QUERY = `
+  query ScoreloOnboardingLocales {
+    shopLocales { locale name primary published }
+  }
+`;
+
+export interface ShopLocale {
+  locale: string;
+  name: string | null;
+  primary: boolean;
+  published: boolean;
+}
+
+export interface CatalogSignals {
+  /** Total products in the shop, and whether Shopify counted exactly. */
+  productTotal: { count: number; exact: boolean } | null;
+  /** Collection titles with their product counts, largest first. The strongest keyword signal a
+   * Shopify store carries: a merchant names collections after what people search for. */
+  collections: Array<{ title: string; productCount: number | null }>;
+  /** Distinct `productType` values with the number of sampled products carrying each. */
+  productTypes: Array<{ value: string; count: number }>;
+  /** Distinct vendors, same shape. Used to recognise a store that resells known brands. */
+  vendors: Array<{ value: string; count: number }>;
+  /** Distinct tags, same shape. */
+  tags: Array<{ value: string; count: number }>;
+  /** How many products the sample actually covered — never presented as the whole catalogue. */
+  sampledProducts: number;
+}
+
+interface CatalogSignalsResponse {
+  productsCount?: CountNode | null;
+  collections?: { nodes?: Array<{ title?: string | null; productsCount?: { count?: number | null } | null }> } | null;
+  products?: { nodes?: Array<{ productType?: string | null; vendor?: string | null; tags?: string[] | null }> } | null;
+}
+
+/** Products sampled for type/vendor/tag frequency. One page — enough to rank what a store sells
+ * without paging a 10,000-product catalogue to answer a pre-fill. */
+const ONBOARDING_PRODUCT_SAMPLE = 250;
+/** Collections read. Shopify stores rarely exceed this, and the largest are what matter. */
+const ONBOARDING_COLLECTION_SAMPLE = 100;
+
+/** Counts distinct non-empty values, most frequent first. Ties break alphabetically so the same
+ * catalogue always produces the same order — a pre-fill that reshuffles between loads looks broken. */
+function tally(values: Array<string | null | undefined>): Array<{ value: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const raw of values) {
+    const value = raw?.trim();
+    if (!value) continue;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
+
+/**
+ * Reads the classification and naming signals the setup flow pre-fills from.
+ *
+ * Throws on failure rather than returning empty: "we could not read your store" and "your store
+ * has no collections" lead to different screens, and collapsing them would show a merchant with a
+ * full catalogue an empty one.
+ */
+export async function fetchCatalogSignals(client: ShopifyClient): Promise<CatalogSignals> {
+  const data = await client.graphql<CatalogSignalsResponse>(ONBOARDING_CATALOG_SIGNALS_QUERY, {
+    products: ONBOARDING_PRODUCT_SAMPLE,
+    collections: ONBOARDING_COLLECTION_SAMPLE,
+  });
+
+  const productNodes = data.products?.nodes ?? [];
+
+  const collections = (data.collections?.nodes ?? [])
+    .map((node) => ({
+      title: node.title?.trim() ?? '',
+      productCount: typeof node.productsCount?.count === 'number' ? node.productsCount.count : null,
+    }))
+    .filter((collection) => collection.title.length > 0)
+    // Largest first: a 200-product collection names the business better than a 2-product one.
+    // Collections whose count Shopify withheld sort last rather than being treated as empty.
+    .sort((a, b) => (b.productCount ?? -1) - (a.productCount ?? -1));
+
+  return {
+    productTotal: toTotal(data.productsCount),
+    collections,
+    productTypes: tally(productNodes.map((node) => node.productType)),
+    vendors: tally(productNodes.map((node) => node.vendor)),
+    tags: tally(productNodes.flatMap((node) => node.tags ?? [])),
+    sampledProducts: productNodes.length,
+  };
+}
+
+/**
+ * Reads published storefront locales, or null when the shop will not disclose them.
+ *
+ * Null means unknown, and step 3 renders it as unknown. It never degrades to "English" — assuming
+ * a language is how an international store ends up audited against the wrong market.
+ */
+export async function fetchShopLocales(client: ShopifyClient): Promise<ShopLocale[] | null> {
+  try {
+    const data = await client.graphql<{ shopLocales?: Array<{ locale?: string | null; name?: string | null; primary?: boolean | null; published?: boolean | null }> }>(
+      ONBOARDING_LOCALES_QUERY,
+    );
+    const locales = (data.shopLocales ?? [])
+      .filter((node): node is { locale: string; name?: string | null; primary?: boolean | null; published?: boolean | null } => Boolean(node.locale))
+      .map((node) => ({
+        locale: node.locale,
+        name: node.name?.trim() || null,
+        primary: Boolean(node.primary),
+        published: Boolean(node.published),
+      }));
+    return locales.length > 0 ? locales : null;
+  } catch {
+    // Missing scope, or a shop that does not expose locales. Unknown, not empty.
+    return null;
+  }
+}
+
 // ─── Theme (Speed pillar) ────────────────────────────────────────────
 
 const THEME_MAIN_QUERY = `

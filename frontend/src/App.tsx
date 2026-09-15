@@ -26,6 +26,8 @@ import ResetPassword from './pages/auth/ResetPassword';
 import VerifyEmail from './pages/auth/VerifyEmail';
 import Signup from './pages/auth/Signup';
 import RequireAuth from './components/auth/RequireAuth';
+import Onboarding from './pages/onboarding/Onboarding';
+import OnboardingGate from './components/onboarding/OnboardingGate';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -54,6 +56,10 @@ export default function App() {
               customer holds no session, and once it is not, someone who signed up and stayed
               logged in must still be able to finish verifying. */}
           <Route path="/verify-email" element={<VerifyEmail />} />
+          {/* Guided setup renders outside AppShell: a merchant answering these five questions has
+              no populated dashboard to navigate to yet, and a sidebar of empty pillars competes
+              with the only task on screen. Still behind RequireAuth — it reads their store. */}
+          <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
           <Route path="*" element={<AuthenticatedApp />} />
           </Routes>
         </AuthProvider>
@@ -66,6 +72,9 @@ export default function App() {
 function AuthenticatedApp() {
   return (
     <RequireAuth>
+      {/* Sends a merchant with a connected, un-started setup to /onboarding once per app mount.
+          Fails open — see OnboardingGate. */}
+      <OnboardingGate>
       {/* ─── Reload stays on the page you were on ──────────────────────
           A refresh re-renders the route in the address bar and nothing redirects it.
 
@@ -114,6 +123,7 @@ function AuthenticatedApp() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
+      </OnboardingGate>
     </RequireAuth>
   );
 }
